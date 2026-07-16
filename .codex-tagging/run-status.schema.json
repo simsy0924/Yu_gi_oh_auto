@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "run-status.schema.json",
+  "title": "Card tagging batch run status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "batch_id",
+    "processed",
+    "needs_review",
+    "note"
+  ],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "blocked"
+      ]
+    },
+    "batch_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "processed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "needs_review": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "note": {
+      "type": "string"
+    }
+  }
+}
