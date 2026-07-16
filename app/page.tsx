@@ -47,6 +47,10 @@ import {
   signInWithGoogle,
   signOutFromGoogle,
 } from "../src/firebase";
+import {
+  countWorstCaseTriggerOperations,
+  evaluateHandTrapRoute,
+} from "../src/handtrap-engine.js";
 
 type Tab =
   | "handtraps"
@@ -83,6 +87,8 @@ type DisruptionType =
   | "DRAW_ON_SUMMON"
   | "PREVENT_ADD_FROM_DECK"
   | "PREVENT_SPECIAL_SUMMON"
+  | "PREVENT_BANISH"
+  | "REPLACE_SEND_GY_WITH_BANISH"
   | "CUSTOM";
 type DisruptionTarget =
   | "RESPONDED_EFFECT"
@@ -100,6 +106,7 @@ type EffectDuration =
   | "CUSTOM";
 type ResolutionLink = "THEN" | "ALSO" | "AND_IF_YOU_DO" | "AND" | "CUSTOM";
 type SelectionTiming = "NONE" | "TARGET_AT_ACTIVATION" | "CHOOSE_AT_RESOLUTION";
+type OperationApplication = "ON_TRIGGER" | "AFTER_TRIGGER" | "EACH_MATCH";
 type MonsterType =
   | "NORMAL"
   | "EFFECT"
@@ -227,6 +234,8 @@ type DisruptionOperation = {
   selection: SelectionTiming;
   details: string;
   amount: number;
+  application: OperationApplication;
+  conditionText: string;
 };
 
 type HandTrap = {
@@ -350,6 +359,7 @@ type ZoneEvent = {
   action: "SUMMON" | "LEAVE";
   timing: "BEFORE" | "AFTER";
   quantity: number;
+  destination?: CardLocation;
 };
 type SummonMaterial = {
   id: string;
@@ -441,6 +451,7 @@ type HandTrapResponsePlan = {
   strategy: HandTrapResponseStrategy;
   maxOpponentDraws: number;
   maxAffectedSteps: number;
+  maxResolvedOperations: number;
   notes: string;
 };
 
@@ -452,6 +463,9 @@ type TestPoint = {
   cardName: string;
   effectLabel: string;
   stopped: boolean;
+  triggered?: boolean;
+  directInterruption?: boolean;
+  resolvedOperations?: number;
   goalReached?: boolean;
   missingGoal?: string[];
   disruptionSummary?: string;
@@ -469,6 +483,10 @@ type HandTrapCheckSummary = {
   triggerCount: number;
   affectedSteps: number;
   opponentDraws: number;
+  endPhaseReturns: number;
+  blockedSteps: number;
+  redirectedSteps: number;
+  resolvedOperations: number;
   blockedCount: number;
   bypassedCount: number;
   reason: string;
@@ -1812,7 +1830,10 @@ function handTrapOperation(
   duration: EffectDuration,
   details: string,
   options: Partial<
-    Pick<DisruptionOperation, "link" | "selection" | "amount">
+    Pick<
+      DisruptionOperation,
+      "link" | "selection" | "amount" | "application" | "conditionText"
+    >
   > = {},
 ): DisruptionOperation {
   return {
@@ -1824,6 +1845,9 @@ function handTrapOperation(
     link: options.link ?? "THEN",
     selection: options.selection ?? "NONE",
     amount: options.amount ?? 1,
+    application: options.application ??
+      (type === "DRAW_ON_SUMMON" ? "EACH_MATCH" : "ON_TRIGGER"),
+    conditionText: options.conditionText ?? "",
   };
 }
 
@@ -1943,6 +1967,7 @@ const BUILT_IN_HAND_TRAPS: HandTrap[] = [
         "CUSTOM",
         "IMMEDIATE",
         "2장 이상 공개했다면 이 카드를 특수 소환한다",
+        { application: "ON_TRIGGER", conditionText: "합계 2장 이상 공개" },
       ),
       handTrapOperation(
         "feedrauris-send",
@@ -1950,6 +1975,7 @@ const BUILT_IN_HAND_TRAPS: HandTrap[] = [
         "CUSTOM",
         "IMMEDIATE",
         "4장 이상 공개했다면 공개한 싱크로 몬스터 1장을 엑스트라 덱에서 묘지로 보낸다",
+        { application: "ON_TRIGGER", conditionText: "합계 4장 이상 공개" },
       ),
       handTrapOperation(
         "feedrauris-destroy",
@@ -1957,7 +1983,11 @@ const BUILT_IN_HAND_TRAPS: HandTrap[] = [
         "SELECTED_CARD",
         "IMMEDIATE",
         "합계 6장을 공개했다면 상대 필드의 몬스터 1장을 파괴한다",
-        { selection: "CHOOSE_AT_RESOLUTION" },
+        {
+          selection: "CHOOSE_AT_RESOLUTION",
+          application: "ON_TRIGGER",
+          conditionText: "합계 6장 공개",
+        },
       ),
     ],
   ),
@@ -2392,10 +2422,11 @@ const BUILT_IN_HAND_TRAPS: HandTrap[] = [
     [
       handTrapOperation(
         "dimension-shifter-banish",
-        "BANISH",
+        "REPLACE_SEND_GY_WITH_BANISH",
         "ALL_VALID_CARDS",
         "NEXT_TURN_END",
         "다음 턴 종료시까지 묘지로 보내지는 카드는 묘지로 가지 않고 제외된다",
+        { application: "AFTER_TRIGGER" },
       ),
     ],
   ),
@@ -2411,10 +2442,11 @@ const BUILT_IN_HAND_TRAPS: HandTrap[] = [
     [
       handTrapOperation(
         "artifact-lancea-lock",
-        "CUSTOM",
+        "PREVENT_BANISH",
         "ALL_VALID_CARDS",
         "TURN_END",
         "이 턴에 서로 카드를 제외할 수 없다",
+        { application: "AFTER_TRIGGER" },
       ),
     ],
   ),
@@ -2435,6 +2467,7 @@ const BUILT_IN_HAND_TRAPS: HandTrap[] = [
         "ALL_VALID_CARDS",
         "TURN_END",
         "이 턴에 서로 덱에서 카드를 패에 넣을 수 없다",
+        { application: "AFTER_TRIGGER" },
       ),
     ],
   ),
@@ -2480,7 +2513,7 @@ const BUILT_IN_HAND_TRAPS: HandTrap[] = [
 ];
 
 const DEFAULT_STORE: Store = {
-  schemaVersion: 19,
+  schemaVersion: 20,
   handTraps: BUILT_IN_HAND_TRAPS,
   decks: [],
   cards: SEEDED_CARDS,
@@ -2523,7 +2556,14 @@ const DISRUPTION_LABEL: Record<DisruptionType, string> = {
   DRAW_ON_SUMMON: "특수 소환마다 드로우",
   PREVENT_ADD_FROM_DECK: "덱에서 패 추가 금지",
   PREVENT_SPECIAL_SUMMON: "특수 소환 금지",
+  PREVENT_BANISH: "제외 금지",
+  REPLACE_SEND_GY_WITH_BANISH: "묘지 이동을 제외로 치환",
   CUSTOM: "사용자 정의 처리",
+};
+const OPERATION_APPLICATION_LABEL: Record<OperationApplication, string> = {
+  ON_TRIGGER: "격발 시 1회 처리",
+  AFTER_TRIGGER: "격발 후 잔존 적용",
+  EACH_MATCH: "조건 행동마다 반복 적용",
 };
 const TARGET_LABEL: Record<DisruptionTarget, string> = {
   RESPONDED_EFFECT: "반응한 효과",
@@ -2734,6 +2774,8 @@ function legacyDisruption(mode?: HandTrapMode): DisruptionOperation {
     selection: "NONE",
     details: MODE_LABEL[mode ?? "EFFECT_NEGATE"],
     amount: 1,
+    application: "ON_TRIGGER",
+    conditionText: "",
   };
 }
 
@@ -2771,15 +2813,50 @@ function normalizeHandTrap(
           conditions: [...fallbackActivation.conditions],
         },
     disruptions: trap.disruptions?.length
-      ? trap.disruptions.map((operation) => ({
-          ...operation,
-          link: operation.link ?? "THEN",
-          selection: operation.selection ?? "NONE",
-          amount: operation.amount ?? 1,
-        }))
+      ? trap.disruptions.map((operation) => {
+          const upgradedType: DisruptionType =
+            trap.id === "builtin-artifact-lancea" &&
+            operation.id === "artifact-lancea-lock" &&
+            operation.type === "CUSTOM"
+              ? "PREVENT_BANISH"
+              : trap.id === "builtin-dimension-shifter" &&
+                  operation.id === "dimension-shifter-banish" &&
+                  operation.type === "BANISH"
+                ? "REPLACE_SEND_GY_WITH_BANISH"
+                : operation.type;
+          return {
+            ...operation,
+            type: upgradedType,
+            link: operation.link ?? "THEN",
+            selection: operation.selection ?? "NONE",
+            amount: operation.amount ?? 1,
+            application:
+              operation.application ??
+              (upgradedType === "DRAW_ON_SUMMON"
+                ? "EACH_MATCH"
+                : operation.duration === "TURN_END" ||
+                    operation.duration === "NEXT_TURN_END" ||
+                    operation.duration === "WHILE_FACE_UP"
+                  ? "AFTER_TRIGGER"
+                  : "ON_TRIGGER"),
+            conditionText:
+              operation.conditionText ??
+              (trap.id === "builtin-feedrauris-harmonia"
+                ? operation.id === "feedrauris-special"
+                  ? "합계 2장 이상 공개"
+                  : operation.id === "feedrauris-send"
+                    ? "합계 4장 이상 공개"
+                    : operation.id === "feedrauris-destroy"
+                      ? "합계 6장 공개"
+                      : ""
+                : ""),
+          };
+        })
       : fallbackDisruptions.map((operation) => ({
           ...operation,
           amount: operation.amount ?? 1,
+          application: operation.application ?? "ON_TRIGGER",
+          conditionText: operation.conditionText ?? "",
         })),
   };
 }
@@ -2809,10 +2886,37 @@ function handTrapRole(trap: HandTrap) {
   return trap.disruptions.length > 1 ? "복합 방해" : "단발 방해";
 }
 
+function directlyInterruptsStep(
+  trap: HandTrap,
+  actionType: ComboActionType,
+) {
+  if (
+    trap.disruptions.some((operation) =>
+      ["NEGATE_EFFECT", "NEGATE_ACTIVATION"].includes(operation.type),
+    )
+  )
+    return actionType === "EFFECT";
+  return (
+    actionType === "SUMMON" &&
+    trap.disruptions.some(
+      (operation) => operation.type === "PREVENT_SPECIAL_SUMMON",
+    )
+  );
+}
+
+function triggerOperationCount(trap: HandTrap) {
+  return countWorstCaseTriggerOperations(trap.disruptions);
+}
+
 type HandTrapRouteMetrics = {
   triggerCount: number;
+  triggerStepIds: string[];
   affectedStepIds: string[];
+  blockedStepIds: string[];
+  redirectedStepIds: string[];
   opponentDraws: number;
+  endPhaseReturns: number;
+  applicationCount: number;
   firstStepIndex: number | null;
 };
 
@@ -2821,55 +2925,6 @@ function measureHandTrapRoute(
   trap: HandTrap,
   effectIndex: Map<string, { card: Card; effect: CardEffect }>,
 ): HandTrapRouteMetrics {
-  const affected = new Set<string>();
-  let triggerCount = 0;
-  let opponentDraws = 0;
-  let firstStepIndex: number | null = null;
-  const mark = (step: ComboStep, stepIndex: number) => {
-    affected.add(step.id);
-    if (firstStepIndex === null) firstStepIndex = stepIndex;
-  };
-  const effectTags = (step: ComboStep) =>
-    step.actionType === "EFFECT"
-      ? (effectIndex.get(step.effectId)?.effect.operationTags ?? [])
-      : [];
-  const movesTo = (step: ComboStep, location: CardLocation) =>
-    step.zoneEvents.some(
-      (event) => event.action === "SUMMON" && event.zone === location,
-    ) || step.materials.some((material) => material.destination === location);
-
-  const drawOperation = trap.disruptions.find(
-    (operation) => operation.type === "DRAW_ON_SUMMON",
-  );
-  if (drawOperation) {
-    combo.steps.forEach((step, stepIndex) => {
-      if (step.actionType !== "SUMMON") return;
-      const isSpecial = step.summonType !== "NORMAL";
-      const source = step.summonFrom ?? "HAND";
-      const applies =
-        trap.id === "builtin-maxx-c"
-          ? isSpecial
-          : trap.id === "builtin-mulcharmy-fuwalos"
-            ? isSpecial && (source === "DECK" || source === "EXTRA_DECK")
-            : trap.id === "builtin-mulcharmy-purulia"
-              ? source === "HAND"
-              : trap.id === "builtin-mulcharmy-meowls"
-                ? isSpecial &&
-                  (source === "GRAVEYARD" || source === "BANISHED")
-                : isSpecial;
-      if (!applies) return;
-      mark(step, stepIndex);
-      opponentDraws += Math.max(1, drawOperation.amount);
-    });
-    triggerCount = affected.size > 0 ? 1 : 0;
-    return {
-      triggerCount,
-      affectedStepIds: [...affected],
-      opponentDraws,
-      firstStepIndex,
-    };
-  }
-
   if (trap.activation.conditions.includes("FIVE_SUMMONS")) {
     const summonSteps = combo.steps
       .map((step, index) => ({ step, index }))
@@ -2879,82 +2934,76 @@ function measureHandTrapRoute(
       summonedMonsters += Math.max(1, step.summonCount ?? 1);
       return summonedMonsters >= 5;
     });
-    if (thresholdStep) {
-      mark(thresholdStep.step, thresholdStep.index);
-      triggerCount = 1;
-    }
     return {
-      triggerCount,
-      affectedStepIds: [...affected],
+      triggerCount: thresholdStep ? 1 : 0,
+      triggerStepIds: thresholdStep ? [thresholdStep.step.id] : [],
+      affectedStepIds: thresholdStep ? [thresholdStep.step.id] : [],
+      blockedStepIds: [],
+      redirectedStepIds: [],
       opponentDraws: 0,
-      firstStepIndex,
+      endPhaseReturns: 0,
+      applicationCount: thresholdStep ? trap.disruptions.length : 0,
+      firstStepIndex: thresholdStep?.index ?? null,
     };
   }
-
-  if (
-    trap.disruptions.some(
-      (operation) => operation.type === "PREVENT_ADD_FROM_DECK",
-    )
-  ) {
-    const addSteps = combo.steps
-      .map((step, index) => ({ step, index }))
-      .filter(({ step }) => {
-        const tags = effectTags(step);
-        return tags.includes("SEARCH") || tags.includes("DRAW");
-      });
-    if (addSteps.length) {
-      triggerCount = 1;
-      firstStepIndex = addSteps[0].index;
-      addSteps.slice(1).forEach(({ step }) => affected.add(step.id));
+  const finalField = simulateComboField(combo).boards.SELF.cards;
+  const finalPlayerFieldCards = [...finalField.entries()].reduce(
+    (total, [key, quantity]) =>
+      /^(MONSTER_ZONE|SPELL_TRAP_ZONE|FIELD_ZONE|PENDULUM_ZONE):/.test(key)
+        ? total + quantity
+        : total,
+    0,
+  );
+  const steps = combo.steps.map((step, index) => {
+    const effect =
+      step.actionType === "EFFECT"
+        ? effectIndex.get(step.effectId)?.effect
+        : undefined;
+    const inferredCostDestinations: CardLocation[] = [];
+    if (step.costEvents.some((event) => event.action === "LEAVE")) {
+      if (/묘지로 보내|버린다|버리고/.test(effect?.costText ?? ""))
+        inferredCostDestinations.push("GRAVEYARD");
+      if (/제외/.test(effect?.costText ?? ""))
+        inferredCostDestinations.push("BANISHED");
     }
     return {
-      triggerCount,
-      affectedStepIds: [...affected],
-      opponentDraws: 0,
-      firstStepIndex,
+      id: step.id,
+      index,
+      actionType: step.actionType,
+      turnOwner: step.turnOwner,
+      phase: step.phase,
+      summonType: step.summonType,
+      summonFrom: step.summonFrom,
+      operationTags: effect?.operationTags ?? [],
+      costDestinations: [
+        ...step.costEvents.flatMap((event) =>
+          event.destination
+            ? [event.destination]
+            : event.action === "SUMMON"
+              ? [event.zone]
+              : [],
+        ),
+        ...inferredCostDestinations,
+      ],
+      resultDestinations: step.zoneEvents
+        .filter((event) => event.action === "SUMMON")
+        .map((event) => event.zone),
+      materialDestinations: step.materials.map(
+        (material) => material.destination,
+      ),
     };
-  }
-
-  if (
-    trap.disruptions.some(
-      (operation) => operation.type === "PREVENT_SPECIAL_SUMMON",
-    )
-  ) {
-    combo.steps.forEach((step, stepIndex) => {
-      if (step.actionType === "SUMMON" && step.summonType !== "NORMAL")
-        mark(step, stepIndex);
-    });
-    triggerCount = affected.size > 0 ? 1 : 0;
-  }
-
-  if (trap.id === "builtin-dimension-shifter") {
-    combo.steps.forEach((step, stepIndex) => {
-      const tags = effectTags(step);
-      if (
-        movesTo(step, "GRAVEYARD") ||
-        tags.includes("SEND_GY") ||
-        tags.includes("SEND_DECK_TO_GY")
-      )
-        mark(step, stepIndex);
-    });
-    triggerCount = affected.size > 0 ? 1 : 0;
-  }
-
-  if (trap.id === "builtin-artifact-lancea") {
-    combo.steps.forEach((step, stepIndex) => {
-      const tags = effectTags(step);
-      if (movesTo(step, "BANISHED") || tags.includes("BANISH"))
-        mark(step, stepIndex);
-    });
-    triggerCount = affected.size > 0 ? 1 : 0;
-  }
-
-  return {
-    triggerCount,
-    affectedStepIds: [...affected],
-    opponentDraws,
-    firstStepIndex,
-  };
+  });
+  const drawOperation = trap.disruptions.find(
+    (operation) => operation.type === "DRAW_ON_SUMMON",
+  );
+  return evaluateHandTrapRoute({
+    trapId: trap.id,
+    disruptionTypes: trap.disruptions.map((operation) => operation.type),
+    drawAmount: drawOperation?.amount ?? 1,
+    steps,
+    opponentStartingHandSize: combo.opponentStartingHandSize,
+    finalPlayerFieldCards,
+  });
 }
 
 function monsterValueLabel(card: Card) {
@@ -3553,6 +3602,7 @@ function normalizeCombo(combo: Combo): Combo {
             ? (event.xyzHostZone ?? step.summonZone ?? legacyZone)
             : event.xyzHostZone,
         quantity: event.quantity ?? 1,
+        destination: event.destination,
         timing,
       };
     };
@@ -3617,6 +3667,10 @@ function normalizeCombo(combo: Combo): Combo {
       strategy: plan.strategy ?? "AUTO",
       maxOpponentDraws: Math.max(0, plan.maxOpponentDraws ?? 0),
       maxAffectedSteps: Math.max(0, plan.maxAffectedSteps ?? 0),
+      maxResolvedOperations: Math.max(
+        0,
+        plan.maxResolvedOperations ?? 99,
+      ),
       notes: plan.notes ?? "",
     })),
     steps,
@@ -3958,7 +4012,19 @@ function applySummonMaterial(
 }
 
 function applyCostEvents(state: DuelState, step: ComboStep) {
-  step.costEvents.forEach((event) => applyFieldEvent(state, event));
+  step.costEvents.forEach((event) => {
+    applyFieldEvent(state, event);
+    if (event.action !== "LEAVE" || !event.destination) return;
+    applyFieldEvent(state, {
+      ...event,
+      id: `${event.id}-destination`,
+      zone: event.destination,
+      monsterZone: undefined,
+      xyzHostZone:
+        event.destination === "XYZ_MATERIAL" ? event.xyzHostZone : undefined,
+      action: "SUMMON",
+    });
+  });
 }
 
 function applySuccessfulStep(state: DuelState, step: ComboStep) {
@@ -4415,7 +4481,7 @@ function usePersistentStore() {
     return {
       ...DEFAULT_STORE,
       ...parsed,
-      schemaVersion: 19,
+      schemaVersion: 20,
       trash: parsed.trash ?? [],
       decks: migratedDecks,
       cards: detailedReviewCards,
@@ -4743,6 +4809,10 @@ export default function Home() {
             handTrapId,
             stepIndex,
           );
+          const directInterruption = directlyInterruptsStep(
+            handTrap,
+            step.actionType,
+          );
           const testedField = permission
             ? baselineField
             : alternate
@@ -4751,7 +4821,9 @@ export default function Home() {
                 undefined,
                 simulateFieldBeforeStep(combo, step.id),
               )
-            : simulateComboField(combo, step.id);
+            : directInterruption
+              ? simulateComboField(combo, step.id)
+              : baselineField;
           const missingGoal = [
             ...deckErrors.map((error) => `덱 오류 · ${error}`),
             ...missingGoalCards(combo, testedField, store.cards),
@@ -4761,7 +4833,7 @@ export default function Home() {
               ? missingGoal.length === 0
               : permission || branch
                 ? true
-                : !step.stopsWhenNegated;
+                : !directInterruption || !step.stopsWhenNegated;
           points.push({
             handTrapId,
             handTrapName: handTrap.name,
@@ -4770,6 +4842,9 @@ export default function Home() {
             cardName: summoned?.name ?? "삭제된 몬스터",
             effectLabel: SUMMON_TYPE_LABEL[step.summonType],
             stopped: !goalReached,
+            triggered: !permission,
+            directInterruption,
+            resolvedOperations: permission ? 0 : triggerOperationCount(handTrap),
             goalReached,
             missingGoal,
             disruptionSummary: disruptionSummary(handTrap),
@@ -4808,6 +4883,10 @@ export default function Home() {
               (comboItem) => comboItem.id === branch.alternateComboId,
             )
           : undefined;
+        const directInterruption = directlyInterruptsStep(
+          handTrap,
+          step.actionType,
+        );
         const testedField = permission
           ? baselineField
           : alternate
@@ -4816,7 +4895,9 @@ export default function Home() {
                 undefined,
                 simulateFieldBeforeStep(combo, step.id),
               )
-            : simulateComboField(combo, step.id);
+            : directInterruption
+              ? simulateComboField(combo, step.id)
+              : baselineField;
         const missingGoal = [
           ...deckErrors.map((error) => `덱 오류 · ${error}`),
           ...missingGoalCards(combo, testedField, store.cards),
@@ -4824,7 +4905,10 @@ export default function Home() {
         const goalReached =
           combo.goals.length > 0
             ? missingGoal.length === 0
-            : !!permission || !!branch || !step.stopsWhenNegated;
+            : !!permission ||
+              !!branch ||
+              !directInterruption ||
+              !step.stopsWhenNegated;
         points.push({
           handTrapId,
           handTrapName: handTrap.name,
@@ -4836,6 +4920,9 @@ export default function Home() {
               : `${actingCard.name} (부여받은 효과)`,
           effectLabel: effectiveEffect.label,
           stopped: !goalReached,
+          triggered: !permission,
+          directInterruption,
+          resolvedOperations: permission ? 0 : triggerOperationCount(handTrap),
           goalReached,
           missingGoal,
           disruptionSummary: disruptionSummary(handTrap),
@@ -4863,11 +4950,20 @@ export default function Home() {
         const automaticAffected = automaticBlocked
           ? []
           : metrics.affectedStepIds;
+        const automaticBlockedSteps = automaticBlocked
+          ? []
+          : metrics.blockedStepIds;
+        const automaticRedirectedSteps = automaticBlocked
+          ? []
+          : metrics.redirectedStepIds;
         const affectedStepIds = new Set([
           ...automaticAffected,
           ...trapPoints.map((point) => point.stepId).filter(Boolean),
         ]);
         const opponentDraws = automaticBlocked ? 0 : metrics.opponentDraws;
+        const endPhaseReturns = automaticBlocked
+          ? 0
+          : metrics.endPhaseReturns;
         const triggerCount = Math.max(
           automaticBlocked ? 0 : metrics.triggerCount,
           trapPoints.length,
@@ -4878,16 +4974,31 @@ export default function Home() {
         const bypassedCount = trapPoints.filter(
           (point) => point.bypassBranchName,
         ).length;
+        const manualResolvedOperations = Math.max(
+          0,
+          ...trapPoints.map((point) => point.resolvedOperations ?? 0),
+        );
+        const resolvedOperations = Math.max(
+          automaticBlocked ? 0 : metrics.applicationCount,
+          manualResolvedOperations,
+        );
         const pointsPassed = trapPoints.every(
           (point) => point.goalReached !== false && !point.stopped,
         );
         const role = handTrapRole(handTrap);
         const persistentRisk =
           (role.includes("잔존") || role === "누적 드로우") &&
-          (opponentDraws > 0 || automaticAffected.length > 0);
+          triggerCount > 0;
+        const unresolvedOperationRisk = trapPoints.some(
+          (point) =>
+            point.triggered &&
+            !point.directInterruption &&
+            !point.blockedByPermission &&
+            !point.bypassBranchName &&
+            (point.resolvedOperations ?? 0) > 0,
+        );
         const automaticRisk =
-          !automaticBlocked &&
-          (opponentDraws > 0 || automaticAffected.length > 0);
+          !automaticBlocked && metrics.triggerCount > 0;
         const strategy = plan?.strategy ?? "AUTO";
         let passed = pointsPassed;
         let reason = pointsPassed
@@ -4898,17 +5009,22 @@ export default function Home() {
           if (automaticRisk && !trapPoints.length) {
             passed = false;
             reason = plan
-              ? "자동 감지된 방해를 자동 판정만으로 허용할 수 없습니다"
-              : "자동 감지된 방해에 대한 대응안이 등록되지 않았습니다";
+              ? "격발된 잔존 효과를 자동 판정만으로 허용할 수 없습니다"
+              : "잔존형 패트랩이 격발되었지만 대응안이 등록되지 않았습니다";
           } else if (persistentRisk) {
             passed = false;
             reason = plan
-              ? "누적 적용을 자동 판정만으로 허용할 수 없습니다"
-              : "누적형 패트랩 대응안이 등록되지 않았습니다";
+              ? "격발 후 누적 적용을 자동 판정만으로 허용할 수 없습니다"
+              : "격발된 누적형 패트랩 대응안이 등록되지 않았습니다";
+          } else if (unresolvedOperationRisk) {
+            passed = false;
+            reason = plan
+              ? "파괴·이동·복합 처리는 대응 한도나 우회 전개를 지정해야 합니다"
+              : "무효가 아닌 방해가 격발되어 대응안 확인이 필요합니다";
           } else if (!trapPoints.length && triggerCount === 0) {
             reason = "현재 전개에서는 발동·적용 조건을 충족하지 않음";
           } else if (!trapPoints.length) {
-            reason = "발동 조건은 충족하지만 후속 전개에 추가 영향 없음";
+            reason = "격발 조건은 충족하지만 후속 전개에 추가 영향 없음";
           }
         }
         if (strategy === "BLOCK_WITH_PERMISSION") {
@@ -4942,13 +5058,18 @@ export default function Home() {
         if (strategy === "ACCEPT_WITH_LIMIT") {
           const drawLimit = Math.max(0, plan?.maxOpponentDraws ?? 0);
           const affectedLimit = Math.max(0, plan?.maxAffectedSteps ?? 0);
+          const operationLimit = Math.max(
+            0,
+            plan?.maxResolvedOperations ?? 99,
+          );
           passed =
             pointsPassed &&
             opponentDraws <= drawLimit &&
-            affectedStepIds.size <= affectedLimit;
+            affectedStepIds.size <= affectedLimit &&
+            resolvedOperations <= operationLimit;
           reason = passed
-            ? `허용 범위 내 적용 · 드로우 ${opponentDraws}/${drawLimit}장 · 영향 ${affectedStepIds.size}/${affectedLimit}단계`
-            : `허용 초과 또는 목표 미달 · 드로우 ${opponentDraws}/${drawLimit}장 · 영향 ${affectedStepIds.size}/${affectedLimit}단계`;
+            ? `허용 범위 내 격발 · 드로우 ${opponentDraws}/${drawLimit}장 · 영향 ${affectedStepIds.size}/${affectedLimit}단계 · 처리 ${resolvedOperations}/${operationLimit}회`
+            : `허용 초과 또는 목표 미달 · 드로우 ${opponentDraws}/${drawLimit}장 · 영향 ${affectedStepIds.size}/${affectedLimit}단계 · 처리 ${resolvedOperations}/${operationLimit}회`;
         }
 
         if (!plan && !trapPoints.length && triggerCount === 0) return null;
@@ -4962,6 +5083,10 @@ export default function Home() {
           triggerCount,
           affectedSteps: affectedStepIds.size,
           opponentDraws,
+          endPhaseReturns,
+          blockedSteps: automaticBlockedSteps.length,
+          redirectedSteps: automaticRedirectedSteps.length,
+          resolvedOperations,
           blockedCount,
           bypassedCount,
           reason,
@@ -7119,7 +7244,7 @@ function CombosScreen({
                           )?.name ?? "삭제된 패트랩"}{" "}
                           · {HAND_TRAP_RESPONSE_LABEL[plan.strategy]}
                           {plan.strategy === "ACCEPT_WITH_LIMIT"
-                            ? ` · 드로우 ${plan.maxOpponentDraws}장 / 영향 ${plan.maxAffectedSteps}단계 이하`
+                            ? ` · 드로우 ${plan.maxOpponentDraws}장 / 영향 ${plan.maxAffectedSteps}단계 / 처리 ${plan.maxResolvedOperations ?? 99}회 이하`
                             : ""}
                         </span>
                       ))
@@ -7860,10 +7985,22 @@ function ResultsScreen({ runs }: { runs: TestRun[] }) {
                       <b>{summary.passed ? "통과" : "재검토"}</b>
                     </div>
                     <div className="handtrap-summary-metrics">
-                      <span>발동 가능 {summary.triggerCount}곳</span>
+                      <span>격발 {summary.triggerCount}회</span>
                       <span>영향 {summary.affectedSteps}단계</span>
                       {summary.opponentDraws > 0 && (
                         <span>상대 드로우 {summary.opponentDraws}장</span>
+                      )}
+                      {(summary.endPhaseReturns ?? 0) > 0 && (
+                        <span>엔드 덱 반환 {summary.endPhaseReturns}장</span>
+                      )}
+                      {(summary.blockedSteps ?? 0) > 0 && (
+                        <span>코스트 불가 {summary.blockedSteps}단계</span>
+                      )}
+                      {(summary.redirectedSteps ?? 0) > 0 && (
+                        <span>위치 치환 {summary.redirectedSteps}단계</span>
+                      )}
+                      {(summary.resolvedOperations ?? 0) > 0 && (
+                        <span>처리 적용 {summary.resolvedOperations}회</span>
                       )}
                       {summary.blockedCount > 0 && (
                         <span>퍼미션 차단 {summary.blockedCount}회</span>
@@ -7905,7 +8042,9 @@ function ResultsScreen({ runs }: { runs: TestRun[] }) {
                     ? `${point.effectLabel}에 방해 적용 → ‘${point.bypassBranchName}’ 우회 전개`
                     : point.blockedByPermission
                       ? `${point.blockedByPermission}의 퍼미션으로 패트랩 무효`
-                      : `${point.effectLabel}에 투입 · ${point.disruptionSummary ?? "방해 적용"}`;
+                      : point.directInterruption
+                        ? `${point.effectLabel}에 직접 방해 · ${point.disruptionSummary ?? "방해 적용"}`
+                        : `${point.effectLabel}에서 격발 · ${point.disruptionSummary ?? "잔존·복합 처리"}${(point.resolvedOperations ?? 0) > 1 ? ` · ${point.resolvedOperations}개 처리 순차 적용` : ""}`;
                   return (
                     <div
                       className="result-row"
@@ -8373,6 +8512,8 @@ function HandTrapModal({
                     selection: "NONE",
                     details: "",
                     amount: 1,
+                    application: "ON_TRIGGER",
+                    conditionText: "",
                   },
                 ])
               }
@@ -8482,6 +8623,35 @@ function HandTrapModal({
                         </option>
                       ))}
                     </select>
+                  </Field>
+                  <Field label="적용 방식">
+                    <select
+                      value={operation.application}
+                      onChange={(e) =>
+                        updateDisruption(operation.id, {
+                          application: e.target.value as OperationApplication,
+                        })
+                      }
+                    >
+                      {Object.entries(OPERATION_APPLICATION_LABEL).map(
+                        ([value, label]) => (
+                          <option value={value} key={value}>
+                            {label}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </Field>
+                  <Field label="이 처리의 추가 조건">
+                    <input
+                      value={operation.conditionText}
+                      onChange={(e) =>
+                        updateDisruption(operation.id, {
+                          conditionText: e.target.value,
+                        })
+                      }
+                      placeholder="예: 합계 4장 이상 공개"
+                    />
                   </Field>
                   <Field label="세부 처리">
                     <input
@@ -9497,6 +9667,7 @@ function ComboModal({
         strategy: "ACCEPT_WITH_LIMIT",
         maxOpponentDraws: 5,
         maxAffectedSteps: 5,
+        maxResolvedOperations: 5,
         notes: "",
       },
     ]);
@@ -9574,6 +9745,7 @@ function ComboModal({
             action: "LEAVE",
             timing: "BEFORE",
             quantity: 1,
+            destination: "GRAVEYARD",
           },
         ],
       });
@@ -10942,12 +11114,35 @@ function ComboModal({
                       onChange={(e) =>
                         updateCostEvent(step, event.id, {
                           action: e.target.value as ZoneEvent["action"],
+                          ...(e.target.value === "SUMMON" && {
+                            destination: undefined,
+                          }),
                         })
                       }
                     >
                       <option value="LEAVE">그 위치에서 제거</option>
                       <option value="SUMMON">그 위치에 추가</option>
                     </select>
+                    {event.action === "LEAVE" && (
+                      <select
+                        value={event.destination ?? ""}
+                        onChange={(e) =>
+                          updateCostEvent(step, event.id, {
+                            destination: e.target.value
+                              ? (e.target.value as CardLocation)
+                              : undefined,
+                          })
+                        }
+                        aria-label="코스트 처리 후 위치"
+                      >
+                        <option value="">처리 후 위치 미지정</option>
+                        {Object.entries(LOCATION_LABEL).map(([value, label]) => (
+                          <option value={value} key={value}>
+                            → {label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                     <label>
                       <input
                         type="number"
@@ -11397,6 +11592,33 @@ function ComboModal({
                         }
                       />
                       <span>단계 이하</span>
+                    </label>
+                  </Field>
+                  <Field label="복합·잔존 처리 허용">
+                    <label className="number-with-unit">
+                      <input
+                        type="number"
+                        min="0"
+                        max="99"
+                        value={plan.maxResolvedOperations}
+                        disabled={plan.strategy !== "ACCEPT_WITH_LIMIT"}
+                        onChange={(event) =>
+                          setHandTrapPlans((plans) =>
+                            plans.map((item) =>
+                              item.id === plan.id
+                                ? {
+                                    ...item,
+                                    maxResolvedOperations: Math.max(
+                                      0,
+                                      Math.min(99, Number(event.target.value)),
+                                    ),
+                                  }
+                                : item,
+                            ),
+                          )
+                        }
+                      />
+                      <span>회 이하</span>
                     </label>
                   </Field>
                   <Field label="대응 메모">

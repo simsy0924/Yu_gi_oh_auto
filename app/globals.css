@@ -2707,7 +2707,7 @@ button {
 }
 .handtrap-plan-editor {
   display: grid;
-  grid-template-columns: 1.2fr 1fr 128px 128px 36px;
+  grid-template-columns: 1.2fr 1fr 118px 118px 118px 36px;
   align-items: end;
   gap: 9px;
   padding: 13px;
@@ -2715,12 +2715,12 @@ button {
   border-radius: 12px;
   background: #0a0e17;
 }
-.handtrap-plan-editor .field:nth-child(5) {
-  grid-column: 1 / 5;
+.handtrap-plan-editor .field:nth-child(6) {
+  grid-column: 1 / 6;
   grid-row: 2;
 }
 .handtrap-plan-editor > .icon-button {
-  grid-column: 5;
+  grid-column: 6;
   grid-row: 1;
 }
 .handtrap-plan-editor .field {
@@ -2750,7 +2750,7 @@ button {
   .handtrap-plan-editor {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .handtrap-plan-editor .field:nth-child(5),
+  .handtrap-plan-editor .field:nth-child(6),
   .handtrap-plan-editor > .icon-button {
     grid-column: auto;
     grid-row: auto;
