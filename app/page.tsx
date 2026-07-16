@@ -39,6 +39,14 @@ import {
   Zap,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  loadFirebaseStore,
+  observeGoogleAccount,
+  restorePreviousFirebaseStore,
+  saveFirebaseStore,
+  signInWithGoogle,
+  signOutFromGoogle,
+} from "../src/firebase";
 
 type Tab =
   | "handtraps"
@@ -488,6 +496,7 @@ type Store = {
   trash: TrashItem[];
 };
 type AccountUser = {
+  uid: string;
   email: string;
   displayName: string;
 };
@@ -540,7 +549,7 @@ const UNKNOWN_OPPONENT_CARD_ID = "__opponent_unknown_card__";
 const CATALOG_CARD_COUNT = 13_982;
 const CATALOG_PAGE_SIZE = 48;
 const CATALOG_REVIEW_BATCH_SIZE = 100;
-const CATALOG_BASE_URL = "/data/ygo-ko-cards";
+const CATALOG_BASE_URL = `${import.meta.env.BASE_URL}data/ygo-ko-cards`;
 const CATALOG_MANIFEST_URL = `${CATALOG_BASE_URL}/manifest.json`;
 
 type CatalogManifest = Pick<CatalogPayload, "updatedAt" | "source"> & {
@@ -4416,26 +4425,20 @@ function usePersistentStore() {
   };
 
   const saveToCloud = async (nextStore: Store) => {
+    if (!user) throw new Error("먼저 Google 계정으로 로그인하세요.");
     setSyncState("SYNCING");
     setSyncError("");
-    const response = await fetch("/api/store", {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        store: nextStore,
-        baseUpdatedAt: updatedAt,
-        createIfMissing: updatedAt === null,
-      }),
-    });
-    const result = (await response.json()) as {
-      updatedAt?: string;
-      hasPrevious?: boolean;
-      error?: string;
-    };
-    if (!response.ok) throw new Error(result.error ?? "계정 저장에 실패했습니다.");
-    setUpdatedAt(result.updatedAt ?? new Date().toISOString());
-    setHasServerBackup(Boolean(result.hasPrevious));
-    syncedStoreJsonRef.current = JSON.stringify(nextStore);
+    const nextStoreJson = JSON.stringify(nextStore);
+    const result = await saveFirebaseStore(
+      user.uid,
+      nextStoreJson,
+      updatedAt ? new Date(updatedAt).getTime() : null,
+    );
+    setUpdatedAt(
+      result.updatedAt ? new Date(result.updatedAt).toISOString() : null,
+    );
+    setHasServerBackup(Boolean(result.previous));
+    syncedStoreJsonRef.current = nextStoreJson;
     setSyncState("SYNCED");
   };
 
@@ -4458,41 +4461,34 @@ function usePersistentStore() {
   useEffect(() => {
     if (!ready) return;
     let cancelled = false;
+    setHasDeviceBackup(
+      localStorage.getItem("combo-lab-v1-device-backup") !== null,
+    );
 
-    const connectAccount = async () => {
+    const unsubscribe = observeGoogleAccount(async (account) => {
       try {
-        const accountResponse = await fetch("/api/account", {
-          cache: "no-store",
-        });
-        const accountResult = (await accountResponse.json()) as {
-          user: AccountUser | null;
-        };
         if (cancelled) return;
-        setHasDeviceBackup(
-          localStorage.getItem("combo-lab-v1-device-backup") !== null,
-        );
-        if (!accountResult.user) {
+        setSyncError("");
+        if (!account) {
           setUser(null);
+          setUpdatedAt(null);
+          setHasServerBackup(false);
+          syncedStoreJsonRef.current = null;
+          pendingCloudStoreRef.current = null;
           setSyncState("LOCAL");
           return;
         }
 
-        setUser(accountResult.user);
+        setUser(account);
         setSyncState("LOADING");
-        const storeResponse = await fetch("/api/store", { cache: "no-store" });
-        const cloudResult = (await storeResponse.json()) as {
-          store: Store | null;
-          updatedAt: string | null;
-          hasPrevious: boolean;
-          error?: string;
-        };
-        if (!storeResponse.ok)
-          throw new Error(cloudResult.error ?? "계정 데이터를 불러오지 못했습니다.");
+        const cloudResult = await loadFirebaseStore(account.uid);
         if (cancelled) return;
 
-        if (cloudResult.store) {
+        if (cloudResult.current) {
           const currentLocal = localStorage.getItem("combo-lab-v1");
-          const cloudStore = normalizeStoredData(cloudResult.store);
+          const cloudStore = normalizeStoredData(
+            JSON.parse(cloudResult.current) as Store,
+          );
           const cloudStoreJson = JSON.stringify(cloudStore);
           let localDiffers = false;
           if (currentLocal) {
@@ -4509,8 +4505,12 @@ function usePersistentStore() {
               // A broken local snapshot should not block the cloud copy.
             }
           }
-          setUpdatedAt(cloudResult.updatedAt);
-          setHasServerBackup(cloudResult.hasPrevious);
+          setUpdatedAt(
+            cloudResult.updatedAt
+              ? new Date(cloudResult.updatedAt).toISOString()
+              : null,
+          );
+          setHasServerBackup(Boolean(cloudResult.previous));
           syncedStoreJsonRef.current = cloudStoreJson;
           if (localDiffers) {
             pendingCloudStoreRef.current = cloudStore;
@@ -4526,7 +4526,7 @@ function usePersistentStore() {
           setHasServerBackup(false);
           setSyncState("DIRTY");
         }
-        localStorage.setItem("combo-lab-v1-cloud-user", accountResult.user.email);
+        localStorage.setItem("combo-lab-v1-cloud-user", account.email);
       } catch (error) {
         if (cancelled) return;
         setSyncError(
@@ -4534,11 +4534,10 @@ function usePersistentStore() {
         );
         setSyncState("ERROR");
       }
-    };
-
-    void connectAccount();
+    });
     return () => {
       cancelled = true;
+      unsubscribe();
     };
   }, [ready]);
 
@@ -4560,12 +4559,22 @@ function usePersistentStore() {
     hasDeviceBackup,
     hasServerBackup,
     signIn: () => {
-      window.location.href = "/signin-with-chatgpt?return_to=%2F";
+      setSyncError("");
+      void signInWithGoogle().catch((error: unknown) => {
+        setSyncError(
+          error instanceof Error ? error.message : "Google 로그인에 실패했습니다.",
+        );
+        setSyncState("ERROR");
+      });
     },
     signOut: () => {
-      localStorage.removeItem("combo-lab-v1");
       localStorage.removeItem("combo-lab-v1-cloud-user");
-      window.location.href = "/signout-with-chatgpt?return_to=%2F";
+      void signOutFromGoogle().catch((error: unknown) => {
+        setSyncError(
+          error instanceof Error ? error.message : "로그아웃에 실패했습니다.",
+        );
+        setSyncState("ERROR");
+      });
     },
     syncNow: async () => {
       try {
@@ -4594,21 +4603,20 @@ function usePersistentStore() {
       setSyncState("LOADING");
       setSyncError("");
       try {
-        const response = await fetch("/api/store", { method: "PATCH" });
-        const result = (await response.json()) as {
-          store?: Store;
-          updatedAt?: string;
-          hasPrevious?: boolean;
-          error?: string;
-        };
-        if (!response.ok || !result.store)
-          throw new Error(result.error ?? "이전 서버 저장본 복원에 실패했습니다.");
-        const restoredStore = normalizeStoredData(result.store);
+        if (!user) throw new Error("먼저 Google 계정으로 로그인하세요.");
+        const result = await restorePreviousFirebaseStore(user.uid);
+        if (!result.current)
+          throw new Error("이전 Google 저장본을 찾지 못했습니다.");
+        const restoredStore = normalizeStoredData(
+          JSON.parse(result.current) as Store,
+        );
         setStore(restoredStore);
         storeRef.current = restoredStore;
         syncedStoreJsonRef.current = JSON.stringify(restoredStore);
-        setUpdatedAt(result.updatedAt ?? null);
-        setHasServerBackup(Boolean(result.hasPrevious));
+        setUpdatedAt(
+          result.updatedAt ? new Date(result.updatedAt).toISOString() : null,
+        );
+        setHasServerBackup(Boolean(result.previous));
         setSyncState("SYNCED");
       } catch (error) {
         setSyncError(
@@ -5339,9 +5347,9 @@ function AccountModal({
       <div className="modal account-modal" role="dialog" aria-modal="true">
         <div className="modal-head">
           <div>
-            <span>ACCOUNT & CLOUD SYNC</span>
-            <h2>계정 동기화</h2>
-            <p>같은 계정으로 로그인한 모든 기기에서 덱과 전개법을 이어갑니다.</p>
+            <span>GOOGLE ACCOUNT & CLOUD SYNC</span>
+            <h2>Google 계정 동기화</h2>
+            <p>같은 Google 계정으로 로그인한 모든 기기에서 덱과 전개법을 이어갑니다.</p>
           </div>
           <button className="icon-button" onClick={onClose} aria-label="닫기">
             <X size={18} />
@@ -5498,14 +5506,14 @@ function AccountModal({
               <div className="sign-in-icon">
                 <Cloud size={30} />
               </div>
-              <h3>다른 기기에서도 그대로 이어서 사용하세요.</h3>
+              <h3>Google 계정으로 다른 기기에서도 이어서 사용하세요.</h3>
               <p>
-                별도의 비밀번호를 앱에 저장하지 않고 ChatGPT 계정으로 안전하게
-                로그인합니다. 처음 로그인하면 현재 기기의 카드·덱·전개법을 계정에
-                올릴지 직접 확인할 수 있습니다.
+                앱이 비밀번호를 저장하지 않고 Firebase의 Google 로그인을 사용합니다.
+                처음 로그인하면 현재 기기의 카드·덱·전개법을 계정에 올릴지 직접
+                확인할 수 있습니다.
               </p>
               <button className="primary-button" onClick={cloudSync.signIn}>
-                <LogIn size={17} /> ChatGPT 계정으로 로그인
+                <LogIn size={17} /> Google 계정으로 로그인
               </button>
               <small>로그인하지 않으면 지금처럼 이 기기에만 저장됩니다.</small>
             </div>

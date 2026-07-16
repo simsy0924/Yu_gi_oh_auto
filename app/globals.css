@@ -24,7 +24,7 @@ body {
   color: var(--text);
 }
 body {
-  font-family: var(--font-geist-sans), Pretendard, Arial, sans-serif;
+  font-family: Pretendard, "Noto Sans KR", Arial, sans-serif;
 }
 button,
 input,
