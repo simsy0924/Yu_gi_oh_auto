@@ -575,6 +575,29 @@ type CatalogManifest = Pick<CatalogPayload, "updatedAt" | "source"> & {
   parts: string[];
 };
 
+type CatalogHandTrapEffectInteraction = {
+  interruptibleBy: string[];
+  blocksHandTraps: string[];
+  interactionNotes: string[];
+  confidence: number;
+  needsReview: boolean;
+  note: string;
+};
+
+type CatalogHandTrapCardInteraction = {
+  interruptibleBy: string[];
+  blocksHandTraps: string[];
+  effects: Record<string, CatalogHandTrapEffectInteraction>;
+};
+
+type CatalogHandTrapInteractions = {
+  schemaVersion: number;
+  cardCount: number;
+  effectCount: number;
+  needsReview: number;
+  cards: Record<string, CatalogHandTrapCardInteraction>;
+};
+
 type CatalogReviewStatus = "VERIFIED" | "DRAFT" | "HOLD" | "NO_EFFECT";
 type CatalogReviewEntry = {
   status: CatalogReviewStatus;
@@ -3418,7 +3441,52 @@ function applyDetailedCatalogEffectAudit(
   });
 }
 
-function catalogToLibraryCard(card: CatalogCard, handTraps: HandTrap[]): Card {
+function catalogInteractionCardId(card: CatalogCard) {
+  return `${card.i}:${card.p ?? "null"}`;
+}
+
+function applyCatalogHandTrapInteractions(
+  card: CatalogCard,
+  effects: CardEffect[],
+  interactions: CatalogHandTrapInteractions | null,
+  availableHandTrapIds: Set<string>,
+) {
+  const cardInteractions = interactions?.cards[catalogInteractionCardId(card)];
+  if (!cardInteractions) return effects;
+  return effects.map((effect) => {
+    const match = /-(pendulum|main)-(\d+)$/.exec(effect.id);
+    if (!match) return effect;
+    const scope = match[1];
+    const index = Number(match[2]);
+    const interaction = cardInteractions.effects[`${scope}/${index}`];
+    if (!interaction) return effect;
+    const hasDetailedAudit = DETAILED_CATALOG_EFFECT_AUDITS.has(
+      `${card.i}-${scope}-${index}`,
+    );
+    return normalizeCardEffect({
+      ...effect,
+      interruptibleBy: (
+        hasDetailedAudit
+          ? effect.interruptibleBy
+          : interaction.interruptibleBy
+      ).filter((id) => availableHandTrapIds.has(id)),
+      blocksHandTraps: interaction.blocksHandTraps.filter((id) =>
+        availableHandTrapIds.has(id),
+      ),
+      interactionNotes: [
+        ...effect.interactionNotes,
+        ...interaction.interactionNotes,
+        ...(interaction.needsReview ? [interaction.note] : []),
+      ],
+    });
+  });
+}
+
+function catalogToLibraryCard(
+  card: CatalogCard,
+  handTraps: HandTrap[],
+  interactions: CatalogHandTrapInteractions | null = null,
+): Card {
   const kind = catalogCardKind(card);
   const monsterType = kind === "MONSTER" ? catalogMonsterType(card) : null;
   const review = catalogReviewFor(card.i);
@@ -3507,6 +3575,12 @@ function catalogToLibraryCard(card: CatalogCard, handTraps: HandTrap[]): Card {
     );
   }
 
+  const registeredEffects = applyCatalogHandTrapInteractions(
+    card,
+    effects,
+    interactions,
+    availableHandTrapIds,
+  );
   const reviewTiming =
     review?.status === "VERIFIED"
       ? "공식 DB·Q&A 정밀 검수"
@@ -3527,13 +3601,13 @@ function catalogToLibraryCard(card: CatalogCard, handTraps: HandTrap[]): Card {
       kind === "MONSTER" && monsterType !== "LINK" ? (card.d ?? "?") : null,
     ruleText: details.join("\n"),
     effects: reviewTiming
-      ? effects.map((effect) => ({
+      ? registeredEffects.map((effect) => ({
           ...effect,
           timingDetails: [effect.timingDetails, reviewTiming]
             .filter(Boolean)
             .join(" · "),
         }))
-      : effects,
+      : registeredEffects,
   });
 }
 
@@ -6242,6 +6316,8 @@ function CardCatalogScreen({
   editCard: (cardId: string) => void;
 }) {
   const [catalog, setCatalog] = useState<CatalogPayload | null>(null);
+  const [catalogInteractions, setCatalogInteractions] =
+    useState<CatalogHandTrapInteractions | null>(null);
   const [loadError, setLoadError] = useState("");
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<"ALL" | "Monster" | "Spell" | "Trap">(
@@ -6286,6 +6362,20 @@ function CardCatalogScreen({
         const cards = cardParts.flat();
         if (cards.length === 0 || cards.length !== manifest.cardCount)
           throw new Error("전체 카드 파일이 비어 있습니다.");
+        const interactionResponse = await fetch(
+          `${CATALOG_BASE_URL}/handtrap-interactions.json`,
+          {
+            signal: controller.signal,
+            cache: "force-cache",
+          },
+        );
+        if (!interactionResponse.ok)
+          throw new Error("패트랩 상호작용 파일을 불러오지 못했습니다.");
+        const interactionPayload =
+          (await interactionResponse.json()) as CatalogHandTrapInteractions;
+        if (interactionPayload.cardCount !== manifest.cardCount)
+          throw new Error("패트랩 상호작용 카드 수가 올바르지 않습니다.");
+        setCatalogInteractions(interactionPayload);
         setCatalog({
           updatedAt: manifest.updatedAt,
           source: manifest.source,
@@ -6352,10 +6442,14 @@ function CardCatalogScreen({
             (reviewBatch - 1) * CATALOG_REVIEW_BATCH_SIZE + index + 1,
           review,
           status,
-          classified: catalogToLibraryCard(card, store.handTraps),
+          classified: catalogToLibraryCard(
+            card,
+            store.handTraps,
+            catalogInteractions,
+          ),
         };
       }),
-    [reviewBatch, reviewBatchCards, store.handTraps],
+    [catalogInteractions, reviewBatch, reviewBatchCards, store.handTraps],
   );
   const visibleReviewRows = reviewRows.filter(
     (row) => reviewFilter === "ALL" || row.status === reviewFilter,
@@ -6378,7 +6472,11 @@ function CardCatalogScreen({
   const classifiedOverall = FIRST_REVIEW_BATCH_IDS.size;
 
   const importCard = (catalogCard: CatalogCard) => {
-    const imported = catalogToLibraryCard(catalogCard, store.handTraps);
+    const imported = catalogToLibraryCard(
+      catalogCard,
+      store.handTraps,
+      catalogInteractions,
+    );
     setStore((current) => {
       if (
         current.cards.some(
