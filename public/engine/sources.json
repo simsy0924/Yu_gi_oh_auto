@@ -1,0 +1,15 @@
+{
+  "ocgcore-wasm": "0.1.2",
+  "sources": {
+    "CardScripts": {
+      "url": "https://github.com/ProjectIgnis/CardScripts.git",
+      "commit": "1e28935380407e8f4e5a7edf50875b4b38fe56a6"
+    },
+    "BabelCDB": {
+      "url": "https://github.com/ProjectIgnis/BabelCDB.git",
+      "commit": "52d5221df32c943877c8a63639edcc4f3d918916"
+    }
+  },
+  "cards": 14948,
+  "scripts": 13486
+}

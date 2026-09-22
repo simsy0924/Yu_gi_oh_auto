@@ -1,0 +1,19 @@
+{
+  "name": "ghost-duel",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "test": "node --test tests/*.test.js",
+    "assets": "python3 scripts/prepare-assets.py",
+    "postinstall": "node scripts/patch-core.mjs"
+  },
+  "dependencies": {
+    "ocgcore-wasm": "0.1.2"
+  },
+  "devDependencies": {
+    "vite": "6.3.6"
+  }
+}
