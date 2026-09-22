@@ -1,5 +1,5 @@
 export function parseDeck(text, name='불러온 덱') {
-  if (text.trim().startsWith('{')) return validateDeck({...JSON.parse(text), name});
+  if (text.trim().startsWith('{')) {const deck=JSON.parse(text);return validateDeck({...deck,name:typeof deck.name==='string'?deck.name:name});}
   const deck={name,main:[],extra:[],side:[]}; let section='main';
   for(const raw of text.split(/\r?\n/)) {
     const line=raw.trim(); if(!line) continue;
