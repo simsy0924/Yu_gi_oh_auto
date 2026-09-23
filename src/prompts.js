@@ -1,4 +1,5 @@
-import {OcgMessageType as M,OcgResponseType as R,SelectIdleCMDAction as I,SelectBattleCMDAction as B,ocgPositionParse} from 'ocgcore-wasm';
+import {OcgMessageType as M,OcgResponseType as R,SelectIdleCMDAction as I,SelectBattleCMDAction as B,ocgPositionParse,cardMatchesOpcode,ocgRaceParse,ocgAttributeParse} from 'ocgcore-wasm';
+import {races,attributes,normalize} from './catalog.js';
 export const requestTypes=new Set(Object.entries(M).filter(([k])=>/^(SELECT_|SORT_|ANNOUNCE_|ROCK_PAPER_SCISSORS)/.test(k)).map(([,v])=>v));
 export function fieldPlaces(mask, player) {
   const places=[];
@@ -47,24 +48,83 @@ export function makePrompt(m,cards) {
     case M.SELECT_UNSELECT_CARD:
       p.title='소재 선택 / 선택 해제';[...m.select_cards,...m.unselect_cards].forEach((c,index)=>add(`${index<m.select_cards.length?'선택':'해제'} · ${label(c)}`,{type,index},index<m.select_cards.length?'select':'unselect',c.code,c));
       if(m.can_finish||m.can_cancel)add(m.can_finish?'선택 완료':'취소',{type,index:null},m.can_finish?'finish':'cancel');break;
+    case M.SELECT_COUNTER:
+      p.title=`카운터 분배 · ${m.count}개 선택`;
+      p.selection={mode:'counter',counterType:m.counter_type,total:m.count,options:m.cards.map((c,id)=>({id,label:`${label(c)} · 보유 ${c.count}개`,cap:c.count,source:source(c)}))};break;
+    case M.SELECT_SUM:
+      p.title=m.select_max?'합계 이상의 소재 선택':'합계가 같은 소재 선택';
+      p.selection={mode:'sum',amount:m.amount,min:m.min,max:m.max,selectMax:!!m.select_max,
+        mandatory:m.selects_must.map(c=>({label:label(c),values:sumValues(c.amount),source:source(c)})),
+        options:m.selects.map((c,id)=>({id,label:`${label(c)} · ${sumValues(c.amount).join(' 또는 ')}`,card:c.code,values:sumValues(c.amount),source:source(c)}))};break;
     case M.SORT_CARD: case M.SORT_CHAIN:
-      p.title='카드 / 체인 순서';add('기본 순서 유지',{type:R.SORT_CARD,order:null});break;
+      p.title=m.type===M.SORT_CHAIN?'체인 순서 지정':'카드 순서 지정';
+      p.selection={mode:'sort',options:m.cards.map((c,id)=>({id,label:label(c),card:c.code,source:source(c)})),min:m.cards.length,max:m.cards.length};
+      add('기본 순서 유지',{type:R.SORT_CARD,order:null},'default');break;
+    case M.ANNOUNCE_RACE: case M.ANNOUNCE_ATTRIB: {
+      const race=m.type===M.ANNOUNCE_RACE;
+      const values=race?ocgRaceParse(m.available):ocgAttributeParse(m.available);
+      p.title=`${race?'종족':'속성'} ${m.count}개 선언`;
+      p.selection={mode:race?'race':'attribute',min:m.count,max:m.count,options:values.map((value,id)=>({id,label:(race?races:attributes).find(([bit])=>BigInt(bit)===BigInt(value))?.[1]??String(value),value:String(value)}))};break;
+    }
+    case M.ANNOUNCE_CARD: {
+      p.title='카드명 선언';
+      const options=Object.values(cards).filter(c=>c.code&&cardMatchesOpcode({...c,race:BigInt(c.race)},m.opcodes))
+        .sort((a,b)=>a.name.localeCompare(b.name,'ko')||a.code-b.code)
+        .map((c,id)=>({id,label:`${c.name} · ${c.code}`,card:c.code,search:normalize(`${c.name} ${c.englishName??''} ${c.code}`)}));
+      p.selection={mode:'card',min:1,max:1,options};break;
+    }
     case M.ANNOUNCE_NUMBER:
-      p.title='숫자 선언';m.options.forEach((n,value)=>add(String(n),{type,value}));break;
+      p.title='숫자 선언';m.options.forEach((n,index)=>add(String(n),{type,value:index}));break;
     case M.ROCK_PAPER_SCISSORS:
       [1,2,3].forEach(value=>add(['','가위','바위','보'][value],{type,value}));break;
     default:p.blocked=`아직 화면에서 지원하지 않는 선택입니다: ${title}`;
   }
   return p;
 }
+function sumValues(amount){const low=amount&0xffff,high=amount>>>16;return high&&high!==low?[low,high]:[low];}
+export function counterResponse(p,counts){
+  const s=p.selection;
+  if(s?.mode!=='counter'||!Array.isArray(counts)||counts.length!==s.options.length||counts.some((n,i)=>!Number.isInteger(n)||n<0||n>s.options[i].cap)||counts.reduce((n,c)=>n+c,0)!==s.total)throw new Error(`카운터를 정확히 ${s?.total??0}개 분배하세요.`);
+  return {type:R.SELECT_COUNTER,counters:counts};
+}
+function validSum(s,selected){
+  const cards=[...s.mandatory,...selected];if(!cards.length)return false;
+  if(s.selectMax){
+    const minima=cards.map(c=>Math.min(...c.values)),maxima=cards.map(c=>Math.max(...c.values));
+    return maxima.reduce((a,n)=>a+n,0)>=s.amount&&minima.reduce((a,n)=>a+n,0)-Math.min(...minima)<s.amount;
+  }
+  if(selected.length<s.min||selected.length>s.max)return false;
+  const exact=(index,remaining)=>{
+    if(remaining===0||index===cards.length)return false;
+    if(index===cards.length-1)return cards[index].values.includes(remaining);
+    return cards[index].values.some(value=>remaining>value&&exact(index+1,remaining-value));
+  };
+  return exact(0,s.amount);
+}
 export function selectionResponse(p, ids) {
   const s=p.selection;if(!s||!Array.isArray(ids)||new Set(ids).size!==ids.length)throw new Error('선택을 확인하세요.');
   const selected=ids.map(id=>s.options.find(o=>o.id===id));if(selected.some(x=>!x))throw new Error('유효하지 않은 선택입니다.');
+  if(s.mode==='counter')throw new Error('카운터 수량을 입력하세요.');
+  if(s.mode==='sum'){
+    if(!validSum(s,selected))throw new Error(`소재의 합계를 확인하세요 (목표 ${s.amount}).`);
+    return {type:R.SELECT_SUM,indicies:ids};
+  }
+  if(s.mode==='card'){
+    if(ids.length!==1)throw new Error('선언할 카드를 한 장 선택하세요.');
+    return {type:R.ANNOUNCE_CARD,card:selected[0].card};
+  }
+  if(s.mode==='race'||s.mode==='attribute'){
+    if(ids.length!==s.min)throw new Error(`${s.min}개를 선택하세요.`);
+    return s.mode==='race'?{type:R.ANNOUNCE_RACE,races:selected.map(o=>BigInt(o.value))}:{type:R.ANNOUNCE_ATTRIB,attributes:selected.map(o=>Number(o.value))};
+  }
+  if(s.mode==='sort'){
+    if(ids.length!==s.options.length)throw new Error('모든 카드의 순서를 지정하세요.');
+    const order=Array(ids.length);ids.forEach((id,rank)=>order[id]=rank);return {type:R.SORT_CARD,order};
+  }
   const amount=s.tribute?selected.reduce((n,c)=>n+c.value,0):ids.length;
   if(amount<s.min||ids.length>s.max)throw new Error(`선택 조건을 확인하세요 (${s.min}~${s.max}).`);
   const type=R[p.type];
   if(p.type==='SELECT_PLACE'||p.type==='SELECT_DISFIELD')return {type,places:selected.map(o=>o.place)};
-  if(s.ordered) {const order=Array(ids.length);ids.forEach((id,rank)=>order[id]=rank);return {type:R.SORT_CARD,order};}
   return {type,indicies:ids};
 }
 const basicActions={
@@ -74,13 +134,38 @@ const basicActions={
   SELECT_EFFECTYN:['yes','no'],SELECT_YESNO:['yes','no'],
   SELECT_UNSELECT_CARD:['select','finish','unselect','cancel']
 };
+function firstSumSelection(p,required=[]) {
+  const s=p.selection,limit=s.selectMax?s.options.length:s.max;
+  let attempts=0;
+  const visit=(ids,start)=>{
+    try{selectionResponse(p,ids);return ids;}catch{}
+    if(ids.length>=limit||++attempts>100000)return null;
+    for(let i=start;i<s.options.length;i++){
+      const candidate=visit([...ids,s.options[i].id],i+1);
+      if(candidate)return candidate;
+    }
+    return null;
+  };
+  return visit(required,0);
+}
+function defaultCounters(p){
+  let left=p.selection.total;
+  const counts=p.selection.options.map(o=>{const n=Math.min(left,o.cap);left-=n;return n;});
+  return left===0?counts:null;
+}
 // Every response still comes from the core's legal choices. Priority rules are checked afresh on each request.
 export function ghostChoice(p, behavior={}, cursor=0) {
   const match=step=>{
     if(!step||step.on!==p.type)return null;
-    if(step.card!==undefined&&p.selection&&['SELECT_CARD','SELECT_TRIBUTE'].includes(p.type)){
+    if(step.counters!==undefined&&p.selection?.mode==='counter'){
+      try{counterResponse(p,step.counters);return {counters:step.counters};}catch{return null;}
+    }
+    if(step.card!==undefined&&p.selection&&['SELECT_CARD','SELECT_TRIBUTE','ANNOUNCE_CARD','SELECT_SUM'].includes(p.type)){
       const target=p.selection.options.find(o=>o.card===step.card);
       if(!target)return null;
+      if(p.type==='SELECT_SUM'){
+        const ids=firstSumSelection(p,[target.id]);return ids?{indices:ids}:null;
+      }
       const ids=[target.id];let amount=p.selection.tribute?target.value:1;
       for(const o of p.selection.options){
         if(amount>=p.selection.min)break;
@@ -104,6 +189,13 @@ export function ghostChoice(p, behavior={}, cursor=0) {
     const c=p.choices.find(c=>c.kind===kind);if(c)return {choice:c.id,cursor};
   }
   if(p.selection) {
+    if(p.selection.mode==='counter'){
+      const counters=defaultCounters(p);return counters?{counters,cursor}:{blocked:'카운터를 분배할 수 없습니다.'};
+    }
+    if(p.selection.mode==='sum'){
+      const indices=firstSumSelection(p);return indices?{indices,cursor}:{blocked:'합계 조건에 맞는 소재를 찾지 못했습니다.'};
+    }
+    if(p.selection.mode==='sort')return {indices:p.selection.options.map(o=>o.id),cursor};
     const ids=[];let amount=0;
     for(const o of p.selection.options) {if(amount>=p.selection.min)break;ids.push(o.id);amount+=p.selection.tribute?o.value:1;}
     selectionResponse(p,ids);return {indices:ids,cursor};

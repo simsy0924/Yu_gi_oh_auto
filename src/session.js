@@ -1,6 +1,6 @@
 import createCore,{OcgDuelMode as D,OcgMessageType as M,OcgProcessResult as P,OcgResponseType as R,OcgQueryFlags as Q} from 'ocgcore-wasm';
 import {validateDeck} from './decks.js';
-import {makePrompt,requestTypes,selectionResponse} from './prompts.js';
+import {makePrompt,requestTypes,selectionResponse,counterResponse} from './prompts.js';
 export class DuelSession {
   static async create({cards,scripts,wasmBinary,you,ghost,seed=[1,2,3,4]}) {
     validateDeck(you,cards);validateDeck(ghost.deck,cards);
@@ -44,7 +44,8 @@ export class DuelSession {
   respond(input) {
     if(this.ended||!this.prompt)throw new Error('현재 선택할 수 없습니다.');
     let response;
-    if(input.indices)response=selectionResponse(this.prompt,input.indices);
+    if(Object.hasOwn(input,'counters'))response=counterResponse(this.prompt,input.counters);
+    else if(Object.hasOwn(input,'indices'))response=selectionResponse(this.prompt,input.indices);
     else response=this.prompt.choices.find(c=>c.id===String(input.choice))?.response;
     if(!response)throw new Error('유효하지 않은 행동입니다.');
     this.core.duelSetResponse(this.handle,response);this.prompt=null;this.advance();
@@ -56,7 +57,7 @@ export class DuelSession {
       for(const location of [1,2,4,8,16,32,64]) {
         const hidden=location===1||(controller===1&&(location===2||location===64));
         if(hidden){zones[controller][location]={count:this.core.duelQueryCount(this.handle,controller,location)};continue;}
-        const list=this.core.duelQueryLocation(this.handle,{controller,location,flags:Q.CODE|Q.POSITION|Q.ATTACK|Q.DEFENSE|Q.LINK|Q.OVERLAY_CARD});
+        const list=this.core.duelQueryLocation(this.handle,{controller,location,flags:Q.CODE|Q.POSITION|Q.ATTACK|Q.DEFENSE|Q.LINK|Q.OVERLAY_CARD|Q.COUNTERS});
         zones[controller][location]={cards:list.map((c,sequence)=>{
           if(!c)return null;
           if(controller===1&&(c.position&10))return {sequence,position:c.position,hidden:true};

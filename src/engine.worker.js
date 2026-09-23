@@ -26,11 +26,11 @@ self.onmessage=async({data:m})=>{
       post('loading',{message:'듀얼 엔진과 카드 데이터를 불러오는 중...'});
       assets??=Promise.all([bundle(new URL('engine/cards.json.gz',m.base)),bundle(new URL('engine/scripts.json.gz',m.base)),fetch(wasmUrl).then(r=>{if(!r.ok)throw new Error('WASM 로드 실패');return r.arrayBuffer();})]);
       const [cards,scripts,wasmBinary]=await assets;
-      const ko=await bundle(new URL('engine/ko.json.gz',m.base));for(const [code,text] of Object.entries(ko))if(cards[code])Object.assign(cards[code],text);
+      const ko=await bundle(new URL('engine/ko.json.gz',m.base));for(const [code,text] of Object.entries(ko))if(cards[code]){cards[code].englishName=cards[code].name;Object.assign(cards[code],text);}
       session=await DuelSession.create({cards,scripts,wasmBinary,you:m.you,ghost:m.ghost,seed:m.seed});publish();
     } else if(m.type==='respond') {
       if(m.revision!==revision||session?.prompt?.player!==0)return;
-      clearTimeout(timer);session.respond(m);publish();
+      clearTimeout(timer);try{session.respond(m);publish();}catch(e){post(session.prompt?'input-error':'error',{message:e.message});}
     } else if(m.type==='pause') {clearTimeout(timer);paused=!paused;publish();}
     else if(m.type==='step') {if(paused)actGhost();}
   }catch(e){clearTimeout(timer);post('error',{message:e.message});}
