@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {gunzipSync} from 'node:zlib';
-import {addCard,exportDeck,searchCards,cardStatKind} from '../src/catalog.js';
+import {addCard,exportDeck,searchCards,cardStatKind,applyCatalogTranslations} from '../src/catalog.js';
 import {parseDeck} from '../src/decks.js';
 const cards=JSON.parse(gunzipSync(readFileSync('public/engine/cards.json.gz')));
 const translations=JSON.parse(gunzipSync(readFileSync('public/engine/ko.json.gz')));
@@ -51,8 +51,30 @@ test('the bundled card data exposes levels, ranks and link ratings separately',(
 });
 
 test('the Korean title for Red Dragon Archfiend’s Chain searches both card IDs',()=>{
-  const variants=['92936364','92936365'].map(code=>({
-    ...cards[code],...translations[code],englishName:cards[code].name
-  }));
+  const codes=['92936364','92936365'];
+  const catalog=applyCatalogTranslations(Object.fromEntries(codes.map(code=>[code,{...cards[code]}])),{...translations});
+  const variants=codes.map(code=>catalog[code]);
   assert.deepEqual(searchCards(variants,{query:'레드 데몬즈 체인'}).map(c=>c.code),[92936364,92936365]);
+});
+test('the Korean title for Cyberse Code Magician searches both card IDs',()=>{
+  const codes=['64865','64866'];
+  const catalog=applyCatalogTranslations(Object.fromEntries(codes.map(code=>[code,{...cards[code]}])),{...translations});
+  const variants=codes.map(code=>catalog[code]);
+  assert.deepEqual(searchCards(variants,{query:'사이버스 코드 매지션'}).map(c=>c.code),[64865,64866]);
+});
+test('an untranslated alternate card ID inherits the Korean name and effect from its matching alias',()=>{
+  const code='89631148';
+  const alias=String(cards[code].alias);
+  const catalog=applyCatalogTranslations({[code]:{...cards[code]},[alias]:{...cards[alias]}},{...translations});
+  const variant=catalog[code];
+  assert.equal(variant.name,'푸른 눈의 백룡');
+  assert.deepEqual(searchCards([variant],{query:'푸른 눈의 백룡'}),[variant]);
+});
+test('an alternate card with changed English text inherits only its matching Korean name',()=>{
+  const code='4280259';
+  const alias=String(cards[code].alias);
+  const catalog=applyCatalogTranslations({[code]:{...cards[code]},[alias]:{...cards[alias]}},{...translations});
+  const variant=catalog[code];
+  assert.equal(variant.name,'소명의 신궁－아폴로우사');
+  assert.equal(variant.desc,cards[code].desc);
 });
