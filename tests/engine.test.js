@@ -6,12 +6,41 @@ import {DuelSession} from '../src/session.js';
 import {ghostChoice,fieldPlaces,makePrompt,selectionResponse,counterResponse,requestTypes} from '../src/prompts.js';
 import {parseDeck} from '../src/decks.js';
 import {OcgMessageType as M,OcgResponseType as R,OcgQueryFlags as Q,OcgOpCode} from 'ocgcore-wasm';
+import {cardFacts,cardInfoHtml} from '../src/card-info.js';
+import {promptHelp,selectionProgress} from '../src/duel-guidance.js';
 const cards=JSON.parse(gunzipSync(readFileSync('public/engine/cards.json.gz')));
+const koreanStrings=JSON.parse(gunzipSync(readFileSync('public/engine/ko-strings.json.gz')));
 const scripts=JSON.parse(gunzipSync(readFileSync('public/engine/scripts.json.gz')));
 const buf=readFileSync('node_modules/ocgcore-wasm/lib/ocgcore.sync.wasm');
 const wasmBinary=buf.buffer.slice(buf.byteOffset,buf.byteOffset+buf.byteLength);
 const you=JSON.parse(readFileSync('public/decks/starter.json'));
 const ghost=JSON.parse(readFileSync('public/ghosts/sample.json'));
+test('effect commands use Korean choice strings and show the Korean card context',()=>{
+  const code=64964750,card={...cards[code],name:'발금령',desc:'카드명을 1개 선언하고 발동할 수 있다.',englishDesc:cards[code].desc,koreanStrings:koreanStrings[code]};
+  const description=(BigInt(code)<<20n)|0n;
+  const p=makePrompt({type:M.SELECT_IDLECMD,player:0,summons:[],special_summons:[],pos_changes:[],monster_sets:[],spell_sets:[],activates:[{code,controller:0,location:2,sequence:0,description}],to_bp:false,to_ep:false},{[code]:card});
+  assert.match(p.choices[0].label,/카드명을 1개 선언하고/);
+  assert.doesNotMatch(p.choices[0].label,/Declare/);
+  assert.match(p.choices[0].shortLabel,/카드명을 1개 선언하고/);
+  const option=makePrompt({type:M.SELECT_OPTION,player:0,options:[description]},{[code]:card});
+  assert.equal(option.context.name,'발금령');
+  assert.match(option.choices[0].label,/카드명을 1개 선언하고/);
+  assert.match(promptHelp(option),/효과/);
+  const fallback=makePrompt({type:M.SELECT_OPTION,player:0,options:[description]},{[code]:{...card,koreanStrings:[]}});
+  assert.equal(fallback.choices[0].label,'선택 1');
+});
+test('card details include the applicable printed stats and selection progress',()=>{
+  const monster={code:1,name:'시험 카드',desc:'시험 효과',type:1|0x20|0x1000000|0x4000000,race:'8192',attribute:16,level:3,attack:2000,lscale:2,rscale:7,link_marker:128|2,counters:{257:2}};
+  const details=cardFacts(monster);
+  assert.deepEqual(details.find(([label])=>label==='종류')[1],'몬스터 · 효과 · 펜듈럼 · 링크');
+  assert.ok(details.some(([label,value])=>label==='종족'&&value==='드래곤족'));
+  assert.ok(details.some(([label,value])=>label==='속성'&&value==='빛'));
+  assert.ok(details.some(([label,value])=>label==='링크 마커'&&value==='↑ ↓'));
+  assert.ok(details.some(([label,value])=>label==='펜듈럼 스케일'&&value==='2 / 7'));
+  assert.ok(details.some(([label])=>label==='카운터 257'));
+  assert.match(cardInfoHtml({...monster,name:'<script>'}),/&lt;script&gt;/);
+  assert.equal(selectionProgress({mode:'sort',options:[1,2,3]},[0,1]),'2/3장 순서 지정');
+});
 test('real WASM core: draw, summon, battle, damage and win',async()=>{
   const s=await DuelSession.create({cards,scripts,wasmBinary,you,ghost});
   try {
@@ -90,6 +119,11 @@ test('each duel shuffles the ghost deck; the opening hand stays hidden in the pl
 test('legal card actions carry their exact field or hand position for card clicks',async()=>{
   const s=await DuelSession.create({cards,scripts,wasmBinary,you,ghost});
   try{
+    const drawn=s.snapshot().zones[0][2].cards[0],record=cards[drawn.code];
+    assert.equal(drawn.type,record.type);
+    assert.equal(drawn.attribute,record.attribute);
+    assert.equal(drawn.race,record.race);
+    assert.equal(drawn.level,record.level);
     const choices=s.prompt.choices.filter(c=>c.source);
     assert.ok(choices.length>0);
     for(const c of choices){
@@ -144,14 +178,16 @@ test('announcements and sort prompts encode declared values and chosen order',()
 });
 test('real core accepts a declared card after activating Sales Ban',async()=>{
   const code=64964750,deck={...you,main:[code,...you.main.slice(1)]};
+  const localizedCards={...cards,[code]:{...cards[code],name:'발금령',desc:'카드명을 1개 선언하고 발동할 수 있다.',englishDesc:cards[code].desc,koreanStrings:koreanStrings[code]}};
   let s;
   for(let seed=1;seed<=100;seed++){
-    s=await DuelSession.create({cards,scripts,wasmBinary,you:deck,ghost,seed:[seed,2,3,4]});
+    s=await DuelSession.create({cards:localizedCards,scripts,wasmBinary,you:deck,ghost,seed:[seed,2,3,4]});
     if(s.prompt?.choices.some(c=>c.kind==='activate'&&c.card===code))break;
     s.destroy();s=null;
   }
   assert.ok(s,'Sales Ban must be in the shuffled opening hand');
   try{
+    assert.match(s.prompt.choices.find(c=>c.kind==='activate'&&c.card===code).label,/카드명을 1개 선언하고/);
     s.respond({choice:s.prompt.choices.find(c=>c.kind==='activate'&&c.card===code).id});
     for(let i=0;i<10&&s.prompt?.type!=='ANNOUNCE_CARD';i++){
       const decision=ghostChoice(s.prompt,{fallback:'basic'});

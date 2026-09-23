@@ -24,9 +24,10 @@ self.onmessage=async({data:m})=>{
     if(m.type==='start') {
       clearTimeout(timer);session?.destroy();session=null;cursor=0;paused=false;behavior=m.ghost.behavior??{};
       post('loading',{message:'듀얼 엔진과 카드 데이터를 불러오는 중...'});
-      assets??=Promise.all([bundle(new URL('engine/cards.json.gz',m.base)),bundle(new URL('engine/scripts.json.gz',m.base)),fetch(wasmUrl).then(r=>{if(!r.ok)throw new Error('WASM 로드 실패');return r.arrayBuffer();})]);
-      const [cards,scripts,wasmBinary]=await assets;
-      const ko=await bundle(new URL('engine/ko.json.gz',m.base));for(const [code,text] of Object.entries(ko))if(cards[code]){cards[code].englishName=cards[code].name;Object.assign(cards[code],text);}
+      assets??=Promise.all([bundle(new URL('engine/cards.json.gz',m.base)),bundle(new URL('engine/scripts.json.gz',m.base)),bundle(new URL('engine/ko-strings.json.gz',m.base)),fetch(wasmUrl).then(r=>{if(!r.ok)throw new Error('WASM 로드 실패');return r.arrayBuffer();})]);
+      const [cards,scripts,koStrings,wasmBinary]=await assets;
+      const ko=await bundle(new URL('engine/ko.json.gz',m.base));for(const [code,text] of Object.entries(ko))if(cards[code]){cards[code].englishName=cards[code].name;cards[code].englishDesc=cards[code].desc;Object.assign(cards[code],text);}
+      for(const [code,strings] of Object.entries(koStrings))if(cards[code])cards[code].koreanStrings=strings;
       session=await DuelSession.create({cards,scripts,wasmBinary,you:m.you,ghost:m.ghost,seed:m.seed});publish();
     } else if(m.type==='respond') {
       if(m.revision!==revision||session?.prompt?.player!==0)return;

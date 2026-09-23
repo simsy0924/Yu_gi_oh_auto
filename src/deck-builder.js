@@ -1,5 +1,6 @@
 import {validateDeck,parseDeck} from './decks.js';
 import {loadCatalog,deckable,cardKind,cardStatKind,searchCards,races,attributes,kinds,addCard,exportDeck} from './catalog.js';
+import {cardInfoHtml} from './card-info.js';
 const DRAFT_KEY='ghost-duel.builder.draft.v1';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const parts={main:'메인',extra:'엑스트라',side:'사이드'};
@@ -20,7 +21,7 @@ export async function openDeckBuilder(root,{source,onSave,onClose}) {
   const message=text=>{$('builderStatus').textContent=text;};
   const validate=()=>{try{validateDeck(draft,cards);return '';}catch(e){return e.message;}};
   function persist(){try{localStorage.setItem(DRAFT_KEY,JSON.stringify({sourceId,deck:draft}));}catch{$('draftStatus').textContent='기기 저장 공간에 쓸 수 없습니다. 완성한 덱을 JSON으로 내보내 주세요.';}}
-  function inspect(code){const c=cards[code],stat=cardStatKind(c??{type:0}),race=races.find(([bit])=>bit===Number(c?.race))?.[1],attribute=attributes.find(([bit])=>bit===c?.attribute)?.[1];$('builderDetail').innerHTML=c?`<strong>${esc(c.name)}</strong><small>${cardKind(c)} · ${c.code}${c.type&1?` · ${stat==='link'?'LINK':stat==='rank'?'랭크':'레벨'} ${c.level} · ${race??'종족 미상'} · ${attribute??'속성 미상'} · ATK ${c.attack}${stat==='link'?'':` / DEF ${c.defense}`}`:''}</small><p>${esc(c.desc)}</p>`:'카드 DB에 없는 번호입니다.';}
+  function inspect(code){$('builderDetail').innerHTML=cards[code]?cardInfoHtml(cards[code]):'카드 DB에 없는 번호입니다.';}
   function renderDeck(){
     $('deckTabs').innerHTML=Object.entries(parts).map(([p,name])=>`<button class="deck-tab ${p===part?'active':''}" data-part="${p}" aria-pressed="${p===part}">${name} ${draft[p].length}/${p==='main'?'40~60':'15'}</button>`).join('');
     const grouped=new Map();draft[part].forEach(code=>grouped.set(code,(grouped.get(code)||0)+1));

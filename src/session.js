@@ -62,7 +62,10 @@ export class DuelSession {
           if(!c)return null;
           if(controller===1&&(c.position&10))return {sequence,position:c.position,hidden:true};
           const db=this.cards[c.code]??{};
-          return {...c,sequence,name:db.name??String(c.code),desc:db.desc??'',link_marker:db.link_marker??0};
+          return {...c,sequence,name:db.name??String(c.code),desc:db.desc??'',type:db.type??0,
+            race:db.race??'0',attribute:db.attribute??0,level:db.level??0,
+            lscale:db.lscale??0,rscale:db.rscale??0,link_marker:db.link_marker??0,
+            originalAttack:db.attack,originalDefense:db.defense};
         })};
       }
     }
