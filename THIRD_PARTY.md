@@ -30,5 +30,10 @@ are served locally from the same deployment, without runtime third-party CDNs.
   the official Yu-Gi-Oh! Neuron OCG Card Database. Cards without a matching
   Korean record retain BabelCDB's name/text. The bundle can be regenerated with
   `python3 scripts/prepare-ko.py /path/to/original/catalog`.
+- **Korean effect-choice strings**: extracted from the community
+  [EDOPro Korean database](https://github.com/Team-AllYGOPro/edopro-korean),
+  AGPL-3.0. The pinned revision is recorded in `public/engine/sources.json`.
+  Only the 16 effect strings for cards in the bundled core database are included.
+  Regenerate with `python3 scripts/prepare-ko-strings.py /path/to/edopro-korean/cards.cdb`.
 
 License copies are also published under `public/licenses/`.

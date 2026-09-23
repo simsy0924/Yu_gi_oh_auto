@@ -41,5 +41,5 @@ for path in [*sorted((base/'CardScripts').glob('*.lua')), *sorted((base/'CardScr
     scripts[path.name] = path.read_text(encoding='utf-8-sig')
 write('cards.json.gz', cards)
 write('scripts.json.gz', scripts)
-(out/'sources.json').write_text(json.dumps({'ocgcore-wasm':'0.1.2','sources':{k:{'url':u,'commit':r} for k,(u,r) in SOURCES.items()},'cards':len(cards),'scripts':len(scripts)}, indent=2)+'\n')
+(out/'sources.json').write_text(json.dumps({'ocgcore-wasm':'0.1.2','sources':{**{k:{'url':u,'commit':r} for k,(u,r) in SOURCES.items()},'KoreanEffectStrings':{'url':'https://github.com/Team-AllYGOPro/edopro-korean.git','commit':'b4a750d9d93efb2b1449608f89c94836b690b389'}},'cards':len(cards),'scripts':len(scripts)}, indent=2)+'\n')
 print(f'{len(cards)} cards, {len(scripts)} scripts')

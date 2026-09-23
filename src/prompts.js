@@ -12,11 +12,11 @@ export function makePrompt(m,cards) {
   const title=M[m.type]??String(m.type), type=R[title];
   const p={type:title,player:m.player,title:'행동을 선택하세요',choices:[],selection:null};
   const name=c=>cards[c.code]?.name??String(c.code);
-  const description=d=>{const n=BigInt(d??0),c=cards[Number(n>>20n)];return c?.strings[Number(n&0xfffffn)]||'';};
+  const description=d=>{const n=BigInt(d??0),c=cards[Number(n>>20n)];return c?.koreanStrings?.[Number(n&0xfffffn)]||'';};
   const label=c=>`${name(c)}${c.location?` · ${({'2':'패','4':'몬스터','8':'마법·함정','16':'묘지','32':'제외','64':'엑스트라'})[c.location]??'덱'} ${c.sequence+1}`:''}${c.description?` ${description(c.description)}`:''}`;
   const source=c=>c&&Number.isInteger(c.controller)&&Number.isInteger(c.location)&&Number.isInteger(c.sequence)?{controller:c.controller,location:c.location,sequence:c.sequence}:null;
-  const add=(label,response,kind='',card=null,from=null)=>p.choices.push({id:String(p.choices.length),label,response,kind,card,source:source(from)});
-  const command=(list,action,kind,verb)=>(list??[]).forEach((c,index)=>add(`${verb} · ${label(c)}`,{type,action,index},kind,c.code,c));
+  const add=(label,response,kind='',card=null,from=null,shortLabel=label)=>p.choices.push({id:String(p.choices.length),label,shortLabel,response,kind,card,source:source(from)});
+  const command=(list,action,kind,verb)=>(list??[]).forEach((c,index)=>add(`${verb} · ${label(c)}`,{type,action,index},kind,c.code,c,`${verb}${c.description&&description(c.description)?` · ${description(c.description)}`:''}`));
   switch(m.type) {
     case M.SELECT_IDLECMD:
       command(m.summons,I.SELECT_SUMMON,'summon','일반 소환'); command(m.special_summons,I.SELECT_SPECIAL_SUMMON,'special','특수 소환');
@@ -30,7 +30,7 @@ export function makePrompt(m,cards) {
       if(m.to_m2)add('메인 페이즈 2',{type,action:B.TO_M2,index:null},'main2');
       if(m.to_ep)add('턴 종료',{type,action:B.TO_EP,index:null},'end'); break;
     case M.SELECT_CHAIN:
-      p.title='체인할 효과를 선택하세요'; m.selects.forEach((c,index)=>add(label(c),{type,index},'activate',c.code,c));
+      p.title='체인할 효과를 선택하세요'; m.selects.forEach((c,index)=>add(label(c),{type,index},'activate',c.code,c,`체인 발동${c.description&&description(c.description)?` · ${description(c.description)}`:''}`));
       if(!m.forced)add('체인하지 않음',{type,index:null},'pass'); break;
     case M.SELECT_EFFECTYN: case M.SELECT_YESNO:
       p.title=`${m.code?name(m)+' · ':''}${description(m.description)||'효과를 적용할까요?'}`;
@@ -46,7 +46,7 @@ export function makePrompt(m,cards) {
     case M.SELECT_PLACE: case M.SELECT_DISFIELD:
       p.title='존 선택';p.selection={options:fieldPlaces(m.field_mask,m.player).map((place,id)=>({id,label:`${place.player===0?'내':'상대'} ${place.location===4?'몬스터':'마법·함정'} 존 ${place.sequence+1}`,place})),min:m.count,max:m.count};break;
     case M.SELECT_UNSELECT_CARD:
-      p.title='소재 선택 / 선택 해제';[...m.select_cards,...m.unselect_cards].forEach((c,index)=>add(`${index<m.select_cards.length?'선택':'해제'} · ${label(c)}`,{type,index},index<m.select_cards.length?'select':'unselect',c.code,c));
+      p.title='소재 선택 / 선택 해제';[...m.select_cards,...m.unselect_cards].forEach((c,index)=>add(`${index<m.select_cards.length?'선택':'해제'} · ${label(c)}`,{type,index},index<m.select_cards.length?'select':'unselect',c.code,c,index<m.select_cards.length?'소재 선택':'선택 해제'));
       if(m.can_finish||m.can_cancel)add(m.can_finish?'선택 완료':'취소',{type,index:null},m.can_finish?'finish':'cancel');break;
     case M.SELECT_COUNTER:
       p.title=`카운터 분배 · ${m.count}개 선택`;
@@ -79,6 +79,11 @@ export function makePrompt(m,cards) {
       [1,2,3].forEach(value=>add(['','가위','바위','보'][value],{type,value}));break;
     default:p.blocked=`아직 화면에서 지원하지 않는 선택입니다: ${title}`;
   }
+  const onlyOption=m.options?.length===1?m.options[0]:null;
+  const onlyChoice=m.selects?.length===1?m.selects[0]?.description:null;
+  const contextCode=Number(m.code??(BigInt(m.description??onlyOption??onlyChoice??0)>>20n));
+  const context=cards[contextCode];
+  if(context&&m.type!==M.SELECT_IDLECMD&&m.type!==M.SELECT_BATTLECMD)p.context={name:context.name,desc:context.desc!==context.englishDesc?context.desc:''};
   return p;
 }
 function sumValues(amount){const low=amount&0xffff,high=amount>>>16;return high&&high!==low?[low,high]:[low];}
