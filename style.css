@@ -37,3 +37,8 @@ a{color:var(--accent);font-size:11px}.picker{grid-template-rows:auto 1fr auto}.i
 @media(max-width:740px){.setup-modes .deck-tab{font-size:10px;padding:4px}.setup-grid.solo-setup{grid-template-columns:1fr 1fr;gap:7px}.scenario-card{padding:9px}.scenario-card .scenario-hint{display:none}.practice-picker{grid-template-columns:1fr 1fr;gap:5px}.practice-search,.practice-hand{padding:6px}.practice-search .search-controls select{max-width:95px}.practice-search .card-name,.practice-hand .card-name{font-size:10px}.practice-search .count-control,.practice-hand .count-control{min-width:28px;min-height:28px}}
 @media(max-height:450px){.setup{gap:7px}.setup-modes .deck-tab{min-height:32px}.practice-builder{gap:5px}.practice-options{padding:7px}.practice-search,.practice-hand{padding:5px}.practice-picker{height:calc(100% - 46px)}.practice-options p{margin-bottom:5px}.solo-note{min-height:28px}.ghost-draft-action{min-height:34px}}
 @media(orientation:portrait){.practice-builder{display:grid}.setup{display:grid}.setup-grid.solo-setup{grid-template-columns:1fr 1fr}.practice-builder .builder-header{flex-wrap:wrap}.practice-builder .builder-tools{width:auto;margin-left:auto}.practice-builder .builder-footer{flex-wrap:wrap}.practice-builder .builder-footer>div{flex-basis:100%}.practice-builder .builder-footer button{flex:1}}
+/* Give the card catalog enough room to show names and metadata while editing. */
+.builder-layout{grid-template-columns:minmax(0,1.4fr) minmax(260px,.9fr)}
+.search-card .card-name{font-size:13px}
+.search-card .card-name small{font-size:10px}
+@media(orientation:portrait){.builder-layout{grid-template-columns:1fr}}
