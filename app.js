@@ -193,7 +193,7 @@ function renderDuel(){
     try{
       if(document.fullscreenElement)await document.exitFullscreen();
       else await document.documentElement.requestFullscreen();
-      button.title='화면을 두 번 탭하거나 전체 화면 종료 버튼으로 돌아갈 수 있어요.';
+      button.title='다시 누르면 일반 화면으로 돌아갑니다.';
     }catch{
       button.title='현재 브라우저에서 전체 화면 전환을 사용할 수 없습니다.';
     }
