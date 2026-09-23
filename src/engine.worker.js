@@ -18,7 +18,7 @@ function publish(){
   }
   post('state',{state});
 }
-function actGhost(){try{clearTimeout(timer);if(!session||session.ended||session.prompt?.player!==1)return;const d=ghostChoice(session.prompt,behavior,cursor);if(d.blocked)throw new Error(d.blocked);const kind=session.prompt.choices.find(c=>c.id===d.choice)?.kind;cursor=d.cursor??cursor;if(actionNames[kind])session.log(`GHOST · ${actionNames[kind]}`);session.respond(d);publish();}catch(e){post('error',{message:e.message});}}
+function actGhost(){try{clearTimeout(timer);if(!session||session.ended||session.prompt?.player!==1)return;const d=ghostChoice(session.prompt,behavior,cursor);if(d.blocked)throw new Error(d.blocked);const kind=session.prompt.choices.find(c=>c.id===d.choice)?.kind;cursor=d.cursor??cursor;if(actionNames[kind])session.log(`고스트 · ${actionNames[kind]}`);session.respond(d);publish();}catch(e){post('error',{message:e.message});}}
 self.onmessage=async({data:m})=>{
   try {
     if(m.type==='start') {

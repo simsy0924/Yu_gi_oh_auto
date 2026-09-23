@@ -39,6 +39,9 @@ test('card details include the applicable printed stats and selection progress',
   assert.ok(details.some(([label,value])=>label==='펜듈럼 스케일'&&value==='2 / 7'));
   assert.ok(details.some(([label])=>label==='카운터 257'));
   assert.match(cardInfoHtml({...monster,name:'<script>'}),/&lt;script&gt;/);
+  const normal={...cards[47894537],name:'종글구울의 환술사',link:{rating:0,marker:0}};
+  assert.ok(cardFacts(normal).some(([label,value])=>label==='레벨'&&value===4));
+  assert.match(cardInfoHtml(normal),/카드 설명/);
   assert.equal(selectionProgress({mode:'sort',options:[1,2,3]},[0,1]),'2/3장 순서 지정');
 });
 test('real WASM core: draw, summon, battle, damage and win',async()=>{

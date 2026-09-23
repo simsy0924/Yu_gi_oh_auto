@@ -27,12 +27,12 @@ export class DuelSession {
         if(!m)throw new Error('코어 메시지를 해석할 수 없습니다.');
         if(m.type===M.RETRY)throw new Error('코어가 선택을 거부했습니다. 듀얼을 다시 시작하세요.');
         if(requestTypes.has(m.type))this.prompt=makePrompt(m,this.cards);
-        if(m.type===M.NEW_TURN){this.turn++;this.active=m.player;this.log(`${this.turn}턴 · ${m.player===0?'YOU':'GHOST'}`);}
+        if(m.type===M.NEW_TURN){this.turn++;this.active=m.player;this.log(`${this.turn}턴 · ${m.player===0?'나':'고스트'}`);}
         if(m.type===M.NEW_PHASE)this.phase=m.phase;
         if(m.type===M.DAMAGE||m.type===M.PAY_LPCOST)this.lp[m.player]=Math.max(0,this.lp[m.player]-m.amount);
         if(m.type===M.RECOVER)this.lp[m.player]+=m.amount;
         if(m.type===M.LPUPDATE)this.lp[m.player]=m.lp;
-        if(m.type===M.WIN){this.ended=true;this.winner=m.player;this.reason=m.reason;this.log(m.player===2?'무승부':`${m.player===0?'YOU':'GHOST'} 승리`);}
+        if(m.type===M.WIN){this.ended=true;this.winner=m.player;this.reason=m.reason;this.log(m.player===2?'무승부':`${m.player===0?'나':'고스트'} 승리`);}
         if(m.type===M.CHAINING)this.log(`체인 ${m.chain_size} · ${this.cards[m.code]?.name??m.code}`);
       }
       if(this.issue)throw new Error(this.issue);
