@@ -14,4 +14,10 @@ const sumFrom='selects:Array.from({length:e.u32()},()=>({code:e.u32(),controller
 const sumTo='selects_must:Array.from({length:e.u32()},()=>({code:e.u32(),...p(e),amount:e.u32()})),selects:Array.from({length:e.u32()},()=>({code:e.u32(),...p(e),amount:e.u32()}))';
 if(source.includes(sumFrom))source=source.replace(sumFrom,sumTo);
 else if(!source.includes(sumTo))throw new Error('Unknown SELECT_SUM decoder; review upstream.');
+// The published opcode helper tests the card code instead of its attribute.
+// Card name announcements must use the same predicate as the duel core.
+const attributeFrom='case l.ISATTRIBUTE:if(o.length>=1){let c=o.pop();o.push((BigInt(e.code)&c)!=0n?1n:0n)}';
+const attributeTo='case l.ISATTRIBUTE:if(o.length>=1){let c=o.pop();o.push((BigInt(e.attribute)&c)!=0n?1n:0n)}';
+if(source.includes(attributeFrom))source=source.replace(attributeFrom,attributeTo);
+else if(!source.includes(attributeTo))throw new Error('Unknown announce-card attribute predicate; review upstream.');
 writeFileSync(path,source);

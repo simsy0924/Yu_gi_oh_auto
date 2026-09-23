@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {gunzipSync} from 'node:zlib';
 import {DuelSession} from '../src/session.js';
-import {ghostChoice,fieldPlaces,makePrompt,selectionResponse} from '../src/prompts.js';
+import {ghostChoice,fieldPlaces,makePrompt,selectionResponse,counterResponse,requestTypes} from '../src/prompts.js';
 import {parseDeck} from '../src/decks.js';
-import {OcgMessageType as M,OcgQueryFlags as Q} from 'ocgcore-wasm';
+import {OcgMessageType as M,OcgResponseType as R,OcgQueryFlags as Q,OcgOpCode} from 'ocgcore-wasm';
 const cards=JSON.parse(gunzipSync(readFileSync('public/engine/cards.json.gz')));
 const scripts=JSON.parse(gunzipSync(readFileSync('public/engine/scripts.json.gz')));
 const buf=readFileSync('node_modules/ocgcore-wasm/lib/ocgcore.sync.wasm');
@@ -96,5 +96,90 @@ test('legal card actions carry their exact field or hand position for card click
       assert.equal(c.source.controller,0);
       assert.equal(s.snapshot().zones[0][c.source.location].cards[c.source.sequence].code,c.card);
     }
+  }finally{s.destroy();}
+});
+test('counter allocation respects each card capacity and the exact requested total',()=>{
+  const p=makePrompt({type:M.SELECT_COUNTER,player:0,counter_type:0x101,count:3,cards:[
+    {code:1,controller:0,location:4,sequence:0,count:2},
+    {code:2,controller:0,location:4,sequence:1,count:3}
+  ]},cards);
+  assert.equal(p.selection.mode,'counter');
+  assert.deepEqual(counterResponse(p,[1,2]),{type:R.SELECT_COUNTER,counters:[1,2]});
+  assert.throws(()=>counterResponse(p,[3,0]));assert.throws(()=>counterResponse(p,[1,1]));
+  assert.deepEqual(ghostChoice(p,{fallback:'basic'}).counters,[2,1]);
+});
+test('sum selection includes mandatory material and alternate values',()=>{
+  const card=(code,amount)=>({code,controller:0,location:4,sequence:code,amount});
+  const p=makePrompt({type:M.SELECT_SUM,player:0,select_max:0,amount:6,min:1,max:2,
+    selects_must:[card(1,2)],selects:[card(2,5),card(3,(4<<16)|3),card(4,1)]},cards);
+  assert.deepEqual(selectionResponse(p,[1]),{type:R.SELECT_SUM,indicies:[1]});
+  assert.throws(()=>selectionResponse(p,[0]));
+  assert.deepEqual(ghostChoice(p,{fallback:'basic'}).indices,[1]);
+  const greater=makePrompt({type:M.SELECT_SUM,player:0,select_max:1,amount:5,min:1,max:3,
+    selects_must:[card(1,2)],selects:[card(2,2),card(3,3)]},cards);
+  assert.throws(()=>selectionResponse(greater,[0]));
+  assert.deepEqual(selectionResponse(greater,[1]),{type:R.SELECT_SUM,indicies:[1]});
+});
+test('announcements and sort prompts encode declared values and chosen order',()=>{
+  const race=makePrompt({type:M.ANNOUNCE_RACE,player:0,count:2,available:1n|8192n},cards);
+  assert.deepEqual(selectionResponse(race,[1,0]),{type:R.ANNOUNCE_RACE,races:[8192n,1n]});
+  assert.throws(()=>selectionResponse(race,[0]));
+  const attrib=makePrompt({type:M.ANNOUNCE_ATTRIB,player:0,count:1,available:16|32},cards);
+  assert.deepEqual(selectionResponse(attrib,[1]),{type:R.ANNOUNCE_ATTRIB,attributes:[32]});
+  const named=makePrompt({type:M.ANNOUNCE_CARD,player:0,opcodes:[32n,OcgOpCode.ISATTRIBUTE]},
+    {16:{code:16,type:33,attribute:32,race:'8192',alias:0,setcodes:[],name:'어둠'},
+     32:{code:32,type:33,attribute:16,race:'8192',alias:0,setcodes:[],name:'빛'}});
+  assert.deepEqual(named.selection.options.map(o=>o.card),[16]);
+  assert.deepEqual(selectionResponse(named,[0]),{type:R.ANNOUNCE_CARD,card:16});
+  const number=makePrompt({type:M.ANNOUNCE_NUMBER,player:0,options:[4n,9n]},cards);
+  assert.equal(number.choices[1].label,'9');
+  assert.equal(number.choices[1].response.value,1); // core expects the option index
+  for(const kind of [M.SORT_CARD,M.SORT_CHAIN]){
+    const p=makePrompt({type:kind,player:0,cards:[{code:1},{code:2},{code:3}]},cards);
+    assert.deepEqual(selectionResponse(p,[2,0,1]),{type:R.SORT_CARD,order:[1,2,0]});
+    assert.deepEqual(ghostChoice(p,{fallback:'basic'}).indices,[0,1,2]);
+    assert.throws(()=>selectionResponse(p,[0,2]));
+  }
+  for(const kind of [M.SELECT_COUNTER,M.SELECT_SUM,M.ANNOUNCE_CARD,M.ANNOUNCE_RACE,M.ANNOUNCE_ATTRIB,M.SORT_CARD,M.SORT_CHAIN])assert.ok(requestTypes.has(kind));
+});
+test('real core accepts a declared card after activating Sales Ban',async()=>{
+  const code=64964750,deck={...you,main:[code,...you.main.slice(1)]};
+  let s;
+  for(let seed=1;seed<=100;seed++){
+    s=await DuelSession.create({cards,scripts,wasmBinary,you:deck,ghost,seed:[seed,2,3,4]});
+    if(s.prompt?.choices.some(c=>c.kind==='activate'&&c.card===code))break;
+    s.destroy();s=null;
+  }
+  assert.ok(s,'Sales Ban must be in the shuffled opening hand');
+  try{
+    s.respond({choice:s.prompt.choices.find(c=>c.kind==='activate'&&c.card===code).id});
+    for(let i=0;i<10&&s.prompt?.type!=='ANNOUNCE_CARD';i++){
+      const decision=ghostChoice(s.prompt,{fallback:'basic'});
+      assert.ok(!decision.blocked,decision.blocked);
+      s.respond(decision);
+    }
+    assert.equal(s.prompt.type,'ANNOUNCE_CARD');
+    const selected=s.prompt.selection.options.find(o=>o.card===you.main[0]);
+    assert.ok(selected);
+    s.respond({indices:[selected.id]});
+    assert.notEqual(s.prompt?.type,'ANNOUNCE_CARD');
+  }finally{s.destroy();}
+});
+test('real field queries expose spell counters after a spell resolves',async()=>{
+  const citadel=39910367,pot=55144522;
+  const deck={...you,main:[...Array(3).fill(citadel),...Array(3).fill(pot),...you.main.slice(6)]};
+  const s=await DuelSession.create({cards,scripts,wasmBinary,you:deck,ghost,seed:[9,2,3,4]});
+  try{
+    for(const code of [citadel,pot]){
+      const choice=s.prompt.choices.find(c=>c.kind==='activate'&&c.card===code);
+      assert.ok(choice,`${code} should be activatable`);
+      s.respond({choice:choice.id});
+    }
+    for(let i=0;i<8&&!(s.snapshot().zones[0][8].cards[5]?.counters?.[1]>0);i++){
+      const decision=ghostChoice(s.prompt,{fallback:'basic'});
+      assert.ok(!decision.blocked,decision.blocked);
+      s.respond(decision);
+    }
+    assert.ok(s.snapshot().zones[0][8].cards[5].counters[1]>0);
   }finally{s.destroy();}
 });

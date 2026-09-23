@@ -1,9 +1,10 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {exportGhost} from '../src/ghosts.js';
-import {ghostChoice} from '../src/prompts.js';
+import {exportGhost,actionsByRequest} from '../src/ghosts.js';
+import {ghostChoice,requestTypes} from '../src/prompts.js';
 import {parseDeck} from '../src/decks.js';
+import {OcgMessageType as M} from 'ocgcore-wasm';
 
 const deck=JSON.parse(readFileSync('public/decks/starter.json'));
 test('edited ghost exports into the existing import format and follows a scripted choice',()=>{
@@ -47,4 +48,18 @@ test('priority target rule follows a card rather than a shifting selection index
   const behavior={mode:'priority',fallback:'pause',script:[{on:'SELECT_CARD',card:200}]};
   assert.deepEqual(ghostChoice(p,behavior),{indices:[1],cursor:0});
   assert.ok(ghostChoice({...p,selection:{...p.selection,options:[p.selection.options[0]]}},behavior).blocked);
+});
+test('ghost JSON can allocate counters and declare a named card',()=>{
+  const behavior={type:'scripted',mode:'priority',fallback:'basic',script:[
+    {on:'SELECT_COUNTER',counters:[1,2]},
+    {on:'ANNOUNCE_CARD',card:4148264}
+  ]};
+  const saved=exportGhost({name:'선언 고스트',deck,behavior});
+  assert.deepEqual(JSON.parse(JSON.stringify(saved.behavior.script)),behavior.script);
+  assert.deepEqual(ghostChoice({type:'SELECT_COUNTER',selection:{mode:'counter',total:3,options:[{cap:1},{cap:2}]},choices:[]},behavior).counters,[1,2]);
+  assert.deepEqual(ghostChoice({type:'ANNOUNCE_CARD',selection:{mode:'card',min:1,max:1,options:[{id:0,card:99},{id:1,card:4148264}]},choices:[]},behavior).indices,[1]);
+  assert.throws(()=>exportGhost({name:'오류',deck,behavior:{...behavior,script:[{on:'SELECT_COUNTER',counters:[-1]}]}}),/1단계/);
+});
+test('the behavior editor lists every core selection request',()=>{
+  for(const [name,value] of Object.entries(M))if(requestTypes.has(value))assert.ok(Object.hasOwn(actionsByRequest,name),name);
 });
