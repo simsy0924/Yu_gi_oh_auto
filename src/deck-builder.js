@@ -1,10 +1,10 @@
 import {validateDeck,parseDeck} from './decks.js';
-import {loadCatalog,normalize,isExtra,deckable,cardKind,addCard,exportDeck} from './catalog.js';
+import {loadCatalog,deckable,cardKind,cardStatKind,searchCards,races,attributes,kinds,addCard,exportDeck} from './catalog.js';
 const DRAFT_KEY='ghost-duel.builder.draft.v1';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const parts={main:'메인',extra:'엑스트라',side:'사이드'};
 export async function openDeckBuilder(root,{source,onSave,onClose}) {
-  let active=true,cards,rows=[],part='main',query='',filter='',page=0,sourceId=source?.id??null;
+  let active=true,cards,rows=[],part='main',filters={query:'',effect:'',kind:'',race:'',attribute:'',statKind:'',statValue:''},page=0,sourceId=source?.id??null;
   let draft=source?{name:source.name,main:[...source.main],extra:[...source.extra],side:[...source.side]}:{name:'내 덱',main:[],extra:[],side:[]};
   if(!source)try{
     const saved=JSON.parse(localStorage.getItem(DRAFT_KEY));
@@ -14,13 +14,13 @@ export async function openDeckBuilder(root,{source,onSave,onClose}) {
   root.querySelector('#builderClose').onclick=()=>{active=false;onClose();};
   try{cards=await loadCatalog();if(!active)return;rows=Object.values(cards).filter(deckable).sort((a,b)=>a.name.localeCompare(b.name,'ko')||a.code-b.code);}
   catch(e){if(active)root.querySelector('#catalogLoading').textContent=e.message;return;}
-  root.innerHTML=`<main class="screen deck-builder"><header class="builder-header"><h1>덱 만들기</h1><label class="deck-name">덱 이름<input id="builderName" maxlength="80" value="${esc(draft.name)}"></label><div class="builder-tools"><button class="action" id="builderNew">새 덱</button><button class="action" id="builderClose">덱 선택으로</button></div></header><div class="builder-layout"><section class="card-search" aria-label="카드 검색"><div class="search-controls"><input id="cardSearch" type="search" placeholder="카드명 · 카드 번호 검색" aria-label="카드 검색"><select id="cardFilter" aria-label="카드 종류"><option value="">모든 카드</option>${['몬스터','마법','함정','융합','싱크로','엑시즈','링크'].map(x=>`<option>${x}</option>`).join('')}</select></div><p class="builder-help">메인/엑스트라는 자동 분류돼요. 사이드 탭에서는 사이드에 추가돼요.</p><div id="searchResults" class="search-results"></div><div class="search-paging" id="searchPaging"></div></section><section class="deck-workspace" aria-label="편집 중인 덱"><nav class="deck-tabs" id="deckTabs"></nav><div id="deckContents" class="deck-contents"></div><details class="builder-detail" open><summary>카드 정보</summary><div id="builderDetail">이름을 눌러 카드 효과를 확인하세요.</div></details></section></div><footer class="builder-footer"><div><p id="builderStatus" role="status"></p><small id="draftStatus">작성 내용은 이 기기에 자동 저장됩니다. 금제 검사는 적용하지 않습니다.</small></div><button class="action" id="builderUse">저장하고 사용</button><button class="primary" id="builderExport">JSON 내보내기</button></footer></main>`;
+  root.innerHTML=`<main class="screen deck-builder"><header class="builder-header"><h1>덱 만들기</h1><label class="deck-name">덱 이름<input id="builderName" maxlength="80" value="${esc(draft.name)}"></label><div class="builder-tools"><button class="action" id="builderNew">새 덱</button><button class="action" id="builderClose">덱 선택으로</button></div></header><div class="builder-layout"><section class="card-search" aria-label="카드 검색"><div class="search-controls"><input id="cardSearch" type="search" placeholder="카드명 · 카드 번호" aria-label="카드명 또는 번호"><select id="cardFilter" aria-label="카드 종류"><option value="">모든 카드</option>${kinds.map(([name])=>`<option value="${name}">${name}</option>`).join('')}</select><button class="mini clear-filters" id="clearFilters" type="button" aria-label="검색 조건 초기화">초기화</button></div><div class="search-filters"><label>효과 텍스트<input id="effectSearch" type="search" placeholder="효과에 적힌 단어"></label><label>종족<select id="raceFilter"><option value="">전체</option>${races.map(([bit,name])=>`<option value="${bit}">${name}</option>`).join('')}</select></label><label>속성<select id="attributeFilter"><option value="">전체</option>${attributes.map(([bit,name])=>`<option value="${bit}">${name}</option>`).join('')}</select></label><label>수치 종류<select id="statKindFilter"><option value="">전체</option><option value="level">레벨</option><option value="rank">랭크</option><option value="link">링크</option></select></label><label>수치<input id="statValueFilter" type="number" min="1" max="99" step="1" inputmode="numeric" placeholder="전체"></label></div><p class="builder-help">메인/엑스트라는 자동 분류돼요. 사이드 탭에서는 사이드에 추가돼요.</p><div id="searchResults" class="search-results"></div><div class="search-paging" id="searchPaging"></div></section><section class="deck-workspace" aria-label="편집 중인 덱"><nav class="deck-tabs" id="deckTabs"></nav><div id="deckContents" class="deck-contents"></div><details class="builder-detail" open><summary>카드 정보</summary><div id="builderDetail">이름을 눌러 카드 효과를 확인하세요.</div></details></section></div><footer class="builder-footer"><div><p id="builderStatus" role="status"></p><small id="draftStatus">작성 내용은 이 기기에 자동 저장됩니다. 금제 검사는 적용하지 않습니다.</small></div><button class="action" id="builderUse">저장하고 사용</button><button class="primary" id="builderExport">JSON 내보내기</button></footer></main>`;
   const $=id=>root.querySelector('#'+id);
   const count=code=>[...draft.main,...draft.extra,...draft.side].filter(c=>(cards[c]?.alias||c)===(cards[code]?.alias||code)).length;
   const message=text=>{$('builderStatus').textContent=text;};
   const validate=()=>{try{validateDeck(draft,cards);return '';}catch(e){return e.message;}};
   function persist(){try{localStorage.setItem(DRAFT_KEY,JSON.stringify({sourceId,deck:draft}));}catch{$('draftStatus').textContent='기기 저장 공간에 쓸 수 없습니다. 완성한 덱을 JSON으로 내보내 주세요.';}}
-  function inspect(code){const c=cards[code];$('builderDetail').innerHTML=c?`<strong>${esc(c.name)}</strong><small>${cardKind(c)} · ${c.code}${c.type&1?` · ${c.type&0x4000000?'LINK':'레벨/랭크'} ${c.level} · ATK ${c.attack} / DEF ${c.defense}`:''}</small><p>${esc(c.desc)}</p>`:'카드 DB에 없는 번호입니다.';}
+  function inspect(code){const c=cards[code],stat=cardStatKind(c??{type:0}),race=races.find(([bit])=>bit===Number(c?.race))?.[1],attribute=attributes.find(([bit])=>bit===c?.attribute)?.[1];$('builderDetail').innerHTML=c?`<strong>${esc(c.name)}</strong><small>${cardKind(c)} · ${c.code}${c.type&1?` · ${stat==='link'?'LINK':stat==='rank'?'랭크':'레벨'} ${c.level} · ${race??'종족 미상'} · ${attribute??'속성 미상'} · ATK ${c.attack}${stat==='link'?'':` / DEF ${c.defense}`}`:''}</small><p>${esc(c.desc)}</p>`:'카드 DB에 없는 번호입니다.';}
   function renderDeck(){
     $('deckTabs').innerHTML=Object.entries(parts).map(([p,name])=>`<button class="deck-tab ${p===part?'active':''}" data-part="${p}" aria-pressed="${p===part}">${name} ${draft[p].length}/${p==='main'?'40~60':'15'}</button>`).join('');
     const grouped=new Map();draft[part].forEach(code=>grouped.set(code,(grouped.get(code)||0)+1));
@@ -28,10 +28,9 @@ export async function openDeckBuilder(root,{source,onSave,onClose}) {
     const issue=validate();message(issue||'듀얼에 사용할 수 있는 덱입니다.');$('builderUse').disabled=!!issue;$('builderExport').disabled=!!issue;
   }
   function renderSearch(){
-    const words=query.trim().split(/\s+/).map(normalize).filter(Boolean);
-    const results=rows.filter(c=>(!filter||(filter==='몬스터'?!!(c.type&1):cardKind(c)===filter))&&words.every(w=>c.searchName.includes(w)));
+    const results=searchCards(rows,filters);
     const pages=Math.max(1,Math.ceil(results.length/40));page=Math.min(page,pages-1);
-    $('searchResults').innerHTML=results.slice(page*40,(page+1)*40).map(c=>`<div class="search-card"><button class="card-name" data-inspect="${c.code}">${esc(c.name)}<small>${cardKind(c)} · ${c.code}${c.type&1?` · ATK ${c.attack}`:''}</small></button><span class="copy-count">${count(c.code)}/3</span><button class="count-control" data-add="${c.code}" aria-label="${esc(c.name)} 추가" ${count(c.code)>=3?'disabled':''}>+</button></div>`).join('')||'<p>검색 결과가 없습니다.</p>';
+    $('searchResults').innerHTML=results.slice(page*40,(page+1)*40).map(c=>`<div class="search-card"><button class="card-name" data-inspect="${c.code}">${esc(c.name)}<small>${cardKind(c)} · ${c.code}${c.type&1?` · ${cardStatKind(c)==='link'?'LINK':cardStatKind(c)==='rank'?'랭크':'레벨'} ${c.level} · ATK ${c.attack}`:''}</small></button><span class="copy-count">${count(c.code)}/3</span><button class="count-control" data-add="${c.code}" aria-label="${esc(c.name)} 추가" ${count(c.code)>=3?'disabled':''}>+</button></div>`).join('')||'<p>검색 결과가 없습니다.</p>';
     $('searchPaging').innerHTML=`<button class="mini" id="searchPrev" ${page===0?'disabled':''}>이전</button><span>${results.length.toLocaleString()}장 · ${page+1}/${pages}</span><button class="mini" id="searchNext" ${page===pages-1?'disabled':''}>다음</button>`;
     $('searchPrev').onclick=()=>{page--;renderSearch();$('searchResults').scrollTop=0;};$('searchNext').onclick=()=>{page++;renderSearch();$('searchResults').scrollTop=0;};
   }
@@ -45,7 +44,10 @@ export async function openDeckBuilder(root,{source,onSave,onClose}) {
   }
   $('searchResults').onclick=edit;$('deckContents').onclick=edit;$('deckTabs').onclick=edit;
   $('builderName').oninput=e=>{draft.name=e.target.value;persist();};
-  $('cardSearch').oninput=e=>{query=e.target.value;page=0;renderSearch();};$('cardFilter').onchange=e=>{filter=e.target.value;page=0;renderSearch();};
+  for(const [id,key] of [['cardSearch','query'],['effectSearch','effect'],['cardFilter','kind'],['raceFilter','race'],['attributeFilter','attribute'],['statKindFilter','statKind'],['statValueFilter','statValue']]) {
+    $(id).addEventListener(id.endsWith('Filter')&&id!=='statValueFilter'?'change':'input',e=>{filters[key]=e.target.value;page=0;renderSearch();});
+  }
+  $('clearFilters').onclick=()=>{filters={query:'',effect:'',kind:'',race:'',attribute:'',statKind:'',statValue:''};for(const id of ['cardSearch','effectSearch','cardFilter','raceFilter','attributeFilter','statKindFilter','statValueFilter'])$(id).value='';page=0;renderSearch();};
   $('builderClose').onclick=()=>{persist();active=false;onClose();};
   $('builderNew').onclick=()=>{if([...draft.main,...draft.extra,...draft.side].length&&!confirm('작성 중인 덱을 비우고 새 덱을 만들까요?'))return;draft={name:'내 덱',main:[],extra:[],side:[]};sourceId=null;part='main';$('builderName').value=draft.name;redraw();};
   $('builderUse').onclick=()=>{try{validateDeck(draft,cards);sourceId=sourceId&&sourceId!=='starter'?sourceId:crypto.randomUUID();persist();onSave({...exportDeck(draft,cards),id:sourceId});active=false;}catch(e){message(e.message);}};
