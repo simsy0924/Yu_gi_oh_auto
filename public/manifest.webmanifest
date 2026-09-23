@@ -1,0 +1,26 @@
+{
+  "id": "./",
+  "name": "Yu-Gi-Oh! Ghost Duel",
+  "short_name": "Ghost Duel",
+  "description": "유희왕 고스트 듀얼과 전개 연습",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#070a0f",
+  "theme_color": "#070a0f",
+  "icons": [
+    {
+      "src": "./icons/ghost-duel-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/ghost-duel-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

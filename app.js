@@ -17,14 +17,17 @@ function syncFullscreenButton(){
   button.title=active?'전체 화면을 종료합니다.':'브라우저 UI를 숨겨 전체 화면으로 전환합니다.';
 }
 document.addEventListener('fullscreenchange',syncFullscreenButton);
-const fullscreenButton=()=>`<button class="mini" id="fullscreen" type="button" aria-pressed="${!!document.fullscreenElement}" ${document.fullscreenEnabled===false?'disabled':''}>${document.fullscreenElement?'전체 화면 종료':'전체 화면'}</button>`;
+const fullscreenButton=()=>matchMedia('(display-mode: fullscreen)').matches?'':`<button class="mini" id="fullscreen" type="button" aria-pressed="${!!document.fullscreenElement}" ${document.fullscreenEnabled===false?'disabled':''}>${document.fullscreenElement?'전체 화면 종료':'전체 화면'}</button>`;
 function bindFullscreenButton(){
   const button=document.getElementById('fullscreen');
   if(!button)return;
   button.onclick=async()=>{
     try{
       if(document.fullscreenElement)await document.exitFullscreen();
-      else await document.documentElement.requestFullscreen();
+      else{
+        await document.documentElement.requestFullscreen();
+        try{await screen.orientation?.lock('landscape');}catch{}
+      }
     }catch{
       button.title='현재 브라우저에서 전체 화면 전환을 사용할 수 없습니다.';
     }
@@ -56,8 +59,23 @@ const themeToggle=()=>{
 document.addEventListener('click',event=>{
   if(event.target.closest('.theme-toggle'))applyTheme(theme==='dark'?'light':'dark');
 });
+document.addEventListener('click',async event=>{
+  const button=event.target.closest('#portraitLandscape');
+  if(!button)return;
+  const note=document.getElementById('orientationStatus');
+  button.disabled=true;
+  try{
+    if(!screen.orientation?.lock)throw new Error('orientation lock unavailable');
+    if(!document.fullscreenElement)await document.documentElement.requestFullscreen();
+    await screen.orientation.lock('landscape');
+  }catch{
+    if(document.fullscreenElement)try{await document.exitFullscreen();}catch{}
+    button.disabled=false;
+    if(note)note.textContent='자동 전환을 지원하지 않으면 기기를 가로로 돌리거나 Chrome 메뉴에서 앱을 설치해 실행해 주세요.';
+  }
+});
 applyTheme(theme);
-const portrait=()=>'<div class="portrait"><strong>가로 화면으로 돌려주세요</strong><span>Ghost Duel은 모바일 가로 화면에 맞춰져 있습니다.</span></div>';
+const portrait=()=>'<div class="portrait"><strong>Ghost Duel은 가로 화면 전용입니다</strong><span>버튼을 누르면 지원되는 브라우저에서 가로 전체 화면으로 전환합니다.</span><button class="primary" id="portraitLandscape" type="button">가로 전체 화면으로 실행</button><small id="orientationStatus" aria-live="polite">자동 전환이 안 되면 기기를 돌리거나 앱으로 설치해 실행해 주세요.</small></div>';
 const choiceItem=(x,selected)=>`<button class="item ${x.id===selected?'active':''}" data-id="${esc(x.id)}"><div class="thumb"></div><div><strong>${esc(x.name)}</strong><small>${esc(x.description??`${x.main?.length??0}장 / 엑스트라 ${x.extra?.length??0}장`)}</small></div></button>`;
 async function json(url){const r=await fetch(url);if(!r.ok)throw new Error(`${url} 로드 실패`);return r.json();}
 const SAVED_DECKS_KEY='ghost-duel.decks.v1';

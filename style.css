@@ -45,3 +45,4 @@ a{color:var(--accent);font-size:11px}.picker{grid-template-rows:auto 1fr auto}.i
 .search-card{min-height:54px;padding:8px 1px}
 .search-card .card-name{font-size:13px}
 .search-card .card-name small{font-size:10px}
+@media(orientation:portrait){.portrait .primary{min-width:min(260px,80vw)}.portrait small{max-width:290px;font-size:11px;line-height:1.5;color:var(--muted)}}
