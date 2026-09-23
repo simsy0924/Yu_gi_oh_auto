@@ -8,6 +8,8 @@ import {parseDeck} from '../src/decks.js';
 import {OcgMessageType as M,OcgResponseType as R,OcgQueryFlags as Q,OcgOpCode} from 'ocgcore-wasm';
 import {cardFacts,cardInfoHtml} from '../src/card-info.js';
 import {promptHelp,selectionProgress} from '../src/duel-guidance.js';
+import {deckWithStartingHand} from '../src/practice.js';
+import {soloOpponentChoice} from '../src/solo.js';
 const cards=JSON.parse(gunzipSync(readFileSync('public/engine/cards.json.gz')));
 const koreanStrings=JSON.parse(gunzipSync(readFileSync('public/engine/ko-strings.json.gz')));
 const scripts=JSON.parse(gunzipSync(readFileSync('public/engine/scripts.json.gz')));
@@ -117,6 +119,39 @@ test('each duel shuffles the ghost deck; the opening hand stays hidden in the pl
     }finally{s.destroy();}
   }
   assert.ok(openings.size>1,'different duel seeds should change the ghost opening hand');
+});
+
+test('fixed practice hand is dealt exactly and keeps the selected hand size',async()=>{
+  const hand=[you.main[0],you.main[1],you.main[0]],deck=deckWithStartingHand(you,hand,cards);
+  const s=await DuelSession.create({cards,scripts,wasmBinary,you:deck,ghost,startingHand:hand,seed:[31,2,3,4]});
+  try{
+    const actual=s.snapshot().zones[0][2].cards.map(card=>card.code).sort((a,b)=>a-b);
+    assert.deepEqual(actual,[...hand].sort((a,b)=>a-b));
+    assert.equal(actual.length,hand.length);
+  }finally{s.destroy();}
+});
+
+test('a generated ghost receives its recorded opening hand',async()=>{
+  const code=ghost.deck.main[0],scripted={...ghost,startingHand:[code]};
+  const s=await DuelSession.create({cards,scripts,wasmBinary,you,ghost:scripted,seed:[32,2,3,4]});
+  try{
+    const actual=s.core.duelQueryLocation(s.handle,{controller:1,location:2,flags:Q.CODE}).map(card=>card.code);
+    assert.deepEqual(actual,[code]);
+  }finally{s.destroy();}
+});
+
+test('solo practice opponent passes its turns without placing cards',async()=>{
+  const s=await DuelSession.create({cards,scripts,wasmBinary,you,ghost:{deck:you,behavior:{type:'scripted',script:[],fallback:'basic'}},seed:[33,2,3,4]});
+  try{
+    let passed=0;
+    for(let i=0;i<100&&!s.ended&&passed<2;i++){
+      const prompt=s.prompt;
+      if(prompt.player===1){const decision=soloOpponentChoice(prompt);if(prompt.type==='SELECT_IDLECMD'){assert.equal(prompt.choices.find(choice=>choice.id===decision.choice)?.kind,'end');passed++;}s.respond(decision);}
+      else s.respond(ghostChoice(prompt,{fallback:'basic'}));
+    }
+    assert.ok(passed>0);
+    assert.equal(s.snapshot().zones[1][4].count??0,0);
+  }finally{s.destroy();}
 });
 
 test('legal card actions carry their exact field or hand position for card clicks',async()=>{

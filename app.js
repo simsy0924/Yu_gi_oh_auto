@@ -3,11 +3,14 @@ import {openGhostBuilder} from './src/ghost-builder.js';
 import {parseDeck} from './src/decks.js';
 import {exportGhost} from './src/ghosts.js';
 import {normalize} from './src/catalog.js';
+import {openPracticeSetup} from './src/practice-setup.js';
+import {createGhostDraft,recordDecision} from './src/ghost-recording.js';
 import {cardInfoHtml,linkArrows} from './src/card-info.js';
 import {promptHelp,selectionProgress} from './src/duel-guidance.js';
 const root=document.getElementById('app');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let ghosts=[],decks=[],ghostId,deckId,worker=null,state=null,selection=[],counters=[],announcementQuery='',inputError='',selectedCard=null,busy=false,error='',loading='';
+let setupMode='duel',sessionMode='duel',sessionDeck=null,sessionGhost=null,currentScenario=null,recordedSteps=[],scenarioCaptured=false;
 const THEME_KEY='ghost-duel.theme.v1';
 let theme='dark';
 try{theme=localStorage.getItem(THEME_KEY)==='light'?'light':'dark';}catch{}
@@ -39,34 +42,49 @@ const SAVED_GHOSTS_KEY='ghost-duel.ghosts.v1';
 function persistDecks(){try{localStorage.setItem(SAVED_DECKS_KEY,JSON.stringify(decks.filter(d=>d.id!=='starter')));return true;}catch{return false;}}
 function persistGhosts(){try{localStorage.setItem(SAVED_GHOSTS_KEY,JSON.stringify(ghosts.filter(g=>g.id!=='sample')));return true;}catch{return false;}}
 function builder(source){openDeckBuilder(root,{source,onClose:renderSetup,onSave:deck=>{const i=decks.findIndex(d=>d.id===deck.id);if(i>=0)decks[i]=deck;else decks.push(deck);deckId=deck.id;error=persistDecks()?'':'기기 저장에 실패했습니다. 덱 편집에서 JSON으로 내보내 주세요.';renderSetup();}});}
-function ghostBuilder(source){openGhostBuilder(root,{source,decks,selectedDeck:decks.find(d=>d.id===deckId),onClose:renderSetup,onSave:ghost=>{if(ghost.id==='sample')ghost.id=crypto.randomUUID();const i=ghosts.findIndex(g=>g.id===ghost.id);if(i>=0)ghosts[i]=ghost;else ghosts.push(ghost);ghostId=ghost.id;error=persistGhosts()?'':'기기 저장에 실패했습니다. 고스트 편집에서 JSON으로 내보내 주세요.';renderSetup();}});}
+function saveGhost(ghost){if(ghost.id==='sample')ghost.id=crypto.randomUUID();const i=ghosts.findIndex(g=>g.id===ghost.id);if(i>=0)ghosts[i]=ghost;else ghosts.push(ghost);ghostId=ghost.id;error=persistGhosts()?'':'기기 저장에 실패했습니다. 고스트 편집에서 JSON으로 내보내 주세요.';renderSetup();}
+function ghostBuilder(source){openGhostBuilder(root,{source,decks,selectedDeck:decks.find(d=>d.id===deckId),onClose:renderSetup,onSave:saveGhost});}
 function renderSetup(){
-  root.innerHTML=portrait()+`<main class="screen setup"><header><div class="brand"><div class="brand-mark">GD</div><div><h1>Ghost Duel</h1><p>고스트와 연습하는 1인용 듀얼 · YGOPro Core</p></div></div><div class="setup-head-tools">${themeToggle()}<a href="https://github.com/simsy0924/Yu_gi_oh_auto" target="_blank" rel="noreferrer">소스 / 라이선스</a></div></header><section class="setup-grid"><div class="picker"><div class="deck-picker-heading"><h2>고스트 선택</h2><button class="mini" id="newGhost">행동 만들기 / 이어서</button><button class="mini" id="editGhost">선택 고스트 편집</button></div><div class="list" id="ghostList">${ghosts.map(x=>choiceItem(x,ghostId)).join('')}</div><label class="import">고스트 JSON 불러오기<input id="ghostFile" type="file" accept=".json"></label></div><div class="picker"><div class="deck-picker-heading"><h2>내 덱 선택</h2><button class="mini" id="newDeck">덱 만들기 / 이어서</button><button class="mini" id="editDeck">선택 덱 편집</button></div><div class="list" id="deckList">${decks.map(x=>choiceItem(x,deckId)).join('')}</div><label class="import">YDK / JSON 덱 불러오기<input id="deckFile" type="file" accept=".ydk,.json"></label></div></section><footer class="setup-footer"><div class="selection"><span role="alert">${esc(error)}</span><p>기본 덱으로 바로 시작할 수 있어요. 금제 검사는 적용하지 않습니다.</p></div><button class="primary" id="start" ${!ghosts.length||!decks.length?'disabled':''}>듀얼 시작</button></footer></main>`;
-  document.getElementById('ghostList').onclick=e=>{const b=e.target.closest('[data-id]');if(b){ghostId=b.dataset.id;renderSetup();}};
+  const deckPicker=`<div class="picker"><div class="deck-picker-heading"><h2>내 덱 선택</h2><button class="mini" id="newDeck">덱 만들기 / 이어서</button><button class="mini" id="editDeck">선택 덱 편집</button></div><div class="list" id="deckList">${decks.map(x=>choiceItem(x,deckId)).join('')}</div><label class="import">YDK / JSON 덱 불러오기<input id="deckFile" type="file" accept=".ydk,.json"></label></div>`;
+  const ghostPicker=`<div class="picker"><div class="deck-picker-heading"><h2>고스트 선택</h2><button class="mini" id="newGhost">행동 만들기 / 이어서</button><button class="mini" id="editGhost">선택 고스트 편집</button></div><div class="list" id="ghostList">${ghosts.map(x=>choiceItem(x,ghostId)).join('')}</div><label class="import">고스트 JSON 불러오기<input id="ghostFile" type="file" accept=".json"></label></div>`;
+  const scenarioInfo=`<section class="picker scenario-card"><h2>${setupMode==='practice'?'전개 연습':'고스트 생성'} · 상황</h2><p>${setupMode==='practice'?'상대를 두지 않고 혼자 전개합니다. 덱에서 무작위 시작 패를 뽑거나 카드를 골라 시작 패를 고정할 수 있어요.':'혼자 전개하면서 선택한 행동을 기록하고, 기록을 바탕으로 고스트 초안을 만듭니다.'}</p><div class="scenario-summary">선택 덱 <b>${esc(decks.find(d=>d.id===deckId)?.name??'없음')}</b><small>${decks.find(d=>d.id===deckId)?.main.length??0}장 · 시작 패는 다음 화면에서 설정</small></div><p class="scenario-hint">덱 목록에서 덱을 바꾸거나, 직접 편집·불러오기 할 수 있습니다.</p></section>`;
+  root.innerHTML=portrait()+`<main class="screen setup"><header><div class="brand"><div class="brand-mark">GD</div><div><h1>Ghost Duel</h1><p>고스트 듀얼 · 혼자 전개 연습 · 고스트 생성</p></div></div><div class="setup-head-tools">${themeToggle()}<a href="https://github.com/simsy0924/Yu_gi_oh_auto" target="_blank" rel="noreferrer">소스 / 라이선스</a></div></header><nav class="setup-modes" aria-label="플레이 모드">${[['duel','고스트 듀얼'],['practice','전개 연습'],['ghost-create','고스트 생성']].map(([id,label])=>`<button class="deck-tab ${setupMode===id?'active':''}" data-mode="${id}" aria-pressed="${setupMode===id}">${label}</button>`).join('')}</nav><section class="setup-grid ${setupMode==='duel'?'':'solo-setup'}">${setupMode==='duel'?ghostPicker+deckPicker:deckPicker+scenarioInfo}</section><footer class="setup-footer"><div class="selection"><span role="alert">${esc(error)}</span><p>${setupMode==='duel'?'기본 덱으로 바로 시작할 수 있어요. 금제 검사는 적용하지 않습니다.':setupMode==='practice'?'시작 패 설정에서 덱 전체 또는 카드 종류별 무작위 패를 고를 수 있어요.':'전개 기록은 편집 가능한 고스트 초안으로 변환합니다.'}</p></div><button class="primary" id="start" ${!decks.length||(setupMode==='duel'&&!ghosts.length)?'disabled':''}>${setupMode==='duel'?'듀얼 시작':setupMode==='practice'?'시작 패 설정':'상황 설정'}</button></footer></main>`;
+  root.querySelector('.setup-modes').onclick=e=>{const button=e.target.closest('[data-mode]');if(button){setupMode=button.dataset.mode;error='';renderSetup();}};
+  document.getElementById('ghostList')?.addEventListener('click',e=>{const b=e.target.closest('[data-id]');if(b){ghostId=b.dataset.id;renderSetup();}});
   document.getElementById('deckList').onclick=e=>{const b=e.target.closest('[data-id]');if(b){deckId=b.dataset.id;renderSetup();}};
   document.getElementById('deckFile').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;const d=parseDeck(await file.text(),file.name);d.id=crypto.randomUUID();decks.push(d);deckId=d.id;error=persistDecks()?'':'기기 저장에 실패했습니다.';}catch(e){error=e.message;}renderSetup();};
-  document.getElementById('ghostFile').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;const g=JSON.parse(await file.text());g.deck=parseDeck(JSON.stringify(g.deck));if(g.behavior?.type==='basic')g.behavior={type:'scripted',script:[],fallback:'basic'};g.id=crypto.randomUUID();const imported=exportGhost(g);ghosts.push(imported);ghostId=imported.id;error=persistGhosts()?'':'기기 저장에 실패했습니다. 고스트 JSON을 보관해 주세요.';}catch(e){error=e.message;}renderSetup();};
-  document.getElementById('start').onclick=start;
+  document.getElementById('ghostFile')?.addEventListener('change',async e=>{try{const file=e.target.files[0];if(!file)return;const g=JSON.parse(await file.text());g.deck=parseDeck(JSON.stringify(g.deck));if(g.behavior?.type==='basic')g.behavior={type:'scripted',script:[],fallback:'basic'};g.id=crypto.randomUUID();const imported=exportGhost(g);ghosts.push(imported);ghostId=imported.id;error=persistGhosts()?'':'기기 저장에 실패했습니다. 고스트 JSON을 보관해 주세요.';}catch(e){error=e.message;}renderSetup();});
+  document.getElementById('start').onclick=()=>{
+    if(setupMode==='duel')launchDuel('duel',{deck:decks.find(d=>d.id===deckId),startingHand:null,handNames:[]});
+    else openPracticeSetup(root,{deck:decks.find(d=>d.id===deckId),mode:setupMode,onClose:renderSetup,onStart:scenario=>launchDuel(setupMode,scenario)});
+  };
   document.getElementById('newDeck').onclick=()=>builder();
   document.getElementById('editDeck').onclick=()=>builder(decks.find(d=>d.id===deckId));
-  document.getElementById('newGhost').onclick=()=>ghostBuilder();
-  document.getElementById('editGhost').onclick=()=>ghostBuilder(ghosts.find(g=>g.id===ghostId));
+  document.getElementById('newGhost')?.addEventListener('click',()=>ghostBuilder());
+  document.getElementById('editGhost')?.addEventListener('click',()=>ghostBuilder(ghosts.find(g=>g.id===ghostId)));
 }
-function start(){
+function launchDuel(mode='duel',scenario=null){
+  sessionMode=mode;currentScenario=scenario;sessionDeck=scenario?.deck??decks.find(d=>d.id===deckId);sessionGhost=mode==='duel'?ghosts.find(g=>g.id===ghostId):null;recordedSteps=[];scenarioCaptured=false;
   error='';loading='엔진 준비 중...';state=null;busy=true;selection=[];counters=[];announcementQuery='';inputError='';selectedCard=null;
   worker?.terminate();worker=new Worker(new URL('./src/engine.worker.js',import.meta.url),{type:'module'});
   worker.onmessage=({data:m})=>{
-    if(m.type==='state'){root.querySelector('.decision')?.scrollTo(0,0);state=m.state;loading='';busy=false;selection=[];counters=[];announcementQuery='';inputError='';selectedCard=null;}
+    if(m.type==='state'){root.querySelector('.decision')?.scrollTo(0,0);state=m.state;if(sessionMode==='ghost-create'&&!scenarioCaptured&&state.zones?.[0]?.[2]?.cards){currentScenario={...currentScenario,startingHand:state.zones[0][2].cards.map(card=>card.code),handNames:state.zones[0][2].cards.map(card=>card.name)};scenarioCaptured=true;}loading='';busy=false;selection=[];counters=[];announcementQuery='';inputError='';selectedCard=null;}
     if(m.type==='loading')loading=m.message;
     if(m.type==='input-error'){inputError=m.message;busy=false;}
     if(m.type==='error'){error=m.message;loading='';busy=false;}
     renderDuel();
   };
   worker.onerror=e=>{error=e.message||'듀얼 엔진 실행 실패';loading='';busy=false;renderDuel();};
-  worker.postMessage({type:'start',you:decks.find(d=>d.id===deckId),ghost:ghosts.find(g=>g.id===ghostId),base:new URL('.',location.href).href,seed:Array.from(crypto.getRandomValues(new Uint32Array(4)))});
+  worker.postMessage({type:'start',mode:sessionMode,you:sessionDeck,ghost:sessionGhost,startingHand:scenario?.startingHand,base:new URL('.',location.href).href,seed:Array.from(crypto.getRandomValues(new Uint32Array(4)))});
   renderDuel();
 }
-function stop(){worker?.terminate();worker=null;state=null;error='';selectedCard=null;renderSetup();}
+function start(){launchDuel(sessionMode,currentScenario);}
+function stop(){worker?.terminate();worker=null;state=null;error='';selectedCard=null;sessionMode='duel';currentScenario=null;renderSetup();}
+function editRecordedDraft(){
+  const source=createGhostDraft({deck:sessionDeck,steps:recordedSteps,handNames:currentScenario?.handNames??[],startingHand:currentScenario?.startingHand,name:`${sessionDeck.name} 전개 초안`});
+  worker?.terminate();worker=null;state=null;busy=false;
+  openGhostBuilder(root,{source,decks,selectedDeck:sessionDeck,onClose:renderSetup,onSave:saveGhost});
+}
 const phaseName={1:'드로우',2:'스탠바이',4:'메인 1',8:'배틀 시작',16:'배틀',32:'데미지',64:'데미지 계산',128:'배틀 종료',256:'메인 2',512:'엔드'};
 const sourceKey=s=>s?`${s.controller},${s.location},${s.sequence}`:null;
 const zoneLabel=(owner,location,sequence)=>{
@@ -121,12 +139,14 @@ function availableCards(prompt){
   return `<div class="decision-group"><h3>행동할 수 있는 카드</h3><div class="choices">${[...grouped].map(([key,choices])=>`<button class="pick card-shortcut ${selectedCard===key?'selected':''}" data-focus="${esc(key)}" aria-pressed="${selectedCard===key}"><strong>${esc(state?.zones?.[choices[0].source.controller]?.[choices[0].source.location]?.cards?.[choices[0].source.sequence]?.name??choices[0].card)}</strong><small>${esc([...new Set(choices.map(c=>c.shortLabel?.split(' · ')[0]??c.kind))].join(' · '))}</small></button>`).join('')}</div></div>`;
 }
 function panel(){
-  if(error)return `<h2>듀얼이 중단되었습니다</h2><p role="alert">${esc(error)}</p><button class="action" id="restart">다시 시작</button>`;
+  const draftControl=sessionMode==='ghost-create'?`<button class="primary ghost-draft-action" id="makeGhostDraft">고스트 초안 편집 · ${recordedSteps.length}개 행동</button>`:'';
+  if(error)return `<h2>듀얼이 중단되었습니다</h2><p role="alert">${esc(error)}</p>${draftControl}<button class="action" id="restart">다시 시작</button>`;
   if(loading)return `<h2>준비 중</h2><p>${esc(loading)}</p>`;
-  if(state?.ended)return `<h2>${state.winner===2?'무승부':state.winner===0?'승리':'패배'}</h2><button class="primary" id="restart">다시 시작</button>`;
+  if(state?.ended)return `<h2>${state.winner===2?'무승부':state.winner===0?'승리':'패배'}</h2>${draftControl}<button class="primary" id="restart">다시 시작</button>`;
   const p=state?.prompt;if(!p)return '<p>듀얼 처리 중...</p>';
-  if(p.player===1)return `<h2>고스트 차례</h2><p>${esc(state.ghostBlocked??(state.paused?'고스트 일시정지':'상대가 행동을 고르는 중...'))}</p>`;
+  if(p.player===1)return `<h2>${sessionMode==='duel'?'고스트 차례':'연습 상대 차례'}</h2><p>${esc(state.ghostBlocked??(state.paused?'자동 진행 일시정지':'상대가 차례를 넘기는 중...'))}</p>${draftControl}`;
   let html=`<div class="decision-intro"><h2>${esc(p.title)}</h2><p>${esc(promptHelp(p))}</p></div>${inputError?`<p role="alert" class="input-error">${esc(inputError)}</p>`:''}`;
+  if(draftControl)html+=draftControl;
   if(p.blocked)return html+`<p role="alert">${esc(p.blocked)}</p><p>이 선택은 현재 화면에서 지원하지 않습니다.</p>`;
   if(p.context)html+=`<details class="context-card"><summary>${esc(p.context.name)} · 카드 효과 보기</summary><p>${esc(p.context.desc||'이 카드의 한국어 효과 본문은 수록되지 않았습니다.')}</p></details>`;
   const [player,location,sequence]=selectedCard?.split(',').map(Number)??[];
@@ -146,19 +166,22 @@ function panel(){
   if(!p.selection)html+=availableCards(p);
   return html;
 }
-function send(input){if(busy||error)return;busy=true;inputError='';worker.postMessage({type:'respond',revision:state.revision,...input});renderDuel();}
+function send(input){if(busy||error)return;if(sessionMode==='ghost-create'){const step=recordDecision(state?.prompt,input);if(step)recordedSteps.push(step);}busy=true;inputError='';worker.postMessage({type:'respond',revision:state.revision,...input});renderDuel();}
 function toggleSelection(id){selection=selection.includes(id)?selection.filter(x=>x!==id):[...selection,id];inputError='';renderDuel();}
 function focusCard(key){selectedCard=key;const target=targetFor(key);if(target&&myPrompt()?.selection?.mode!=='counter'){toggleSelection(target.id);}else renderDuel();root.querySelector('.decision')?.scrollTo(0,0);}
 function renderDuel(){
   const decisionScroll=root.querySelector('.decision')?.scrollTop??0;
   const boardScroll=root.querySelector('.live-board')?.scrollTop??0;
   const choiceScrolls=[...root.querySelectorAll('.decision .choices')].map(list=>list.scrollTop);
-  root.innerHTML=portrait()+`<main class="screen live-duel"><header class="topbar"><strong>Ghost Duel</strong><span>${state?`${state.turn}턴 · ${state.active===0?'나':'고스트'} · ${phaseName[state.phase]??''}`:'YGOPro Core'}</span><div class="top-right">${themeToggle()}<button class="mini" id="pause" ${!state||error?'disabled':''}>${state?.paused?'자동 진행':'일시정지'}</button>${state?.paused?'<button class="mini" id="step">한 행동</button>':''}<button class="mini" id="exit">종료</button></div></header><div class="live-layout"><div class="live-board">${field(1)}${sharedExtra()}${field(0)}</div><aside class="decision" aria-live="polite">${panel()}</aside></div><footer class="live-log">${esc(state?.logs.at(-1)??'카드를 눌러 행동을 선택하세요.')}</footer></main><dialog id="details"><div id="detailContent"></div><button class="action" id="closeDetail">닫기</button></dialog>`;
+  const board=sessionMode==='duel'?`${field(1)}${sharedExtra()}${field(0)}`:`<div class="solo-note">${sessionMode==='ghost-create'?'고스트 생성 · 내 전개를 기록 중':'전개 연습 · 상대 없이 진행'}</div>${field(0)}`;
+  const activeName=state?.active===0?'나':sessionMode==='duel'?'고스트':'연습 상대';
+  root.innerHTML=portrait()+`<main class="screen live-duel"><header class="topbar"><strong>Ghost Duel</strong><span>${state?`${state.turn}턴 · ${activeName} · ${phaseName[state.phase]??''}`:'YGOPro Core'}</span><div class="top-right">${themeToggle()}<button class="mini" id="pause" ${!state||error?'disabled':''}>${state?.paused?'자동 진행':'일시정지'}</button>${state?.paused?'<button class="mini" id="step">한 행동</button>':''}<button class="mini" id="exit">종료</button></div></header><div class="live-layout"><div class="live-board ${sessionMode==='duel'?'':'solo'}">${board}</div><aside class="decision" aria-live="polite">${panel()}</aside></div><footer class="live-log">${esc(state?.logs.at(-1)??'카드를 눌러 행동을 선택하세요.')}</footer></main><dialog id="details"><div id="detailContent"></div><button class="action" id="closeDetail">닫기</button></dialog>`;
   root.querySelector('.decision').scrollTop=decisionScroll;
   root.querySelector('.live-board').scrollTop=boardScroll;
   root.querySelectorAll('.decision .choices').forEach((list,index)=>{list.scrollTop=choiceScrolls[index]??0;});
   document.getElementById('exit').onclick=stop;
   document.getElementById('restart')?.addEventListener('click',start);
+  document.getElementById('makeGhostDraft')?.addEventListener('click',editRecordedDraft);
   document.getElementById('pause').onclick=()=>worker.postMessage({type:'pause'});
   document.getElementById('step')?.addEventListener('click',()=>worker.postMessage({type:'step'}));
   document.getElementById('clearCard')?.addEventListener('click',()=>{selectedCard=null;renderDuel();});

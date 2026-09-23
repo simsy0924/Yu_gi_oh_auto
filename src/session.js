@@ -2,12 +2,14 @@ import createCore,{OcgDuelMode as D,OcgMessageType as M,OcgProcessResult as P,Oc
 import {validateDeck} from './decks.js';
 import {makePrompt,requestTypes,selectionResponse,counterResponse} from './prompts.js';
 export class DuelSession {
-  static async create({cards,scripts,wasmBinary,you,ghost,seed=[1,2,3,4]}) {
+  static async create({cards,scripts,wasmBinary,you,ghost,seed=[1,2,3,4],startingHand=null}) {
     validateDeck(you,cards);validateDeck(ghost.deck,cards);
     const s=new DuelSession();Object.assign(s,{cards,scripts,lp:[8000,8000],turn:0,phase:0,active:0,logs:[],prompt:null,ended:false,issue:null});
     s.core=await createCore({sync:true,wasmBinary});
     const team={startingLP:8000,startingDrawCount:5,drawCountPerTurn:1};
-    s.handle=s.core.createDuel({flags:D.MODE_MR5,seed:seed.map(BigInt),team1:team,team2:team,
+    const firstTeam=startingHand?.length?{...team,startingDrawCount:startingHand.length}:team;
+    const secondTeam=ghost.startingHand?.length?{...team,startingDrawCount:ghost.startingHand.length}:team;
+    s.handle=s.core.createDuel({flags:D.MODE_MR5,seed:seed.map(BigInt),team1:firstTeam,team2:secondTeam,
       cardReader:code=>cards[code]?{...cards[code],race:BigInt(cards[code].race)}:null,
       scriptReader:name=>scripts[name]??null,
       errorHandler:(type,text)=>{if(type===0)s.issue=`카드 효과 실행 오류: ${text}`;s.log(text);}});
@@ -15,7 +17,19 @@ export class DuelSession {
     try {
       for(const name of ['constant.lua','utility.lua'])if(!s.core.loadScript(s.handle,name,scripts[name]))throw new Error(`${name} 로드 실패`);
       let rng=Number(seed[0])>>>0;const random=()=>{rng=(Math.imul(1664525,rng)+1013904223)>>>0;return rng/4294967296;};
-      [you,ghost.deck].forEach((source,team)=>{const deck={...source,main:[...source.main]};for(let i=deck.main.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[deck.main[i],deck.main[j]]=[deck.main[j],deck.main[i]];}for(const [part,location] of [['main',1],['extra',64]])for(const code of deck[part]??[])s.core.duelNewCard(s.handle,{code,team,duelist:0,controller:team,location,position:8,sequence:0});});
+      [you,ghost.deck].forEach((source,team)=>{
+        const deck={...source,main:[...source.main]};
+        const opening=team===0?startingHand:ghost.startingHand;
+        if(opening?.length){
+          for(const code of opening){const index=deck.main.indexOf(code);if(index<0)throw new Error(`고정 시작 패에 ${code} 카드가 덱에 없습니다.`);deck.main.splice(index,1);}
+          for(const code of opening)s.core.duelNewCard(s.handle,{code,team,duelist:0,controller:team,location:1,position:8,sequence:0});
+          for(const code of deck.main)s.core.duelNewCard(s.handle,{code,team,duelist:0,controller:team,location:1,position:8,sequence:1});
+        }else{
+          for(let i=deck.main.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[deck.main[i],deck.main[j]]=[deck.main[j],deck.main[i]];}
+          for(const code of deck.main)s.core.duelNewCard(s.handle,{code,team,duelist:0,controller:team,location:1,position:8,sequence:0});
+        }
+        for(const code of deck.extra??[])s.core.duelNewCard(s.handle,{code,team,duelist:0,controller:team,location:64,position:8,sequence:0});
+      });
       s.core.startDuel(s.handle);s.advance();return s;
     }catch(e){s.destroy();throw e;}
   }

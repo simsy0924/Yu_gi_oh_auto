@@ -18,6 +18,12 @@ test('edited ghost exports into the existing import format and follows a scripte
   assert.equal(ghostChoice({type:'SELECT_IDLECMD',choices:[]},imported.behavior,0).blocked?.length>0,true);
 });
 
+test('ghost export preserves a valid fixed opening hand',()=>{
+  const code=deck.main[0],ghost=exportGhost({name:'고정 패 테스트',deck,startingHand:[code,code],behavior:{type:'scripted',mode:'sequence',script:[],fallback:'basic'}});
+  assert.deepEqual(ghost.startingHand,[code,code]);
+  assert.throws(()=>exportGhost({name:'잘못된 시작 패',deck,startingHand:[999999999],behavior:{type:'scripted',script:[],fallback:'basic'}}),/메인 덱에 없습니다/);
+});
+
 test('a scripted card selection takes priority over a cancel button',()=>{
   const p={type:'SELECT_CARD',choices:[{id:'0',kind:'cancel'}],selection:{options:[{id:0},{id:1}],min:1,max:2}};
   const behavior={script:[{on:'SELECT_CARD',indices:[1]}],fallback:'basic'};

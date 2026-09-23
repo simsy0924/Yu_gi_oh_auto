@@ -21,7 +21,7 @@ export function validateStep(step) {
   if(step.indices!==undefined&&(!selectionRequests.has(step.on)||!Array.isArray(step.indices)||step.indices.some(i=>!Number.isSafeInteger(i)||i<0)||new Set(step.indices).size!==step.indices.length))throw new Error('선택 대상 번호는 중복 없는 0 이상의 정수여야 합니다.');
   if(step.counters!==undefined&&(step.on!=='SELECT_COUNTER'||!Array.isArray(step.counters)||!step.counters.length||step.counters.some(n=>!Number.isInteger(n)||n<0||n>65535)))throw new Error('카운터 수량은 0 이상의 정수 목록으로 입력하세요.');
   if(step.on==='SELECT_COUNTER'&&step.counters===undefined)throw new Error('SELECT_COUNTER: 카드별 카운터 수량을 입력하세요.');
-  if(selectionRequests.has(step.on)&&step.indices===undefined&&!(step.card!==undefined&&['SELECT_CARD','SELECT_TRIBUTE','ANNOUNCE_CARD','SELECT_SUM'].includes(step.on)))throw new Error(`${step.on}: 선택 대상 번호 또는 카드 번호를 입력하세요.`);
+  if(selectionRequests.has(step.on)&&step.indices===undefined&&step.choice===undefined&&!(step.card!==undefined&&['SELECT_CARD','SELECT_TRIBUTE','ANNOUNCE_CARD','SELECT_SUM'].includes(step.on)))throw new Error(`${step.on}: 선택 대상 번호 또는 카드 번호를 입력하세요.`);
   if(!selectionRequests.has(step.on)&&step.indices!==undefined)throw new Error(`${step.on}: 선택 대상 목록을 사용할 수 없습니다.`);
   if(step.action===undefined&&step.choice===undefined&&step.card===undefined&&step.indices===undefined&&step.counters===undefined&&actionsByRequest[step.on].length===0)throw new Error(`${step.on}: 선택 번호를 입력하세요.`);
   return step;
@@ -30,10 +30,17 @@ export function validateStep(step) {
 export function exportGhost(ghost) {
   if(!ghost||typeof ghost.name!=='string'||!ghost.name.trim())throw new Error('고스트 이름을 입력하세요.');
   const deck=validateDeck(ghost.deck);
+  let startingHand;
+  if(ghost.startingHand!==undefined){
+    if(!Array.isArray(ghost.startingHand)||ghost.startingHand.length<1||ghost.startingHand.length>5||ghost.startingHand.some(code=>!Number.isSafeInteger(code)||code<=0))throw new Error('고정 시작 패는 덱에 있는 카드 1~5장으로 구성하세요.');
+    const remaining=[...deck.main];
+    for(const code of ghost.startingHand){const index=remaining.indexOf(code);if(index<0)throw new Error(`고정 시작 패의 ${code} 카드는 메인 덱에 없습니다.`);remaining.splice(index,1);}
+    startingHand=[...ghost.startingHand];
+  }
   if(!ghost.behavior||ghost.behavior.type!=='scripted'||!Array.isArray(ghost.behavior.script)||!['basic','pause'].includes(ghost.behavior.fallback)||!['priority','sequence',undefined].includes(ghost.behavior.mode))throw new Error('고스트 행동 설정을 확인하세요.');
   const script=ghost.behavior.script.map((step,i)=>{
     try{validateStep(step);}catch(e){throw new Error(`${i+1}단계: ${e.message}`);}
     return {...step,indices:step.indices===undefined?undefined:[...step.indices],counters:step.counters===undefined?undefined:[...step.counters]};
   });
-  return {version:1,id:String(ghost.id||'custom-ghost'),name:ghost.name.trim(),description:String(ghost.description??'').trim(),deck:{name:deck.name,main:deck.main,extra:deck.extra,side:deck.side},behavior:{type:'scripted',mode:ghost.behavior.mode??'sequence',script,fallback:ghost.behavior.fallback}};
+  return {version:1,id:String(ghost.id||'custom-ghost'),name:ghost.name.trim(),description:String(ghost.description??'').trim(),deck:{name:deck.name,main:deck.main,extra:deck.extra,side:deck.side},...(startingHand?{startingHand}:{}),behavior:{type:'scripted',mode:ghost.behavior.mode??'sequence',script,fallback:ghost.behavior.fallback}};
 }
