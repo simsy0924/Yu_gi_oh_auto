@@ -5,7 +5,7 @@ import {gunzipSync} from 'node:zlib';
 import {DuelSession} from '../src/session.js';
 import {ghostChoice,fieldPlaces,makePrompt,selectionResponse} from '../src/prompts.js';
 import {parseDeck} from '../src/decks.js';
-import {OcgMessageType as M} from 'ocgcore-wasm';
+import {OcgMessageType as M,OcgQueryFlags as Q} from 'ocgcore-wasm';
 const cards=JSON.parse(gunzipSync(readFileSync('public/engine/cards.json.gz')));
 const scripts=JSON.parse(gunzipSync(readFileSync('public/engine/scripts.json.gz')));
 const buf=readFileSync('node_modules/ocgcore-wasm/lib/ocgcore.sync.wasm');
@@ -71,4 +71,30 @@ test('scripted ghost consumes only matching requests and fails clearly',()=>{
   assert.equal(ghostChoice(p,behavior).cursor,1);
   assert.ok(ghostChoice(p,{...behavior,script:[{on:'SELECT_IDLECMD',card:99999999}]}).blocked);
   assert.ok(ghostChoice(p,{fallback:'pause'}).blocked);
+});
+
+test('each duel shuffles the ghost deck; the opening hand stays hidden in the player snapshot',async()=>{
+  const openings=new Set();
+  for(const first of [1,2,3,4,5]){
+    const s=await DuelSession.create({cards,scripts,wasmBinary,you,ghost,seed:[first,2,3,4]});
+    try{
+      const hand=s.core.duelQueryLocation(s.handle,{controller:1,location:2,flags:Q.CODE});
+      openings.add(hand.map(c=>c.code).join(','));
+      assert.equal(s.snapshot().zones[1][2].cards,undefined);
+      assert.equal(s.snapshot().zones[1][2].count,5);
+    }finally{s.destroy();}
+  }
+  assert.ok(openings.size>1,'different duel seeds should change the ghost opening hand');
+});
+
+test('legal card actions carry their exact field or hand position for card clicks',async()=>{
+  const s=await DuelSession.create({cards,scripts,wasmBinary,you,ghost});
+  try{
+    const choices=s.prompt.choices.filter(c=>c.source);
+    assert.ok(choices.length>0);
+    for(const c of choices){
+      assert.equal(c.source.controller,0);
+      assert.equal(s.snapshot().zones[0][c.source.location].cards[c.source.sequence].code,c.card);
+    }
+  }finally{s.destroy();}
 });
