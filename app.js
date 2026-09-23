@@ -4,7 +4,7 @@ import {parseDeck} from './src/decks.js';
 import {exportGhost} from './src/ghosts.js';
 const root=document.getElementById('app');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let ghosts=[],decks=[],ghostId,deckId,worker=null,state=null,selection=[],busy=false,error='',loading='';
+let ghosts=[],decks=[],ghostId,deckId,worker=null,state=null,selection=[],selectedCard=null,showAllActions=false,busy=false,error='',loading='';
 const portrait=()=>'<div class="portrait"><strong>가로 화면으로 돌려주세요</strong><span>Ghost Duel은 모바일 가로 화면에 맞춰져 있습니다.</span></div>';
 const choiceItem=(x,selected)=>`<button class="item ${x.id===selected?'active':''}" data-id="${esc(x.id)}"><div class="thumb"></div><div><strong>${esc(x.name)}</strong><small>${esc(x.description??`${x.main?.length??0}장 / 엑스트라 ${x.extra?.length??0}장`)}</small></div></button>`;
 async function json(url){const r=await fetch(url);if(!r.ok)throw new Error(`${url} 로드 실패`);return r.json();}
@@ -27,10 +27,10 @@ function renderSetup(){
   document.getElementById('editGhost').onclick=()=>ghostBuilder(ghosts.find(g=>g.id===ghostId));
 }
 function start(){
-  error='';loading='엔진 준비 중...';state=null;busy=true;selection=[];
+  error='';loading='엔진 준비 중...';state=null;busy=true;selection=[];selectedCard=null;showAllActions=false;
   worker?.terminate();worker=new Worker(new URL('./src/engine.worker.js',import.meta.url),{type:'module'});
   worker.onmessage=({data:m})=>{
-    if(m.type==='state'){state=m.state;loading='';busy=false;selection=[];}
+    if(m.type==='state'){state=m.state;loading='';busy=false;selection=[];selectedCard=null;showAllActions=false;}
     if(m.type==='loading')loading=m.message;
     if(m.type==='error'){error=m.message;loading='';busy=false;}
     renderDuel();
@@ -39,51 +39,84 @@ function start(){
   worker.postMessage({type:'start',you:decks.find(d=>d.id===deckId),ghost:ghosts.find(g=>g.id===ghostId),base:new URL('.',location.href).href,seed:Array.from(crypto.getRandomValues(new Uint32Array(4)))});
   renderDuel();
 }
-function stop(){worker?.terminate();worker=null;state=null;error='';renderSetup();}
+function stop(){worker?.terminate();worker=null;state=null;error='';selectedCard=null;renderSetup();}
 const phaseName={1:'드로우',2:'스탠바이',4:'메인 1',8:'배틀 시작',16:'배틀',32:'데미지',64:'데미지 계산',128:'배틀 종료',256:'메인 2',512:'엔드'};
+const sourceKey=s=>s?`${s.controller},${s.location},${s.sequence}`:null;
+const myPrompt=()=>state?.prompt?.player===0&&!state?.ended&&!error?state.prompt:null;
+const actionsFor=key=>(myPrompt()?.choices??[]).filter(c=>sourceKey(c.source)===key);
+const targetFor=key=>(myPrompt()?.selection?.options??[]).find(o=>sourceKey(o.source)===key);
 function card(c,player,location,sequence){
   if(!c)return `<div class="slot empty">${location===4?'M':'S'}${sequence+1}</div>`;
-  return `<button class="slot ${player===1?'rot':''} ${location===4&&(c.position&12)?'defense':''}" data-card="${player},${location},${sequence}" title="${esc(c.name??'뒷면 카드')}">${c.hidden?'<span class="back">GD</span>':`<span>${esc(c.name)}</span><small>${location===4?`${c.attack??'?'} / ${c.defense??'?'}`:''}</small>${c.link_marker?`<small>LINK ${esc(c.link?.rating??'')} · ${linkArrows(c.link_marker)}</small>`:''}`}</button>`;
+  const key=`${player},${location},${sequence}`;
+  const available=actionsFor(key).length||targetFor(key);
+  return `<button class="slot ${player===1?'rot':''} ${location===4&&(c.position&12)?'defense':''} ${available?'actionable':''} ${selectedCard===key?'focused':''}" data-card="${key}" aria-label="${esc(c.name??'뒷면 카드')}${available?' · 선택 가능':''}" title="${esc(c.name??'뒷면 카드')}">${c.hidden?'<span class="back">GD</span>':`<span>${esc(c.name)}</span><small>${location===4?`${c.attack??'?'} / ${c.defense??'?'}`:''}</small>${c.link_marker?`<small>LINK ${esc(c.link?.rating??'')} · ${linkArrows(c.link_marker)}</small>`:''}`}</button>`;
 }
 function linkArrows(mask){return [[64,'↖'],[128,'↑'],[256,'↗'],[8,'←'],[32,'→'],[1,'↙'],[2,'↓'],[4,'↘']].filter(([n])=>mask&n).map(([,s])=>s).join('');}
 function field(player){
   const z=state?.zones[player]??{};
   const count=l=>z[l]?.count??z[l]?.cards?.filter(Boolean).length??0;
-  const row=(l,count)=>`<div class="field-row">${Array.from({length:count},(_,i)=>card(z[l]?.cards?.[i],player,l,i)).join('')}</div>`;
-  const piles=`<div class="pilebar">${[[1,'DECK'],[64,'EXTRA'],[16,'GY'],[32,'BAN']].map(([l,t])=>`<button class="mini" data-pile="${player},${l}">${t} ${count(l)}</button>`).join('')}</div>`;
-  const h=player===0?`<div class="live-hand">${(z[2]?.cards??[]).map((c,i)=>card(c,player,2,i)).join('')}</div>`:`<div class="opponent-hand">GHOST 패 ${count(2)}장</div>`;
-  const extra=`<div class="field-spell"><span>FIELD</span>${card(z[8]?.cards?.[5],player,8,5)}</div>`;
+  const row=(l,n)=>`<div class="field-row">${Array.from({length:n},(_,i)=>card(z[l]?.cards?.[i],player,l,i)).join('')}</div>`;
+  const piles=`<div class="pilebar">${[[1,'덱'],[64,'엑스트라'],[16,'묘지'],[32,'제외']].map(([l,t])=>`<button class="mini" data-pile="${player},${l}">${t} ${count(l)}</button>`).join('')}</div>`;
+  const h=player===0?`<div class="live-hand" aria-label="내 패">${(z[2]?.cards??[]).map((c,i)=>card(c,player,2,i)).join('')}</div>`:`<div class="opponent-hand">상대 패 ${count(2)}장</div>`;
+  const extra=`<div class="field-spell"><span>필드</span>${card(z[8]?.cards?.[5],player,8,5)}</div>`;
   return `<section class="live-field ${player===1?'opponent':''}"><div class="field-caption"><b>${player===1?'GHOST':'YOU'} · ${state?.lp[player]??8000} LP</b>${piles}${extra}</div>${player===1?h+row(8,5)+row(4,5):row(4,5)+row(8,5)+h}</section>`;
 }
 function sharedExtra(){return '<div class="shared-extra"><span>EXTRA MONSTER ZONES</span>'+[5,6].map(i=>{const own=state?.zones[0][4].cards[i],other=state?.zones[1][4].cards[11-i];return own?card(own,0,4,i):other?card(other,1,4,11-i):card(null,0,4,i);}).join('')+'</div>';}
+const choiceButton=c=>`<button class="pick" data-choice="${esc(c.id)}" ${busy?'disabled':''}>${esc(c.label)}</button>`;
 function panel(){
   if(error)return `<h2>듀얼이 중단되었습니다</h2><p role="alert">${esc(error)}</p><button class="action" id="restart">다시 시작</button>`;
   if(loading)return `<h2>준비 중</h2><p>${esc(loading)}</p>`;
   if(state?.ended)return `<h2>${state.winner===2?'무승부':state.winner===0?'승리':'패배'}</h2><button class="primary" id="restart">다시 시작</button>`;
   const p=state?.prompt;if(!p)return '<p>듀얼 처리 중...</p>';
-  if(p.player===1)return `<h2>GHOST</h2><p>${esc(state.ghostBlocked??(state.paused?'고스트 일시정지':p.title))}</p>${state.ghostBlocked?'<p>고스트 JSON의 행동 또는 지원되는 덱을 확인하세요.</p>':''}`;
+  if(p.player===1)return `<h2>GHOST</h2><p>${esc(state.ghostBlocked??(state.paused?'고스트 일시정지':'상대가 행동을 고르는 중...'))}</p>`;
   let html=`<h2>${esc(p.title)}</h2>`;
-  if(p.blocked)return html+`<p role="alert">${esc(p.blocked)}</p><p>현재 버전은 이 선택을 처리할 수 없습니다. 다른 덱으로 다시 시작해 주세요.</p>`;
-  if(p.selection){const s=p.selection;html+=`<p>${s.ordered?'선택한 순서대로':`${s.min}~${s.max}장/존 선택`} · 현재 ${selection.length}</p><div class="choices">${s.options.map(o=>`<button class="pick ${selection.includes(o.id)?'selected':''}" data-select="${o.id}">${selection.includes(o.id)?`${selection.indexOf(o.id)+1}. `:''}${esc(o.label)}</button>`).join('')}</div><button class="action" id="confirm">선택 완료</button>`;}
-  html+=`<div class="choices">${p.choices.map(c=>`<button class="pick" data-choice="${c.id}" ${busy?'disabled':''}>${esc(c.label)}</button>`).join('')}</div>`;
+  if(p.blocked)return html+`<p role="alert">${esc(p.blocked)}</p><p>이 선택은 현재 화면에서 지원하지 않습니다.</p>`;
+  const [player,location,sequence]=selectedCard?.split(',').map(Number)??[];
+  const selected=state?.zones?.[player]?.[location]?.cards?.[sequence];
+  const cardActions=selectedCard?actionsFor(selectedCard):[];
+  const target=selectedCard?targetFor(selectedCard):null;
+  if(selected){
+    html+=`<div class="focused-card"><div><strong>${esc(selected.name??'뒷면 카드')}</strong><small>${cardActions.length}개 행동 가능</small></div><button class="mini" id="inspectCard">카드 정보</button><button class="mini" id="clearCard">닫기</button></div>`;
+    if(cardActions.length)html+=`<div class="choices">${cardActions.map(choiceButton).join('')}</div>`;
+    if(target)html+=`<button class="pick ${selection.includes(target.id)?'selected':''}" data-select="${target.id}">${selection.includes(target.id)?'선택 해제':'이 카드 선택'}</button>`;
+    if(!cardActions.length&&!target)html+='<p class="muted">이 카드로 지금 할 수 있는 행동이 없습니다.</p>';
+  }else html+='<p class="duel-hint">빛나는 카드를 눌러 가능한 행동을 확인하세요.</p>';
+  if(p.selection){
+    const s=p.selection;
+    html+=`<div class="decision-group"><h3>선택 대상 · ${s.min}~${s.max}개 · 현재 ${selection.length}개</h3><div class="choices">${s.options.map(o=>`<button class="pick ${selection.includes(o.id)?'selected':''}" data-select="${o.id}">${selection.includes(o.id)?`${selection.indexOf(o.id)+1}. `:''}${esc(o.label)}</button>`).join('')}</div><button class="primary confirm-choice" id="confirm" ${busy?'disabled':''}>선택 완료</button></div>`;
+  }
+  const global=p.choices.filter(c=>!c.source);
+  if(global.length)html+=`<div class="decision-group"><h3>페이즈 · 기타 선택</h3><div class="choices">${global.map(choiceButton).join('')}</div></div>`;
+  const others=p.choices.filter(c=>c.source&&sourceKey(c.source)!==selectedCard);
+  if(others.length)html+=`<button class="mini all-actions-toggle" id="toggleAll">${showAllActions?'다른 행동 접기':`전체 행동 보기 (${others.length})`}</button>${showAllActions?`<div class="choices">${others.map(choiceButton).join('')}</div>`:''}`;
   return html;
 }
 function send(input){if(busy||error)return;busy=true;worker.postMessage({type:'respond',revision:state.revision,...input});renderDuel();}
+function toggleSelection(id){selection=selection.includes(id)?selection.filter(x=>x!==id):[...selection,id];renderDuel();}
+function focusCard(key){selectedCard=key;const target=targetFor(key);if(target){toggleSelection(target.id);}else renderDuel();}
 function renderDuel(){
-  root.innerHTML=portrait()+`<main class="screen live-duel"><header class="topbar"><strong>Ghost Duel</strong><span>${state?`${state.turn}턴 · ${state.active===0?'YOU':'GHOST'} · ${phaseName[state.phase]??''}`:'YGOPro Core'}</span><div class="top-right"><button class="mini" id="pause" ${!state||error?'disabled':''}>${state?.paused?'고스트 자동 진행':'고스트 일시정지'}</button>${state?.paused?'<button class="mini" id="step">한 행동 진행</button>':''}<button class="mini" id="exit">종료</button></div></header><div class="live-layout"><div class="live-board">${field(1)}${sharedExtra()}${field(0)}</div><aside class="decision" aria-live="polite">${panel()}</aside></div><footer class="live-log">${esc(state?.logs.at(-1)??'카드 효과와 룰은 YGOPro Core에서 처리합니다.')}</footer></main><dialog id="details"><div id="detailContent"></div><button class="action" id="closeDetail">닫기</button></dialog>`;
+  root.innerHTML=portrait()+`<main class="screen live-duel"><header class="topbar"><strong>Ghost Duel</strong><span>${state?`${state.turn}턴 · ${state.active===0?'YOU':'GHOST'} · ${phaseName[state.phase]??''}`:'YGOPro Core'}</span><div class="top-right"><button class="mini" id="pause" ${!state||error?'disabled':''}>${state?.paused?'자동 진행':'일시정지'}</button>${state?.paused?'<button class="mini" id="step">한 행동</button>':''}<button class="mini" id="exit">종료</button></div></header><div class="live-layout"><div class="live-board">${field(1)}${sharedExtra()}${field(0)}</div><aside class="decision" aria-live="polite">${panel()}</aside></div><footer class="live-log">${esc(state?.logs.at(-1)??'카드를 눌러 행동을 선택하세요.')}</footer></main><dialog id="details"><div id="detailContent"></div><button class="action" id="closeDetail">닫기</button></dialog>`;
   document.getElementById('exit').onclick=stop;
   document.getElementById('restart')?.addEventListener('click',start);
   document.getElementById('pause').onclick=()=>worker.postMessage({type:'pause'});
   document.getElementById('step')?.addEventListener('click',()=>worker.postMessage({type:'step'}));
+  document.getElementById('clearCard')?.addEventListener('click',()=>{selectedCard=null;renderDuel();});
+  document.getElementById('toggleAll')?.addEventListener('click',()=>{showAllActions=!showAllActions;renderDuel();});
   root.querySelectorAll('[data-choice]').forEach(b=>b.onclick=()=>send({choice:b.dataset.choice}));
-  root.querySelectorAll('[data-select]').forEach(b=>b.onclick=()=>{const id=Number(b.dataset.select);selection=selection.includes(id)?selection.filter(x=>x!==id):[...selection,id];renderDuel();});
+  root.querySelectorAll('[data-select]').forEach(b=>b.onclick=()=>toggleSelection(Number(b.dataset.select)));
   document.getElementById('confirm')?.addEventListener('click',()=>{
     const s=state.prompt.selection,amount=s.tribute?selection.reduce((a,id)=>a+s.options.find(o=>o.id===id).value,0):selection.length;
     if(amount<s.min||selection.length>s.max){document.getElementById('confirm').textContent='선택 수를 확인하세요';return;}send({indices:selection});
   });
   const show=cards=>{document.getElementById('detailContent').innerHTML=cards.length?cards.map(c=>`<h3>${esc(c.name??'뒷면 카드')}</h3><p class="card-description">${esc(c.desc??'공개되지 않은 카드입니다.')}</p>`).join(''):'<p>공개된 카드가 없습니다.</p>';document.getElementById('details').showModal();};
-  root.querySelectorAll('[data-card]').forEach(b=>b.onclick=()=>{const [p,l,i]=b.dataset.card.split(',');const c=state?.zones[p][l].cards[i];if(c)show([c]);});
-  root.querySelectorAll('[data-pile]').forEach(b=>b.onclick=()=>{const [p,l]=b.dataset.pile.split(',');show((state?.zones[p][l].cards??[]).filter(Boolean));});
+  document.getElementById('inspectCard')?.addEventListener('click',()=>{const [p,l,i]=selectedCard.split(',');const c=state?.zones[p][l].cards[i];if(c)show([c]);});
+  root.querySelectorAll('[data-card]').forEach(b=>b.onclick=()=>{const key=b.dataset.card,[p,l,i]=key.split(',');const c=state?.zones[p][l].cards[i];if(myPrompt()&&c&&!c.hidden)focusCard(key);else if(c)show([c]);});
+  root.querySelectorAll('[data-pile]').forEach(b=>b.onclick=()=>{
+    const [p,l]=b.dataset.pile.split(','),cards=state?.zones[p][l].cards??[];
+    document.getElementById('detailContent').innerHTML=cards.length?`<h3>${esc(({16:'묘지',32:'제외',64:'엑스트라'})[l]??'카드 목록')}</h3><div class="pile-cards">${cards.map((c,i)=>c?`<button class="pick ${actionsFor(`${p},${l},${i}`).length?'actionable':''}" data-pile-card="${p},${l},${i}">${esc(c.name??'뒷면 카드')}</button>`:'').join('')}</div>`:'<p>공개된 카드가 없습니다.</p>';
+    document.getElementById('details').showModal();
+    root.querySelectorAll('[data-pile-card]').forEach(item=>item.onclick=()=>{const key=item.dataset.pileCard;document.getElementById('details').close();focusCard(key);});
+  });
   document.getElementById('closeDetail').onclick=()=>document.getElementById('details').close();
 }
 try{const index=await json('./ghosts/index.json');ghosts=await Promise.all(index.map(e=>json(e.file)));try{const saved=JSON.parse(localStorage.getItem(SAVED_GHOSTS_KEY)||'[]');if(Array.isArray(saved))for(const g of saved){try{if(typeof g.id==='string'&&g.id!=='sample')ghosts.push(exportGhost(g));}catch{}}}catch{}ghostId=ghosts[0]?.id;const deck=await json('./decks/starter.json');deck.id='starter';decks=[deck];try{const saved=JSON.parse(localStorage.getItem(SAVED_DECKS_KEY)||'[]');if(Array.isArray(saved))for(const d of saved){try{if(typeof d.id==='string'&&d.id!=='starter')decks.push({...parseDeck(JSON.stringify(d),d.name),id:d.id});}catch{}}}catch{}deckId=deck.id;renderSetup();}catch(e){error=e.message;renderSetup();}

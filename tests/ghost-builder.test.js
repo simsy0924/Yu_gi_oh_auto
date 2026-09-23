@@ -23,3 +23,28 @@ test('a scripted card selection takes priority over a cancel button',()=>{
   assert.deepEqual(ghostChoice(p,behavior,0),{indices:[1],cursor:1});
   assert.throws(()=>exportGhost({name:'오류',deck,behavior:{type:'scripted',fallback:'basic',script:[{on:'SELECT_CARD',indices:[0,0]}]}}),/1단계/);
 });
+
+test('priority rules adapt to the legal actions in the current hand and do not consume the rule',()=>{
+  const p={type:'SELECT_IDLECMD',choices:[
+    {id:'0',kind:'special',card:20},{id:'1',kind:'summon',card:30},
+    {id:'2',kind:'set-spell',card:40},{id:'3',kind:'end',card:null}
+  ]};
+  const behavior={mode:'priority',fallback:'basic',script:[
+    {on:'SELECT_IDLECMD',action:'activate',card:10},
+    {on:'SELECT_IDLECMD',action:'special',card:20},
+    {on:'SELECT_IDLECMD',action:'summon',card:30}
+  ]};
+  assert.equal(exportGhost({name:'우선순위',deck,behavior:{...behavior,type:'scripted'}}).behavior.mode,'priority');
+  assert.deepEqual(ghostChoice(p,behavior,0),{choice:'0',cursor:0});
+  assert.deepEqual(ghostChoice({...p,choices:p.choices.slice(1)},behavior,0),{choice:'1',cursor:0});
+  assert.deepEqual(ghostChoice({...p,choices:p.choices.slice(2)},behavior,0),{choice:'2',cursor:0});
+});
+
+test('priority target rule follows a card rather than a shifting selection index',()=>{
+  const p={type:'SELECT_CARD',choices:[{id:'0',kind:'cancel'}],selection:{options:[
+    {id:0,card:100},{id:1,card:200}
+  ],min:1,max:1}};
+  const behavior={mode:'priority',fallback:'pause',script:[{on:'SELECT_CARD',card:200}]};
+  assert.deepEqual(ghostChoice(p,behavior),{indices:[1],cursor:0});
+  assert.ok(ghostChoice({...p,selection:{...p.selection,options:[p.selection.options[0]]}},behavior).blocked);
+});

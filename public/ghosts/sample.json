@@ -53,7 +53,11 @@
   },
   "behavior": {
     "type": "scripted",
-    "script": [],
+    "mode": "priority",
+    "script": [
+      { "on": "SELECT_IDLECMD", "action": "summon" },
+      { "on": "SELECT_BATTLECMD", "action": "attack" }
+    ],
     "fallback": "basic"
   }
 }
