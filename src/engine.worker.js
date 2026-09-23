@@ -33,7 +33,10 @@ self.onmessage=async({data:m})=>{
       post('loading',{message:'듀얼 엔진과 카드 데이터를 불러오는 중...'});
       assets??=Promise.all([bundle(new URL('engine/cards.json.gz',m.base)),bundle(new URL('engine/scripts.json.gz',m.base)),bundle(new URL('engine/ko-strings.json.gz',m.base)),fetch(wasmUrl).then(r=>{if(!r.ok)throw new Error('WASM 로드 실패');return r.arrayBuffer();})]);
       const [cards,scripts,koStrings,wasmBinary]=await assets;
-      const ko=await bundle(new URL('engine/ko.json.gz',m.base));for(const [code,text] of Object.entries(ko))if(cards[code]){cards[code].englishName=cards[code].name;cards[code].englishDesc=cards[code].desc;Object.assign(cards[code],text);}
+      const [ko,koOverridesResponse]=await Promise.all([bundle(new URL('engine/ko.json.gz',m.base)),fetch(new URL('engine/ko-overrides.json',m.base))]);
+      if(!koOverridesResponse.ok)throw new Error('카드 번역을 불러오지 못했습니다.');
+      Object.assign(ko,await koOverridesResponse.json());
+      for(const [code,text] of Object.entries(ko))if(cards[code]){cards[code].englishName=cards[code].name;cards[code].englishDesc=cards[code].desc;Object.assign(cards[code],text);}
       for(const [code,strings] of Object.entries(koStrings))if(cards[code])cards[code].koreanStrings=strings;
       const ghost=m.ghost??{deck:m.you,behavior:{type:'scripted',mode:'priority',script:[],fallback:'basic'}};
       session=await DuelSession.create({cards,scripts,wasmBinary,you:m.you,ghost,seed:m.seed,startingHand:m.startingHand});publish();

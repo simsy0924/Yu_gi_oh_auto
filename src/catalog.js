@@ -5,8 +5,14 @@ async function readBundle(path) {
   if(!response.ok)throw new Error('카드 목록을 불러오지 못했습니다. 다시 시도해 주세요.');
   return new Response(response.body.pipeThrough(new DecompressionStream('gzip'))).json();
 }
+async function readJson(path) {
+  const response=await fetch(new URL(path,document.baseURI));
+  if(!response.ok)throw new Error('카드 번역을 불러오지 못했습니다. 다시 시도해 주세요.');
+  return response.json();
+}
 export function loadCatalog() {
-  pending??=Promise.all([readBundle('./engine/cards.json.gz'),readBundle('./engine/ko.json.gz')]).then(([cards,ko])=>{
+  pending??=Promise.all([readBundle('./engine/cards.json.gz'),readBundle('./engine/ko.json.gz'),readJson('./engine/ko-overrides.json')]).then(([cards,ko,overrides])=>{
+    Object.assign(ko,overrides);
     for(const [id,c] of Object.entries(cards)) {
       c.englishName=c.name;
       c.englishDesc=c.desc;

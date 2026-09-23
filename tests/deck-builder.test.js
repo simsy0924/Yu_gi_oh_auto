@@ -6,6 +6,7 @@ import {addCard,exportDeck,searchCards,cardStatKind} from '../src/catalog.js';
 import {parseDeck} from '../src/decks.js';
 const cards=JSON.parse(gunzipSync(readFileSync('public/engine/cards.json.gz')));
 const translations=JSON.parse(gunzipSync(readFileSync('public/engine/ko.json.gz')));
+Object.assign(translations,JSON.parse(readFileSync('public/engine/ko-overrides.json')));
 const starter=JSON.parse(readFileSync('public/decks/starter.json'));
 test('a built deck exports into the existing import format without losing name or zones',()=>{
   const draft={name:'검색으로 만든 덱',main:[],extra:[],side:[]};
@@ -48,6 +49,7 @@ test('the bundled card data exposes levels, ranks and link ratings separately',(
     assert.ok(searchCards([card],{statKind:kind,statValue:String(card.level)}).includes(card));
   }
 });
+
 test('the Korean title for Red Dragon Archfiend’s Chain searches both card IDs',()=>{
   const variants=['92936364','92936365'].map(code=>({
     ...cards[code],...translations[code],englishName:cards[code].name
