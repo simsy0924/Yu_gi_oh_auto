@@ -8,6 +8,14 @@ import {createGhostDraft,recordDecision} from './src/ghost-recording.js';
 import {cardInfoHtml,linkArrows} from './src/card-info.js';
 import {promptHelp,selectionProgress} from './src/duel-guidance.js';
 const root=document.getElementById('app');
+function syncFullscreenButton(){
+  const button=document.getElementById('fullscreen');
+  if(!button)return;
+  const active=!!document.fullscreenElement;
+  button.textContent=active?'전체 화면 종료':'전체 화면';
+  button.setAttribute('aria-pressed',String(active));
+}
+document.addEventListener('fullscreenchange',syncFullscreenButton);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let ghosts=[],decks=[],ghostId,deckId,worker=null,state=null,selection=[],counters=[],announcementQuery='',inputError='',selectedCard=null,busy=false,error='',loading='';
 let setupMode='duel',sessionMode='duel',sessionDeck=null,sessionGhost=null,currentScenario=null,recordedSteps=[],scenarioCaptured=false;
@@ -175,11 +183,21 @@ function renderDuel(){
   const choiceScrolls=[...root.querySelectorAll('.decision .choices')].map(list=>list.scrollTop);
   const board=sessionMode==='duel'?`${field(1)}${sharedExtra()}${field(0)}`:`<div class="solo-note">${sessionMode==='ghost-create'?'고스트 생성 · 내 전개를 기록 중':'전개 연습 · 상대 없이 진행'}</div>${field(0)}`;
   const activeName=state?.active===0?'나':sessionMode==='duel'?'고스트':'연습 상대';
-  root.innerHTML=portrait()+`<main class="screen live-duel"><header class="topbar"><strong>Ghost Duel</strong><span>${state?`${state.turn}턴 · ${activeName} · ${phaseName[state.phase]??''}`:'YGOPro Core'}</span><div class="top-right">${themeToggle()}<button class="mini" id="pause" ${!state||error?'disabled':''}>${state?.paused?'자동 진행':'일시정지'}</button>${state?.paused?'<button class="mini" id="step">한 행동</button>':''}<button class="mini" id="exit">종료</button></div></header><div class="live-layout"><div class="live-board ${sessionMode==='duel'?'':'solo'}">${board}</div><aside class="decision" aria-live="polite">${panel()}</aside></div><footer class="live-log">${esc(state?.logs.at(-1)??'카드를 눌러 행동을 선택하세요.')}</footer></main><dialog id="details"><div id="detailContent"></div><button class="action" id="closeDetail">닫기</button></dialog>`;
+  root.innerHTML=portrait()+`<main class="screen live-duel"><header class="topbar"><strong>Ghost Duel</strong><span>${state?`${state.turn}턴 · ${activeName} · ${phaseName[state.phase]??''}`:'YGOPro Core'}</span><div class="top-right">${themeToggle()}<button class="mini" id="fullscreen" type="button" aria-pressed="${!!document.fullscreenElement}" ${document.fullscreenEnabled===false?'disabled':''}>${document.fullscreenElement?'전체 화면 종료':'전체 화면'}</button><button class="mini" id="pause" ${!state||error?'disabled':''}>${state?.paused?'자동 진행':'일시정지'}</button>${state?.paused?'<button class="mini" id="step">한 행동</button>':''}<button class="mini" id="exit">종료</button></div></header><div class="live-layout"><div class="live-board ${sessionMode==='duel'?'':'solo'}">${board}</div><aside class="decision" aria-live="polite">${panel()}</aside></div><footer class="live-log">${esc(state?.logs.at(-1)??'카드를 눌러 행동을 선택하세요.')}</footer></main><dialog id="details"><div id="detailContent"></div><button class="action" id="closeDetail">닫기</button></dialog>`;
   root.querySelector('.decision').scrollTop=decisionScroll;
   root.querySelector('.live-board').scrollTop=boardScroll;
   root.querySelectorAll('.decision .choices').forEach((list,index)=>{list.scrollTop=choiceScrolls[index]??0;});
   document.getElementById('exit').onclick=stop;
+  document.getElementById('fullscreen').onclick=async()=>{
+    const button=document.getElementById('fullscreen');
+    try{
+      if(document.fullscreenElement)await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+      button.title='화면을 두 번 탭하거나 전체 화면 종료 버튼으로 돌아갈 수 있어요.';
+    }catch{
+      button.title='현재 브라우저에서 전체 화면 전환을 사용할 수 없습니다.';
+    }
+  };
   document.getElementById('restart')?.addEventListener('click',start);
   document.getElementById('makeGhostDraft')?.addEventListener('click',editRecordedDraft);
   document.getElementById('pause').onclick=()=>worker.postMessage({type:'pause'});
