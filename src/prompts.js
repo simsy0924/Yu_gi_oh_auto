@@ -69,9 +69,9 @@ export function selectionResponse(p, ids) {
 export function ghostChoice(p, behavior={}, cursor=0) {
   const step=behavior.script?.[cursor];
   if(step && step.on===p.type) {
+    if(step.indices!==undefined && p.selection) {selectionResponse(p,step.indices);return {indices:step.indices,cursor:cursor+1};}
     const c=p.choices.find(c=>(step.action===undefined||c.kind===step.action)&&(step.card===undefined||c.card===step.card)&&(step.choice===undefined||c.id===String(step.choice)));
     if(c)return {choice:c.id,cursor:cursor+1};
-    if(step.indices && p.selection) {selectionResponse(p,step.indices);return {indices:step.indices,cursor:cursor+1};}
     return {blocked:'고스트의 다음 JSON 행동을 현재 상황에서 실행할 수 없습니다.'};
   }
   if(behavior.fallback==='pause')return {blocked:'이 상황에 대응할 고스트 행동이 없습니다.'};
