@@ -36,7 +36,14 @@ self.onmessage=async({data:m})=>{
       const [ko,koOverridesResponse]=await Promise.all([bundle(new URL('engine/ko.json.gz',m.base)),fetch(new URL('engine/ko-overrides.json',m.base))]);
       if(!koOverridesResponse.ok)throw new Error('카드 번역을 불러오지 못했습니다.');
       Object.assign(ko,await koOverridesResponse.json());
-      for(const [code,text] of Object.entries(ko))if(cards[code]){cards[code].englishName=cards[code].name;cards[code].englishDesc=cards[code].desc;Object.assign(cards[code],text);}
+      for(const card of Object.values(cards)){card.englishName=card.name;card.englishDesc=card.desc;}
+      for(const [code,card] of Object.entries(cards)){
+        const alias=cards[card.alias];
+        const aliasText=card.alias&&alias?.englishName===card.englishName?ko[card.alias]:undefined;
+        const aliasTranslation=aliasText?{name:aliasText.name,...(alias.englishDesc===card.englishDesc?{desc:aliasText.desc}:{})}:undefined;
+        const text=ko[code]??aliasTranslation;
+        if(text)Object.assign(card,text);
+      }
       for(const [code,strings] of Object.entries(koStrings))if(cards[code])cards[code].koreanStrings=strings;
       const ghost=m.ghost??{deck:m.you,behavior:{type:'scripted',mode:'priority',script:[],fallback:'basic'}};
       session=await DuelSession.create({cards,scripts,wasmBinary,you:m.you,ghost,seed:m.seed,startingHand:m.startingHand});publish();
