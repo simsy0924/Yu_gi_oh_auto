@@ -18,7 +18,7 @@ function persistGhosts(){try{localStorage.setItem(SAVED_GHOSTS_KEY,JSON.stringif
 function builder(source){openDeckBuilder(root,{source,onClose:renderSetup,onSave:deck=>{const i=decks.findIndex(d=>d.id===deck.id);if(i>=0)decks[i]=deck;else decks.push(deck);deckId=deck.id;error=persistDecks()?'':'기기 저장에 실패했습니다. 덱 편집에서 JSON으로 내보내 주세요.';renderSetup();}});}
 function ghostBuilder(source){openGhostBuilder(root,{source,decks,selectedDeck:decks.find(d=>d.id===deckId),onClose:renderSetup,onSave:ghost=>{if(ghost.id==='sample')ghost.id=crypto.randomUUID();const i=ghosts.findIndex(g=>g.id===ghost.id);if(i>=0)ghosts[i]=ghost;else ghosts.push(ghost);ghostId=ghost.id;error=persistGhosts()?'':'기기 저장에 실패했습니다. 고스트 편집에서 JSON으로 내보내 주세요.';renderSetup();}});}
 function renderSetup(){
-  root.innerHTML=portrait()+`<main class="screen setup"><header><div class="brand"><div class="brand-mark">GD</div><div><h1>Ghost Duel</h1><p>고스트와 연습하는 1인용 듀얼 · YGOPro Core</p></div></div><a href="https://github.com/simsy0924/Yu_gi_oh_auto" target="_blank" rel="noreferrer">소스 / 라이선스</a></header><section class="setup-grid"><div class="picker"><div class="deck-picker-heading"><h2>고스트 선택</h2><button class="mini" id="newGhost">행동 만들기 / 이어서</button><button class="mini" id="editGhost">선택 고스트 편집</button></div><div class="list" id="ghostList">${ghosts.map(x=>choiceItem(x,ghostId)).join('')}</div><label class="import">고스트 JSON 불러오기<input id="ghostFile" type="file" accept=".json"></label></div><div class="picker"><div class="deck-picker-heading"><h2>내 덱 선택</h2><button class="mini" id="newDeck">덱 만들기 / 이어서</button><button class="mini" id="editDeck">선택 덱 편집</button></div><div class="list" id="deckList">${decks.map(x=>choiceItem(x,deckId)).join('')}</div><label class="import">YDK / JSON 덱 불러오기<input id="deckFile" type="file" accept=".ydk,.json"></label></div></section><footer class="setup-footer"><div class="selection"><span role="alert">${esc(error)}</span><p>기본 덱으로 바로 시작할 수 있어요. 금제 검사는 적용하지 않습니다.</p></div><button class="primary" id="start" ${!ghosts.length||!decks.length?'disabled':''}>DUEL START</button></footer></main>`;
+  root.innerHTML=portrait()+`<main class="screen setup"><header><div class="brand"><div class="brand-mark">GD</div><div><h1>Ghost Duel</h1><p>고스트와 연습하는 1인용 듀얼 · YGOPro Core</p></div></div><a href="https://github.com/simsy0924/Yu_gi_oh_auto" target="_blank" rel="noreferrer">소스 / 라이선스</a></header><section class="setup-grid"><div class="picker"><div class="deck-picker-heading"><h2>고스트 선택</h2><button class="mini" id="newGhost">행동 만들기 / 이어서</button><button class="mini" id="editGhost">선택 고스트 편집</button></div><div class="list" id="ghostList">${ghosts.map(x=>choiceItem(x,ghostId)).join('')}</div><label class="import">고스트 JSON 불러오기<input id="ghostFile" type="file" accept=".json"></label></div><div class="picker"><div class="deck-picker-heading"><h2>내 덱 선택</h2><button class="mini" id="newDeck">덱 만들기 / 이어서</button><button class="mini" id="editDeck">선택 덱 편집</button></div><div class="list" id="deckList">${decks.map(x=>choiceItem(x,deckId)).join('')}</div><label class="import">YDK / JSON 덱 불러오기<input id="deckFile" type="file" accept=".ydk,.json"></label></div></section><footer class="setup-footer"><div class="selection"><span role="alert">${esc(error)}</span><p>기본 덱으로 바로 시작할 수 있어요. 금제 검사는 적용하지 않습니다.</p></div><button class="primary" id="start" ${!ghosts.length||!decks.length?'disabled':''}>듀얼 시작</button></footer></main>`;
   document.getElementById('ghostList').onclick=e=>{const b=e.target.closest('[data-id]');if(b){ghostId=b.dataset.id;renderSetup();}};
   document.getElementById('deckList').onclick=e=>{const b=e.target.closest('[data-id]');if(b){deckId=b.dataset.id;renderSetup();}};
   document.getElementById('deckFile').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;const d=parseDeck(await file.text(),file.name);d.id=crypto.randomUUID();decks.push(d);deckId=d.id;error=persistDecks()?'':'기기 저장에 실패했습니다.';}catch(e){error=e.message;}renderSetup();};
@@ -46,7 +46,12 @@ function start(){
 function stop(){worker?.terminate();worker=null;state=null;error='';selectedCard=null;renderSetup();}
 const phaseName={1:'드로우',2:'스탠바이',4:'메인 1',8:'배틀 시작',16:'배틀',32:'데미지',64:'데미지 계산',128:'배틀 종료',256:'메인 2',512:'엔드'};
 const sourceKey=s=>s?`${s.controller},${s.location},${s.sequence}`:null;
-const zoneLabel=(owner,location,sequence)=>`${owner===0?'내':'상대'} ${{1:'덱',2:'패',4:'몬스터 존',8:'마법·함정 존',16:'묘지',32:'제외',64:'엑스트라 덱'}[location]??'카드'}${[4,8].includes(location)?` ${sequence===5&&location===8?'필드':sequence+1}`:''}`;
+const zoneLabel=(owner,location,sequence)=>{
+  const side=owner===0?'내':'상대';
+  if(location===8&&sequence===5)return `${side} 필드 존`;
+  const area=({1:'덱',2:'패',4:'몬스터 존',8:'마법·함정 존',16:'묘지',32:'제외',64:'엑스트라 덱'})[location]??'카드';
+  return `${side} ${area}${[4,8].includes(location)?` ${sequence+1}`:''}`;
+};
 const myPrompt=()=>state?.prompt?.player===0&&!state?.ended&&!error?state.prompt:null;
 const actionsFor=key=>(myPrompt()?.choices??[]).filter(c=>sourceKey(c.source)===key);
 const targetFor=key=>(myPrompt()?.selection?.options??[]).find(o=>sourceKey(o.source)===key);
@@ -124,9 +129,11 @@ function focusCard(key){selectedCard=key;const target=targetFor(key);if(target&&
 function renderDuel(){
   const decisionScroll=root.querySelector('.decision')?.scrollTop??0;
   const boardScroll=root.querySelector('.live-board')?.scrollTop??0;
+  const choiceScrolls=[...root.querySelectorAll('.decision .choices')].map(list=>list.scrollTop);
   root.innerHTML=portrait()+`<main class="screen live-duel"><header class="topbar"><strong>Ghost Duel</strong><span>${state?`${state.turn}턴 · ${state.active===0?'나':'고스트'} · ${phaseName[state.phase]??''}`:'YGOPro Core'}</span><div class="top-right"><button class="mini" id="pause" ${!state||error?'disabled':''}>${state?.paused?'자동 진행':'일시정지'}</button>${state?.paused?'<button class="mini" id="step">한 행동</button>':''}<button class="mini" id="exit">종료</button></div></header><div class="live-layout"><div class="live-board">${field(1)}${sharedExtra()}${field(0)}</div><aside class="decision" aria-live="polite">${panel()}</aside></div><footer class="live-log">${esc(state?.logs.at(-1)??'카드를 눌러 행동을 선택하세요.')}</footer></main><dialog id="details"><div id="detailContent"></div><button class="action" id="closeDetail">닫기</button></dialog>`;
   root.querySelector('.decision').scrollTop=decisionScroll;
   root.querySelector('.live-board').scrollTop=boardScroll;
+  root.querySelectorAll('.decision .choices').forEach((list,index)=>{list.scrollTop=choiceScrolls[index]??0;});
   document.getElementById('exit').onclick=stop;
   document.getElementById('restart')?.addEventListener('click',start);
   document.getElementById('pause').onclick=()=>worker.postMessage({type:'pause'});

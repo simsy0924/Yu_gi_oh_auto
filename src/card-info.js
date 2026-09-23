@@ -17,7 +17,7 @@ export function cardFacts(c){
   if(c.zoneLabel&&c.position!=null&&/[존]/.test(c.zoneLabel))facts.push(['표시 형식',(c.position&8)?'뒷면 수비':(c.position&4)?'앞면 수비':(c.position&2)?'뒷면 공격':'앞면 공격']);
   if(c.type&1){
     facts.push(['속성',named(attributes,c.attribute)],['종족',named(races,c.race)]);
-    const stat=cardStatKind(c),level=c.link?.rating??c.level;
+    const stat=cardStatKind(c),level=stat==='link'?(c.link?.rating||c.level):c.level;
     facts.push([stat==='link'?'링크':stat==='rank'?'랭크':'레벨',level]);
     facts.push(['공격력',c.attack??'?']);
     if(c.originalAttack!=null&&c.originalAttack!==c.attack)facts.push(['원래 공격력',c.originalAttack]);
@@ -32,5 +32,6 @@ export function cardFacts(c){
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 export function cardInfoHtml(c){
   if(!c||c.hidden)return '<p>공개된 카드 정보가 없습니다.</p>';
-  return `<article class="card-info"><h3>${esc(c.name??c.code)}</h3><dl class="card-facts">${cardFacts(c).map(([key,value])=>`<div><dt>${esc(key)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl><h4>카드 효과</h4><p class="card-description">${esc(c.desc||'효과 텍스트가 없습니다.')}</p></article>`;
+  const descriptionTitle=(c.type&0x10)&&!(c.type&0x20)?'카드 설명':'카드 효과';
+  return `<article class="card-info"><h3>${esc(c.name??c.code)}</h3><dl class="card-facts">${cardFacts(c).map(([key,value])=>`<div><dt>${esc(key)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl><h4>${descriptionTitle}</h4><p class="card-description">${esc(c.desc||'효과 텍스트가 없습니다.')}</p></article>`;
 }
