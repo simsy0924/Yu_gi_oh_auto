@@ -10,18 +10,25 @@ async function readJson(path) {
   if(!response.ok)throw new Error('카드 번역을 불러오지 못했습니다. 다시 시도해 주세요.');
   return response.json();
 }
+export function applyCatalogTranslations(cards,ko,overrides={}) {
+  Object.assign(ko,overrides);
+  for(const c of Object.values(cards)) {
+    c.englishName=c.name;
+    c.englishDesc=c.desc;
+  }
+  for(const [id,c] of Object.entries(cards)) {
+    const alias=cards[c.alias];
+    const aliasText=c.alias&&alias?.englishName===c.englishName?ko[c.alias]:undefined;
+    const aliasTranslation=aliasText?{name:aliasText.name,...(alias.englishDesc===c.englishDesc?{desc:aliasText.desc}:{})}:undefined;
+    const translation=ko[id]??aliasTranslation;
+    if(translation)Object.assign(c,translation);
+    c.searchName=normalize(c.name+' '+c.englishName+' '+c.code);
+    c.searchEffect=normalize(c.desc+' '+c.englishDesc);
+  }
+  return cards;
+}
 export function loadCatalog() {
-  pending??=Promise.all([readBundle('./engine/cards.json.gz'),readBundle('./engine/ko.json.gz'),readJson('./engine/ko-overrides.json')]).then(([cards,ko,overrides])=>{
-    Object.assign(ko,overrides);
-    for(const [id,c] of Object.entries(cards)) {
-      c.englishName=c.name;
-      c.englishDesc=c.desc;
-      if(ko[id])Object.assign(c,ko[id]);
-      c.searchName=normalize(c.name+' '+c.englishName+' '+c.code);
-      c.searchEffect=normalize(c.desc+' '+c.englishDesc);
-    }
-    return cards;
-  }).catch(error=>{pending=null;throw error;});
+  pending??=Promise.all([readBundle('./engine/cards.json.gz'),readBundle('./engine/ko.json.gz'),readJson('./engine/ko-overrides.json')]).then(([cards,ko,overrides])=>applyCatalogTranslations(cards,ko,overrides)).catch(error=>{pending=null;throw error;});
   return pending;
 }
 export const normalize=text=>String(text).normalize('NFKC').toLocaleLowerCase().replace(/\s+/g,'');
