@@ -46,3 +46,16 @@ a{color:var(--accent);font-size:11px}.picker{grid-template-rows:auto 1fr auto}.i
 .search-card .card-name{font-size:13px}
 .search-card .card-name small{font-size:10px}
 @media(orientation:portrait){.portrait .primary{min-width:min(260px,80vw)}.portrait small{max-width:290px;font-size:11px;line-height:1.5;color:var(--muted)}}
+
+/* Exact-name deck-list import */
+.card-search{grid-template-rows:auto auto auto auto minmax(0,1fr) auto}
+.decklist-import-panel{min-width:0;margin-top:4px}
+.decklist-import-panel>summary{cursor:pointer;min-height:28px;display:flex;align-items:center;font-size:11px;color:var(--accent)}
+.decklist-import-panel[open]>summary{margin-bottom:5px}
+.decklist-import-panel textarea{display:block;width:100%;min-height:64px;max-height:130px;resize:vertical;background:#182231;border:1px solid #ffffff35;border-radius:6px;color:var(--text);padding:8px;font:inherit;font-size:11px;line-height:1.4}
+.decklist-import-actions{display:flex;align-items:center;gap:7px;margin-top:5px}
+.decklist-import-actions>span{min-width:0;flex:1;font-size:10px;line-height:1.4;color:var(--muted)}
+.decklist-issues{max-height:100px;overflow:auto;margin-top:5px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;font-size:10px;line-height:1.45;color:var(--muted)}
+.decklist-issues ul{margin:0;padding-left:18px}
+.decklist-issues li+li{margin-top:3px}
+@media(max-height:450px){.decklist-import-panel textarea{min-height:48px;max-height:70px}.decklist-issues{max-height:48px}}
