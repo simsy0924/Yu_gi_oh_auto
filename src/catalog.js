@@ -76,6 +76,53 @@ export function addCard(deck,card,part,cards) {
   if(copies>=3)throw new Error('메인·엑스트라·사이드를 합쳐 동일 카드는 최대 3장입니다.');
   deck[part].push(card.code);return part;
 }
+
+export function addNamedCards(deck,text,part,cards) {
+  const byName=new Map();
+  for(const [key,source] of Object.entries(cards??{})) {
+    const code=Number(source.code??key);
+    if(!Number.isSafeInteger(code)||code<=0)continue;
+    const card={...source,code};
+    const names=new Set([card.name,card.englishName].map(normalize).filter(Boolean));
+    for(const name of names) {
+      const matches=byName.get(name)??[];
+      if(!matches.some(match=>match.code===code))matches.push(card);
+      byName.set(name,matches);
+    }
+  }
+
+  const added=[],issues=[];
+  String(text??'').split(/\r\n?|\n/).forEach((raw,index)=>{
+    const name=raw.trim();
+    if(!name)return;
+    const matches=byName.get(normalize(name))??[];
+    if(!matches.length) {
+      issues.push({line:index+1,name,reason:'정확히 일치하는 카드명을 찾지 못했습니다.'});
+      return;
+    }
+    const identities=new Map();
+    for(const card of matches) {
+      const identity=String(card.alias||card.code);
+      const group=identities.get(identity)??[];
+      group.push(card);
+      identities.set(identity,group);
+    }
+    if(identities.size!==1) {
+      issues.push({line:index+1,name,reason:'같은 이름의 카드가 여러 종류와 일치합니다.'});
+      return;
+    }
+    const [identity,group]=identities.entries().next().value;
+    const card=group.find(candidate=>String(candidate.code)===identity)??group.sort((a,b)=>a.code-b.code)[0];
+    try {
+      addCard(deck,card,part,cards);
+      added.push(card.code);
+    } catch(error) {
+      issues.push({line:index+1,name,reason:error.message});
+    }
+  });
+  return {added,issues};
+}
+
 export function exportDeck(deck,cards) {
   validateDeck(deck,cards);
   return {version:1,name:deck.name.trim()||'내 덱',main:[...deck.main],extra:[...deck.extra],side:[...deck.side]};
