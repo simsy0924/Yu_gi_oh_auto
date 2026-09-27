@@ -8,15 +8,46 @@ import {createGhostDraft,recordDecision} from './src/ghost-recording.js';
 import {cardInfoHtml,linkArrows} from './src/card-info.js';
 import {promptHelp,selectionProgress} from './src/duel-guidance.js';
 const root=document.getElementById('app');
+const orientationQuery=window.matchMedia('(orientation: portrait)');
+const orientationGuard=document.createElement('div');
+orientationGuard.className='portrait orientation-guard';
+orientationGuard.setAttribute('role','dialog');
+orientationGuard.setAttribute('aria-modal','true');
+orientationGuard.setAttribute('aria-labelledby','orientationTitle');
+orientationGuard.innerHTML='<strong id="orientationTitle">Ghost Duel은 가로 화면 전용입니다</strong><span>세로 화면에서는 조작을 막고 가로 화면 잠금을 다시 시도합니다.</span><button class="primary" id="portraitLandscape" type="button">가로 전체 화면으로 실행</button><small id="orientationStatus" aria-live="polite">자동 전환이 안 되면 기기를 가로로 돌려 주세요.</small>';
+document.body.append(orientationGuard);
+let orientationLockInProgress=false;
+async function restoreLandscapeLock(){
+  if(orientationLockInProgress||!orientationQuery.matches||!document.fullscreenElement||!screen.orientation?.lock)return;
+  orientationLockInProgress=true;
+  try{await screen.orientation.lock('landscape');}
+  catch{
+    const note=document.getElementById('orientationStatus');
+    if(note)note.textContent='가로 잠금을 복구하지 못했습니다. 아래 버튼을 다시 누르거나 기기를 가로로 돌려 주세요.';
+  }finally{orientationLockInProgress=false;}
+}
+function syncOrientationGuard(retryLandscapeLock=false){
+  const portrait=orientationQuery.matches;
+  root.inert=portrait;
+  root.setAttribute('aria-hidden',String(portrait));
+  orientationGuard.setAttribute('aria-hidden',String(!portrait));
+  if(portrait&&retryLandscapeLock)void restoreLandscapeLock();
+}
 function syncFullscreenButton(){
   const button=document.getElementById('fullscreen');
-  if(!button)return;
-  const active=!!document.fullscreenElement;
-  button.textContent=active?'전체 화면 종료':'전체 화면';
-  button.setAttribute('aria-pressed',String(active));
-  button.title=active?'전체 화면을 종료합니다.':'브라우저 UI를 숨겨 전체 화면으로 전환합니다.';
+  if(button){
+    const active=!!document.fullscreenElement;
+    button.textContent=active?'전체 화면 종료':'전체 화면';
+    button.setAttribute('aria-pressed',String(active));
+    button.title=active?'전체 화면을 종료합니다.':'브라우저 UI를 숨겨 전체 화면으로 전환합니다.';
+  }
+  syncOrientationGuard(true);
 }
 document.addEventListener('fullscreenchange',syncFullscreenButton);
+window.addEventListener('orientationchange',()=>syncOrientationGuard(true));
+orientationQuery.addEventListener?.('change',()=>syncOrientationGuard(true));
+screen.orientation?.addEventListener?.('change',()=>syncOrientationGuard(true));
+syncOrientationGuard();
 const fullscreenButton=()=>matchMedia('(display-mode: fullscreen)').matches?'':`<button class="mini" id="fullscreen" type="button" aria-pressed="${!!document.fullscreenElement}" ${document.fullscreenEnabled===false?'disabled':''}>${document.fullscreenElement?'전체 화면 종료':'전체 화면'}</button>`;
 function bindFullscreenButton(){
   const button=document.getElementById('fullscreen');
@@ -26,10 +57,14 @@ function bindFullscreenButton(){
       if(document.fullscreenElement)await document.exitFullscreen();
       else{
         await document.documentElement.requestFullscreen();
-        try{await screen.orientation?.lock('landscape');}catch{}
+        if(screen.orientation?.lock){
+          orientationLockInProgress=true;
+          try{await screen.orientation.lock('landscape');}
+          finally{orientationLockInProgress=false;}
+        }
       }
     }catch{
-      button.title='현재 브라우저에서 전체 화면 전환을 사용할 수 없습니다.';
+      button.title='현재 브라우저에서 전체 화면 또는 가로 화면 잠금을 사용할 수 없습니다.';
     }
     syncFullscreenButton();
   };
@@ -60,22 +95,27 @@ document.addEventListener('click',event=>{
   if(event.target.closest('.theme-toggle'))applyTheme(theme==='dark'?'light':'dark');
 });
 document.addEventListener('click',async event=>{
-  const button=event.target.closest('#portraitLandscape');
+  const button=event.target.closest?.('#portraitLandscape');
   if(!button)return;
   const note=document.getElementById('orientationStatus');
   button.disabled=true;
+  orientationLockInProgress=true;
   try{
     if(!screen.orientation?.lock)throw new Error('orientation lock unavailable');
     if(!document.fullscreenElement)await document.documentElement.requestFullscreen();
     await screen.orientation.lock('landscape');
+    if(note)note.textContent='가로 전체 화면으로 전환 중입니다.';
   }catch{
     if(document.fullscreenElement)try{await document.exitFullscreen();}catch{}
+    if(note)note.textContent='가로 전체 화면을 잠글 수 없습니다. 기기를 가로로 돌려 주세요.';
+  }finally{
+    orientationLockInProgress=false;
     button.disabled=false;
-    if(note)note.textContent='자동 전환을 지원하지 않으면 기기를 가로로 돌리거나 Chrome 메뉴에서 앱을 설치해 실행해 주세요.';
+    syncOrientationGuard();
   }
 });
 applyTheme(theme);
-const portrait=()=>'<div class="portrait"><strong>Ghost Duel은 가로 화면 전용입니다</strong><span>버튼을 누르면 지원되는 브라우저에서 가로 전체 화면으로 전환합니다.</span><button class="primary" id="portraitLandscape" type="button">가로 전체 화면으로 실행</button><small id="orientationStatus" aria-live="polite">자동 전환이 안 되면 기기를 돌리거나 앱으로 설치해 실행해 주세요.</small></div>';
+
 const choiceItem=(x,selected)=>`<button class="item ${x.id===selected?'active':''}" data-id="${esc(x.id)}"><div class="thumb"></div><div><strong>${esc(x.name)}</strong><small>${esc(x.description??`${x.main?.length??0}장 / 엑스트라 ${x.extra?.length??0}장`)}</small></div></button>`;
 async function json(url){const r=await fetch(url);if(!r.ok)throw new Error(`${url} 로드 실패`);return r.json();}
 const SAVED_DECKS_KEY='ghost-duel.decks.v1';
@@ -89,7 +129,7 @@ function renderSetup(){
   const deckPicker=`<div class="picker"><div class="deck-picker-heading"><h2>내 덱 선택</h2><button class="mini" id="newDeck">덱 만들기 / 이어서</button><button class="mini" id="editDeck">선택 덱 편집</button></div><div class="list" id="deckList">${decks.map(x=>choiceItem(x,deckId)).join('')}</div><label class="import">YDK / JSON 덱 불러오기<input id="deckFile" type="file" accept=".ydk,.json"></label></div>`;
   const ghostPicker=`<div class="picker"><div class="deck-picker-heading"><h2>고스트 선택</h2><button class="mini" id="newGhost">행동 만들기 / 이어서</button><button class="mini" id="editGhost">선택 고스트 편집</button></div><div class="list" id="ghostList">${ghosts.map(x=>choiceItem(x,ghostId)).join('')}</div><label class="import">고스트 JSON 불러오기<input id="ghostFile" type="file" accept=".json"></label></div>`;
   const scenarioInfo=`<section class="picker scenario-card"><h2>${setupMode==='practice'?'전개 연습':'고스트 생성'} · 상황</h2><p>${setupMode==='practice'?'상대를 두지 않고 혼자 전개합니다. 덱에서 무작위 시작 패를 뽑거나 카드를 골라 시작 패를 고정할 수 있어요.':'혼자 전개하면서 선택한 행동을 기록하고, 기록을 바탕으로 고스트 초안을 만듭니다.'}</p><div class="scenario-summary">선택 덱 <b>${esc(decks.find(d=>d.id===deckId)?.name??'없음')}</b><small>${decks.find(d=>d.id===deckId)?.main.length??0}장 · 시작 패는 다음 화면에서 설정</small></div><p class="scenario-hint">덱 목록에서 덱을 바꾸거나, 직접 편집·불러오기 할 수 있습니다.</p></section>`;
-  root.innerHTML=portrait()+`<main class="screen setup"><header><div class="brand"><div class="brand-mark">GD</div><div><h1>Ghost Duel</h1><p>고스트 듀얼 · 혼자 전개 연습 · 고스트 생성</p></div></div><div class="setup-head-tools">${themeToggle()}${fullscreenButton()}<a href="https://github.com/simsy0924/Yu_gi_oh_auto" target="_blank" rel="noreferrer">소스 / 라이선스</a></div></header><nav class="setup-modes" aria-label="플레이 모드">${[['duel','고스트 듀얼'],['practice','전개 연습'],['ghost-create','고스트 생성']].map(([id,label])=>`<button class="deck-tab ${setupMode===id?'active':''}" data-mode="${id}" aria-pressed="${setupMode===id}">${label}</button>`).join('')}</nav><section class="setup-grid ${setupMode==='duel'?'':'solo-setup'}">${setupMode==='duel'?ghostPicker+deckPicker:deckPicker+scenarioInfo}</section><footer class="setup-footer"><div class="selection"><span role="alert">${esc(error)}</span><p>${setupMode==='duel'?'기본 덱으로 바로 시작할 수 있어요. 금제 검사는 적용하지 않습니다.':setupMode==='practice'?'시작 패 설정에서 덱 전체 또는 카드 종류별 무작위 패를 고를 수 있어요.':'전개 기록은 편집 가능한 고스트 초안으로 변환합니다.'}</p></div><button class="primary" id="start" ${!decks.length||(setupMode==='duel'&&!ghosts.length)?'disabled':''}>${setupMode==='duel'?'듀얼 시작':setupMode==='practice'?'시작 패 설정':'상황 설정'}</button></footer></main>`;
+  root.innerHTML=`<main class="screen setup"><header><div class="brand"><div class="brand-mark">GD</div><div><h1>Ghost Duel</h1><p>고스트 듀얼 · 혼자 전개 연습 · 고스트 생성</p></div></div><div class="setup-head-tools">${themeToggle()}${fullscreenButton()}<a href="https://github.com/simsy0924/Yu_gi_oh_auto" target="_blank" rel="noreferrer">소스 / 라이선스</a></div></header><nav class="setup-modes" aria-label="플레이 모드">${[['duel','고스트 듀얼'],['practice','전개 연습'],['ghost-create','고스트 생성']].map(([id,label])=>`<button class="deck-tab ${setupMode===id?'active':''}" data-mode="${id}" aria-pressed="${setupMode===id}">${label}</button>`).join('')}</nav><section class="setup-grid ${setupMode==='duel'?'':'solo-setup'}">${setupMode==='duel'?ghostPicker+deckPicker:deckPicker+scenarioInfo}</section><footer class="setup-footer"><div class="selection"><span role="alert">${esc(error)}</span><p>${setupMode==='duel'?'기본 덱으로 바로 시작할 수 있어요. 금제 검사는 적용하지 않습니다.':setupMode==='practice'?'시작 패 설정에서 덱 전체 또는 카드 종류별 무작위 패를 고를 수 있어요.':'전개 기록은 편집 가능한 고스트 초안으로 변환합니다.'}</p></div><button class="primary" id="start" ${!decks.length||(setupMode==='duel'&&!ghosts.length)?'disabled':''}>${setupMode==='duel'?'듀얼 시작':setupMode==='practice'?'시작 패 설정':'상황 설정'}</button></footer></main>`;
   bindFullscreenButton();
   root.querySelector('.setup-modes').onclick=e=>{const button=e.target.closest('[data-mode]');if(button){setupMode=button.dataset.mode;error='';renderSetup();}};
   document.getElementById('ghostList')?.addEventListener('click',e=>{const b=e.target.closest('[data-id]');if(b){ghostId=b.dataset.id;renderSetup();}});
