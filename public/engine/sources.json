@@ -9,6 +9,10 @@
       "url": "https://github.com/ProjectIgnis/BabelCDB.git",
       "commit": "52d5221df32c943877c8a63639edcc4f3d918916"
     },
+    "KoreanCardCatalog": {
+      "url": "https://github.com/DawnbrandBots/yaml-yugi.git",
+      "commit": "eb6042f1a33661ca570c29939f7aa70807119857"
+    },
     "KoreanEffectStrings": {
       "url": "https://github.com/Team-AllYGOPro/edopro-korean.git",
       "commit": "b4a750d9d93efb2b1449608f89c94836b690b389"
