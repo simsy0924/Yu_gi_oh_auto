@@ -222,9 +222,10 @@ function field(player){
   const count=l=>z[l]?.count??z[l]?.cards?.filter(Boolean).length??0;
   const row=(l,n)=>`<div class="field-row">${Array.from({length:n},(_,i)=>card(z[l]?.cards?.[i],player,l,i)).join('')}</div>`;
   const piles=`<div class="pilebar">${[[1,'덱'],[64,'엑스트라'],[16,'묘지'],[32,'제외']].map(([l,t])=>`<button class="mini" data-pile="${player},${l}">${t} ${count(l)}</button>`).join('')}</div>`;
+  const opponentName=sessionMode==='duel'?'고스트':sessionMode==='ghost-create'?'상대':'연습 상대';
   const h=player===0?`<div class="live-hand" aria-label="내 패">${(z[2]?.cards??[]).map((c,i)=>card(c,player,2,i)).join('')}</div>`:`<div class="opponent-hand">상대 패 ${count(2)}장</div>`;
   const extra=`<div class="field-spell"><span>필드</span>${card(z[8]?.cards?.[5],player,8,5)}</div>`;
-  return `<section class="live-field ${player===1?'opponent':''}"><div class="field-caption"><b>${player===1?'고스트':'나'} · ${state?.lp[player]??8000} LP</b>${piles}${extra}</div>${player===1?h+row(8,5)+row(4,5):row(4,5)+row(8,5)+h}</section>`;
+  return `<section class="live-field ${player===1?'opponent':''}"><div class="field-caption"><b>${player===1?opponentName:'나'} · ${state?.lp[player]??8000} LP</b>${piles}${extra}</div>${player===1?h+row(8,5)+row(4,5):row(4,5)+row(8,5)+h}</section>`;
 }
 function sharedExtra(){return '<div class="shared-extra"><span>엑스트라 몬스터 존</span>'+[5,6].map(i=>{const own=state?.zones[0][4].cards[i],other=state?.zones[1][4].cards[11-i];return own?card(own,0,4,i):other?card(other,1,4,11-i):card(null,0,4,i);}).join('')+'</div>';}
 const choiceButton=(c,short=false)=>`<button class="pick" data-choice="${esc(c.id)}" ${busy?'disabled':''}>${esc(short?c.shortLabel??c.label:c.label)}</button>`;
@@ -258,7 +259,7 @@ function panel(){
   if(loading)return `<h2>준비 중</h2><p>${esc(loading)}</p>`;
   if(state?.ended)return `<h2>${state.winner===2?'무승부':state.winner===0?'승리':'패배'}</h2>${draftControl}<button class="primary" id="restart">다시 시작</button>`;
   const p=state?.prompt;if(!p)return '<p>듀얼 처리 중...</p>';
-  if(p.player===1)return `<h2>${sessionMode==='duel'?'고스트 차례':'연습 상대 차례'}</h2><p>${esc(state.ghostBlocked??(state.paused?'자동 진행 일시정지':'상대가 차례를 넘기는 중...'))}</p>${draftControl}`;
+  if(p.player===1){const opponentTurn=sessionMode==='duel'?'고스트 차례':sessionMode==='ghost-create'?'상대 차례':'연습 상대 차례';return `<h2>${opponentTurn}</h2><p>${esc(state.ghostBlocked??(state.paused?'자동 진행 일시정지':'상대가 차례를 넘기는 중...'))}</p>${draftControl}`;}
   let html=`<div class="decision-intro"><h2>${esc(p.title)}</h2><p>${esc(promptHelp(p))}</p></div>${inputError?`<p role="alert" class="input-error">${esc(inputError)}</p>`:''}`;
   if(draftControl)html+=draftControl;
   if(p.blocked)return html+`<p role="alert">${esc(p.blocked)}</p><p>이 선택은 현재 화면에서 지원하지 않습니다.</p>`;
@@ -287,8 +288,8 @@ function renderDuel(){
   const decisionScroll=root.querySelector('.decision')?.scrollTop??0;
   const boardScroll=root.querySelector('.live-board')?.scrollTop??0;
   const choiceScrolls=[...root.querySelectorAll('.decision .choices')].map(list=>list.scrollTop);
-  const board=sessionMode==='duel'?`${field(1)}${sharedExtra()}${field(0)}`:`<div class="solo-note">${sessionMode==='ghost-create'?'고스트 생성 · 내 전개를 기록 중':'전개 연습 · 상대 없이 진행'}</div>${field(0)}`;
-  const activeName=state?.active===0?'나':sessionMode==='duel'?'고스트':'연습 상대';
+  const board=sessionMode==='duel'?`${field(1)}${sharedExtra()}${field(0)}`:`<div class="solo-note">${sessionMode==='ghost-create'?'고스트 생성 · 내 전개를 기록 중':'전개 연습 · 상대 턴 자동 진행'}</div>${field(1)}${sharedExtra()}${field(0)}`;
+  const activeName=state?.active===0?'나':sessionMode==='duel'?'고스트':sessionMode==='ghost-create'?'상대':'연습 상대';
   root.innerHTML=`<main class="screen live-duel"><header class="topbar"><strong>Ghost Duel</strong><span>${state?`${state.turn}턴 · ${activeName} · ${phaseName[state.phase]??''}`:'YGOPro Core'}</span><div class="top-right">${themeToggle()}${fullscreenButton()}<button class="mini" id="pause" ${!state||error?'disabled':''}>${state?.paused?'자동 진행':'일시정지'}</button>${state?.paused?'<button class="mini" id="step">한 행동</button>':''}<button class="mini" id="exit">종료</button></div></header><div class="live-layout"><div class="live-board ${sessionMode==='duel'?'':'solo'}">${board}</div><aside class="decision" aria-live="polite">${panel()}</aside></div><footer class="live-log">${esc(state?.logs.at(-1)??'카드를 눌러 행동을 선택하세요.')}</footer></main><dialog id="details"><div id="detailContent"></div><button class="action" id="closeDetail">닫기</button></dialog>`;
   root.querySelector('.decision').scrollTop=decisionScroll;
   root.querySelector('.live-board').scrollTop=boardScroll;
