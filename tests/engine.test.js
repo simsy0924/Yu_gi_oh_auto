@@ -11,6 +11,7 @@ import {promptHelp,selectionProgress} from '../src/duel-guidance.js';
 import {deckWithStartingHand} from '../src/practice.js';
 import {soloOpponentChoice} from '../src/solo.js';
 import {replayPlayerInputs} from '../src/duel-history.js';
+import {describeDecision} from '../src/duel-log.js';
 const cards=JSON.parse(gunzipSync(readFileSync('public/engine/cards.json.gz')));
 const koreanStrings=JSON.parse(gunzipSync(readFileSync('public/engine/ko-strings.json.gz')));
 const scripts=JSON.parse(gunzipSync(readFileSync('public/engine/scripts.json.gz')));
@@ -47,6 +48,15 @@ test('card details include the applicable printed stats and selection progress',
   assert.match(cardInfoHtml(normal),/카드 설명/);
   assert.equal(selectionProgress({mode:'sort',options:[1,2,3]},[0,1]),'2/3장 순서 지정');
 });
+test('duel action descriptions identify selected cards and effects',()=>{
+  const cards={73218792:{name:'정크 마이스터'}};
+  const action={type:'SELECT_IDLECMD',title:'행동을 선택하세요',choices:[{id:'1',card:73218792,shortLabel:'특수 소환'}]};
+  assert.equal(describeDecision(action,{choice:'1'},cards),'정크 마이스터 · 특수 소환');
+  const selection={type:'SELECT_CARD',title:'카드 선택',selection:{options:[{id:0,label:'정크 싱크론 · 묘지 1'}]}};
+  assert.equal(describeDecision(selection,{indices:[0]},cards),'카드 선택 · 정크 싱크론 · 묘지 1');
+  const effect={type:'SELECT_EFFECTYN',title:'정크 마이스터 · 특수 소환할까요?',choices:[{id:'0',kind:'yes',shortLabel:'예'}]};
+  assert.equal(describeDecision(effect,{choice:'0'},cards),'정크 마이스터 · 특수 소환할까요? · 예');
+});
 test('real WASM core: draw, summon, battle, damage and win',async()=>{
   const s=await DuelSession.create({cards,scripts,wasmBinary,you,ghost});
   try {
@@ -69,7 +79,8 @@ test('duel history replay restores the same state before the latest player actio
   try{
     const action=original.prompt.choices.find(choice=>choice.kind==='end');
     assert.ok(action,'the opening hand should allow ending the turn');
-    const input={choice:action.id};original.respond(input);
+    const input={choice:action.id},prompt=original.prompt;
+    original.log(`나 · ${describeDecision(prompt,input,original.cards)}`);original.respond(input);
     let cursor=0;
     for(let actions=0;original.prompt?.player===1&&!original.ended&&actions<1000;actions++){
       const decision=ghostChoice(original.prompt,ghost.behavior,cursor);assert.ok(!decision.blocked,decision.blocked);
@@ -80,6 +91,7 @@ test('duel history replay restores the same state before the latest player actio
     const replayed=await replayPlayerInputs({
       createSession,
       playerInputs:[input],
+      logPlayerAction:(session,actionPrompt,actionInput)=>session.log(`나 · ${describeDecision(actionPrompt,actionInput,session.cards)}`),
       resolveOpponent:(session,nextCursor)=>{
         let replayCursor=nextCursor;
         for(let actions=0;session.prompt?.player===1&&!session.ended&&actions<1000;actions++){
