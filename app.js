@@ -116,24 +116,56 @@ document.addEventListener('click',async event=>{
 });
 applyTheme(theme);
 
-const choiceItem=(x,selected)=>`<button class="item ${x.id===selected?'active':''}" data-id="${esc(x.id)}"><div class="thumb"></div><div><strong>${esc(x.name)}</strong><small>${esc(x.description??`${x.main?.length??0}장 / 엑스트라 ${x.extra?.length??0}장`)}</small></div></button>`;
+const choiceItem=(x,selected,kind)=>{
+  const typeLabel=kind==='deck'?'덱':'고스트';
+  const builtInId=kind==='deck'?'starter':'sample';
+  const removeButton=x.id===builtInId?'':`<button class="mini delete-entry" type="button" data-delete-${kind}="${esc(x.id)}" aria-label="${esc(x.name)} ${typeLabel} 삭제" title="${typeLabel} 삭제">삭제</button>`;
+  return `<div class="saved-entry"><button class="item ${x.id===selected?'active':''}" data-id="${esc(x.id)}"><div class="thumb"></div><div><strong>${esc(x.name)}</strong><small>${esc(x.description??`${x.main?.length??0}장 / 엑스트라 ${x.extra?.length??0}장`)}</small></div></button>${removeButton}</div>`;
+};
 async function json(url){const r=await fetch(url);if(!r.ok)throw new Error(`${url} 로드 실패`);return r.json();}
 const SAVED_DECKS_KEY='ghost-duel.decks.v1';
 const SAVED_GHOSTS_KEY='ghost-duel.ghosts.v1';
 function persistDecks(){try{localStorage.setItem(SAVED_DECKS_KEY,JSON.stringify(decks.filter(d=>d.id!=='starter')));return true;}catch{return false;}}
 function persistGhosts(){try{localStorage.setItem(SAVED_GHOSTS_KEY,JSON.stringify(ghosts.filter(g=>g.id!=='sample')));return true;}catch{return false;}}
+function clearDeletedDraft(key,matches){try{const saved=JSON.parse(localStorage.getItem(key)||'null');if(matches(saved))localStorage.removeItem(key);}catch{}}
+function deleteDeck(id){
+  const deck=decks.find(item=>item.id===id);
+  if(!deck||deck.id==='starter'||!confirm(`"${deck.name}" 덱을 삭제할까요?\n삭제한 덱은 복구할 수 없습니다.`))return;
+  decks=decks.filter(item=>item.id!==id);
+  if(deckId===id)deckId=decks[0]?.id??null;
+  clearDeletedDraft('ghost-duel.builder.draft.v1',saved=>saved?.sourceId===id);
+  error=persistDecks()?'':'기기 저장에 실패했습니다.';
+  renderSetup();
+}
+function deleteGhost(id){
+  const ghost=ghosts.find(item=>item.id===id);
+  if(!ghost||ghost.id==='sample'||!confirm(`"${ghost.name}" 고스트를 삭제할까요?\n삭제한 고스트는 복구할 수 없습니다.`))return;
+  ghosts=ghosts.filter(item=>item.id!==id);
+  if(ghostId===id)ghostId=ghosts[0]?.id;
+  clearDeletedDraft('ghost-duel.ghost-draft.v1',saved=>saved?.ghost?.id===id);
+  error=persistGhosts()?'':'기기 저장에 실패했습니다.';
+  renderSetup();
+}
 function builder(source){openDeckBuilder(root,{source,onClose:renderSetup,onSave:deck=>{const i=decks.findIndex(d=>d.id===deck.id);if(i>=0)decks[i]=deck;else decks.push(deck);deckId=deck.id;error=persistDecks()?'':'기기 저장에 실패했습니다. 덱 편집에서 JSON으로 내보내 주세요.';renderSetup();}});}
 function saveGhost(ghost){if(ghost.id==='sample')ghost.id=crypto.randomUUID();const i=ghosts.findIndex(g=>g.id===ghost.id);if(i>=0)ghosts[i]=ghost;else ghosts.push(ghost);ghostId=ghost.id;error=persistGhosts()?'':'기기 저장에 실패했습니다. 고스트 편집에서 JSON으로 내보내 주세요.';renderSetup();}
 function ghostBuilder(source){openGhostBuilder(root,{source,decks,selectedDeck:decks.find(d=>d.id===deckId),onClose:renderSetup,onSave:saveGhost});}
 function renderSetup(){
-  const deckPicker=`<div class="picker"><div class="deck-picker-heading"><h2>내 덱 선택</h2><button class="mini" id="newDeck">덱 만들기 / 이어서</button><button class="mini" id="editDeck">선택 덱 편집</button></div><div class="list" id="deckList">${decks.map(x=>choiceItem(x,deckId)).join('')}</div><label class="import">YDK / JSON 덱 불러오기<input id="deckFile" type="file" accept=".ydk,.json"></label></div>`;
-  const ghostPicker=`<div class="picker"><div class="deck-picker-heading"><h2>고스트 선택</h2><button class="mini" id="newGhost">행동 만들기 / 이어서</button><button class="mini" id="editGhost">선택 고스트 편집</button></div><div class="list" id="ghostList">${ghosts.map(x=>choiceItem(x,ghostId)).join('')}</div><label class="import">고스트 JSON 불러오기<input id="ghostFile" type="file" accept=".json"></label></div>`;
+  const deckPicker=`<div class="picker"><div class="deck-picker-heading"><h2>내 덱 선택</h2><button class="mini" id="newDeck">덱 만들기 / 이어서</button><button class="mini" id="editDeck">선택 덱 편집</button></div><div class="list" id="deckList">${decks.map(x=>choiceItem(x,deckId,'deck')).join('')}</div><label class="import">YDK / JSON 덱 불러오기<input id="deckFile" type="file" accept=".ydk,.json"></label></div>`;
+  const ghostPicker=`<div class="picker"><div class="deck-picker-heading"><h2>고스트 선택</h2><button class="mini" id="newGhost">행동 만들기 / 이어서</button><button class="mini" id="editGhost">선택 고스트 편집</button></div><div class="list" id="ghostList">${ghosts.map(x=>choiceItem(x,ghostId,'ghost')).join('')}</div><label class="import">고스트 JSON 불러오기<input id="ghostFile" type="file" accept=".json"></label></div>`;
   const scenarioInfo=`<section class="picker scenario-card"><h2>${setupMode==='practice'?'전개 연습':'고스트 생성'} · 상황</h2><p>${setupMode==='practice'?'상대를 두지 않고 혼자 전개합니다. 덱에서 무작위 시작 패를 뽑거나 카드를 골라 시작 패를 고정할 수 있어요.':'혼자 전개하면서 선택한 행동을 기록하고, 기록을 바탕으로 고스트 초안을 만듭니다.'}</p><div class="scenario-summary">선택 덱 <b>${esc(decks.find(d=>d.id===deckId)?.name??'없음')}</b><small>${decks.find(d=>d.id===deckId)?.main.length??0}장 · 시작 패는 다음 화면에서 설정</small></div><p class="scenario-hint">덱 목록에서 덱을 바꾸거나, 직접 편집·불러오기 할 수 있습니다.</p></section>`;
   root.innerHTML=`<main class="screen setup"><header><div class="brand"><div class="brand-mark">GD</div><div><h1>Ghost Duel</h1><p>고스트 듀얼 · 혼자 전개 연습 · 고스트 생성</p></div></div><div class="setup-head-tools">${themeToggle()}${fullscreenButton()}<a href="https://github.com/simsy0924/Yu_gi_oh_auto" target="_blank" rel="noreferrer">소스 / 라이선스</a></div></header><nav class="setup-modes" aria-label="플레이 모드">${[['duel','고스트 듀얼'],['practice','전개 연습'],['ghost-create','고스트 생성']].map(([id,label])=>`<button class="deck-tab ${setupMode===id?'active':''}" data-mode="${id}" aria-pressed="${setupMode===id}">${label}</button>`).join('')}</nav><section class="setup-grid ${setupMode==='duel'?'':'solo-setup'}">${setupMode==='duel'?ghostPicker+deckPicker:deckPicker+scenarioInfo}</section><footer class="setup-footer"><div class="selection"><span role="alert">${esc(error)}</span><p>${setupMode==='duel'?'기본 덱으로 바로 시작할 수 있어요. 금제 검사는 적용하지 않습니다.':setupMode==='practice'?'시작 패 설정에서 덱 전체 또는 카드 종류별 무작위 패를 고를 수 있어요.':'전개 기록은 편집 가능한 고스트 초안으로 변환합니다.'}</p></div><button class="primary" id="start" ${!decks.length||(setupMode==='duel'&&!ghosts.length)?'disabled':''}>${setupMode==='duel'?'듀얼 시작':setupMode==='practice'?'시작 패 설정':'상황 설정'}</button></footer></main>`;
   bindFullscreenButton();
   root.querySelector('.setup-modes').onclick=e=>{const button=e.target.closest('[data-mode]');if(button){setupMode=button.dataset.mode;error='';renderSetup();}};
-  document.getElementById('ghostList')?.addEventListener('click',e=>{const b=e.target.closest('[data-id]');if(b){ghostId=b.dataset.id;renderSetup();}});
-  document.getElementById('deckList').onclick=e=>{const b=e.target.closest('[data-id]');if(b){deckId=b.dataset.id;renderSetup();}};
+  document.getElementById('ghostList')?.addEventListener('click',e=>{
+    const remove=e.target.closest('[data-delete-ghost]');
+    if(remove){deleteGhost(remove.dataset.deleteGhost);return;}
+    const b=e.target.closest('[data-id]');if(b){ghostId=b.dataset.id;renderSetup();}
+  });
+  document.getElementById('deckList').addEventListener('click',e=>{
+    const remove=e.target.closest('[data-delete-deck]');
+    if(remove){deleteDeck(remove.dataset.deleteDeck);return;}
+    const b=e.target.closest('[data-id]');if(b){deckId=b.dataset.id;renderSetup();}
+  });
   document.getElementById('deckFile').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;const d=parseDeck(await file.text(),file.name);d.id=crypto.randomUUID();decks.push(d);deckId=d.id;error=persistDecks()?'':'기기 저장에 실패했습니다.';}catch(e){error=e.message;}renderSetup();};
   document.getElementById('ghostFile')?.addEventListener('change',async e=>{try{const file=e.target.files[0];if(!file)return;const g=JSON.parse(await file.text());g.deck=parseDeck(JSON.stringify(g.deck));if(g.behavior?.type==='basic')g.behavior={type:'scripted',script:[],fallback:'basic'};g.id=crypto.randomUUID();const imported=exportGhost(g);ghosts.push(imported);ghostId=imported.id;error=persistGhosts()?'':'기기 저장에 실패했습니다. 고스트 JSON을 보관해 주세요.';}catch(e){error=e.message;}renderSetup();});
   document.getElementById('start').onclick=()=>{
