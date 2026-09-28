@@ -1,9 +1,20 @@
 import createCore,{OcgDuelMode as D,OcgMessageType as M,OcgProcessResult as P,OcgResponseType as R,OcgQueryFlags as Q} from 'ocgcore-wasm';
 import {validateDeck} from './decks.js';
 import {makePrompt,requestTypes,selectionResponse,counterResponse} from './prompts.js';
+
+function coreCompatibleChainScript(scripts){
+  const source=scripts['chain.lua'];
+  const marker='return Duel.GetChainInfo(ch or 0,info)';
+  if(typeof source!=='string'||!source.includes(marker))throw new Error('체인 스크립트가 예상한 형식과 다릅니다.');
+  const unsupported=['CHAININFO_TRIGGERING_LINK','CHAININFO_TRIGGERING_LSCALE','CHAININFO_TRIGGERING_RSCALE'];
+  const guard=`if ${unsupported.map(flag=>`info==${flag}`).join(' or ')} then return nil end\n\t\t${marker}`;
+  return source.replace(marker,guard);
+}
+
 export class DuelSession {
   static async create({cards,scripts,wasmBinary,you,ghost,seed=[1,2,3,4],startingHand=null}) {
     validateDeck(you,cards);validateDeck(ghost.deck,cards);
+    const chainScript=coreCompatibleChainScript(scripts);
     const s=new DuelSession();Object.assign(s,{cards,scripts,lp:[8000,8000],turn:0,phase:0,active:0,logs:[],prompt:null,ended:false,issue:null});
     s.core=await createCore({sync:true,wasmBinary});
     const team={startingLP:8000,startingDrawCount:5,drawCountPerTurn:1};
@@ -11,7 +22,7 @@ export class DuelSession {
     const secondTeam=ghost.startingHand?.length?{...team,startingDrawCount:ghost.startingHand.length}:team;
     s.handle=s.core.createDuel({flags:D.MODE_MR5,seed:seed.map(BigInt),team1:firstTeam,team2:secondTeam,
       cardReader:code=>cards[code]?{...cards[code],race:BigInt(cards[code].race)}:null,
-      scriptReader:name=>scripts[name]??null,
+      scriptReader:name=>name==='chain.lua'?chainScript:scripts[name]??null,
       errorHandler:(type,text)=>{if(type===0)s.issue=`카드 효과 실행 오류: ${text}`;s.log(text);}});
     if(!s.handle)throw new Error('듀얼 엔진을 초기화하지 못했습니다.');
     try {
@@ -33,7 +44,7 @@ export class DuelSession {
       s.core.startDuel(s.handle);s.advance();return s;
     }catch(e){s.destroy();throw e;}
   }
-  log(text){this.logs.push(text);if(this.logs.length>40)this.logs.shift();}
+  log(text){this.logs.push(text);}
   advance() {
     for(let tick=0;tick<10000;tick++) {
       const status=this.core.duelProcess(this.handle),messages=this.core.duelGetMessage(this.handle);
