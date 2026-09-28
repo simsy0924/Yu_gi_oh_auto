@@ -10,6 +10,7 @@ import {cardFacts,cardInfoHtml} from '../src/card-info.js';
 import {promptHelp,selectionProgress} from '../src/duel-guidance.js';
 import {deckWithStartingHand} from '../src/practice.js';
 import {soloOpponentChoice} from '../src/solo.js';
+import {replayPlayerInputs} from '../src/duel-history.js';
 const cards=JSON.parse(gunzipSync(readFileSync('public/engine/cards.json.gz')));
 const koreanStrings=JSON.parse(gunzipSync(readFileSync('public/engine/ko-strings.json.gz')));
 const scripts=JSON.parse(gunzipSync(readFileSync('public/engine/scripts.json.gz')));
@@ -61,6 +62,37 @@ test('real WASM core: draw, summon, battle, damage and win',async()=>{
     assert.ok(s.ended,'duel completes');assert.ok(summons>1);assert.ok(attacks>0);assert.ok(damage);
     console.log({turns:s.turn,winner:s.winner,summons,attacks,lp:s.lp});
   }finally{s.destroy();}
+});
+test('duel history replay restores the same state before the latest player action',async()=>{
+  const createSession=()=>DuelSession.create({cards,scripts,wasmBinary,you,ghost,seed:[343,2,3,4]});
+  const original=await createSession();let restored;
+  try{
+    const action=original.prompt.choices.find(choice=>choice.kind==='end');
+    assert.ok(action,'the opening hand should allow ending the turn');
+    const input={choice:action.id};original.respond(input);
+    let cursor=0;
+    for(let actions=0;original.prompt?.player===1&&!original.ended&&actions<1000;actions++){
+      const decision=ghostChoice(original.prompt,ghost.behavior,cursor);assert.ok(!decision.blocked,decision.blocked);
+      cursor=decision.cursor??cursor;original.respond(decision);
+    }
+    assert.equal(original.prompt?.player,0,'the next player decision is available');
+    const before=JSON.stringify(original.snapshot());
+    const replayed=await replayPlayerInputs({
+      createSession,
+      playerInputs:[input],
+      resolveOpponent:(session,nextCursor)=>{
+        let replayCursor=nextCursor;
+        for(let actions=0;session.prompt?.player===1&&!session.ended&&actions<1000;actions++){
+          const decision=ghostChoice(session.prompt,ghost.behavior,replayCursor);assert.ok(!decision.blocked,decision.blocked);
+          replayCursor=decision.cursor??replayCursor;session.respond(decision);
+        }
+        if(session.prompt?.player===1&&!session.ended)throw new Error('opponent replay did not finish');
+        return replayCursor;
+      }
+    });
+    restored=replayed.session;
+    assert.equal(JSON.stringify(restored.snapshot()),before);
+  }finally{original.destroy();restored?.destroy();}
 });
 test('place mask is relative to player, including opponent zones',()=>{
   assert.deepEqual(fieldPlaces((~((1<<2)|(1<<25)))>>>0,1),[{player:1,location:4,sequence:2},{player:0,location:8,sequence:1}]);
