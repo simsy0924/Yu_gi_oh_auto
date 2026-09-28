@@ -144,6 +144,26 @@ test('real Lua effect resolves through a chain and draws two cards',async()=>{
     assert.equal(s.snapshot().zones[0][16].cards[0].code,55144522);
   }finally{s.destroy();}
 });
+test('Junk Meister hand summon resolves without unsupported chain info flags',async()=>{
+  const meister=73218792,stardustDragon=44508094;
+  const deck={...you,main:[meister,...you.main.slice(1)],extra:[stardustDragon,...you.extra.slice(1)]};
+  const s=await DuelSession.create({cards,scripts,wasmBinary,you:deck,ghost,seed:[71,2,3,4],startingHand:[meister]});
+  try{
+    const summon=s.prompt.choices.find(choice=>choice.kind==='activate'&&choice.card===meister);
+    assert.ok(summon,'Junk Meister should be able to reveal Stardust Dragon and Special Summon itself');
+    s.respond({choice:summon.id});
+    assert.equal(s.prompt.type,'SELECT_CARD');
+    const reveal=s.prompt.selection.options.find(option=>option.card===stardustDragon);
+    assert.ok(reveal,'the required Extra Deck Synchro should be available to reveal');
+    s.respond({indices:[reveal.id]});
+    assert.equal(s.prompt.type,'SELECT_PLACE');
+    s.respond({indices:[s.prompt.selection.options[0].id]});
+    assert.equal(s.prompt.type,'SELECT_POSITION');
+    s.respond({choice:s.prompt.choices[0].id});
+    assert.equal(s.snapshot().zones[0][4].cards[0].code,meister);
+    assert.ok(s.prompt.choices.some(choice=>choice.kind==='activate'&&choice.card===meister),'the on-Special Summon effect should be available');
+  }finally{s.destroy();}
+});
 test('patched WASM card data preserves link markers',async()=>{
   const link=Object.values(cards).find(c=>(c.type&0x4000000)&&c.link_marker===32);
   assert.ok(link);
