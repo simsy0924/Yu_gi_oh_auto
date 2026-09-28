@@ -41,7 +41,13 @@ export async function openDeckBuilder(root,{source,onSave,onClose}) {
     const b=event.target.closest('button');if(!b)return;
     if(b.dataset.inspect){inspect(Number(b.dataset.inspect));return;}
     if(b.dataset.part){part=b.dataset.part;renderDeck();return;}
-    if(b.dataset.remove){const code=Number(b.dataset.remove),i=draft[part].indexOf(code);if(i>=0)draft[part].splice(i,1);redraw();return;}
+    if(b.dataset.remove){
+      const code=Number(b.dataset.remove),i=draft[part].indexOf(code);
+      if(i<0)return;
+      const name=cards[code]?.name??String(code);
+      if(!confirm(`덱에서 "${name}" 카드 1장을 뺄까요?`))return;
+      draft[part].splice(i,1);redraw();return;
+    }
     if(b.dataset.add)try{const c=cards[Number(b.dataset.add)];if(!c)throw new Error('카드 DB에 없는 카드입니다.');const target=addCard(draft,c,part,cards);if(part!=='side')part=target;inspect(c.code);redraw();}catch(e){message(e.message);}
   }
   $('searchResults').onclick=edit;$('deckContents').onclick=edit;$('deckTabs').onclick=edit;
@@ -61,7 +67,11 @@ export async function openDeckBuilder(root,{source,onSave,onClose}) {
     redraw();
   };
   $('builderClose').onclick=()=>{persist();active=false;onClose();};
-  $('builderNew').onclick=()=>{if([...draft.main,...draft.extra,...draft.side].length&&!confirm('작성 중인 덱을 비우고 새 덱을 만들까요?'))return;draft={name:'내 덱',main:[],extra:[],side:[]};sourceId=null;part='main';$('builderName').value=draft.name;redraw();};
+  $('builderNew').onclick=()=>{
+    const hasDraft=[...draft.main,...draft.extra,...draft.side].length>0||!!sourceId||draft.name!=='내 덱'||$('decklistInput').value.trim().length>0;
+    if(hasDraft&&!confirm('현재 덱 편집 내용과 붙여넣은 카드 목록을 비우고 새 덱을 만들까요?'))return;
+    draft={name:'내 덱',main:[],extra:[],side:[]};sourceId=null;part='main';$('builderName').value=draft.name;$('decklistInput').value='';redraw();
+  };
   $('builderUse').onclick=()=>{try{validateDeck(draft,cards);sourceId=sourceId&&sourceId!=='starter'?sourceId:crypto.randomUUID();persist();onSave({...exportDeck(draft,cards),id:sourceId});active=false;}catch(e){message(e.message);}};
   $('builderExport').onclick=()=>{
     try{validateDeck(draft,cards);const data=exportDeck(draft,cards);const a=document.createElement('a');const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)+'\n'],{type:'application/json'}));a.href=url;a.download=(data.name.replace(/[<>:"/\\|?*\u0000-\u001f]/g,'_').trim()||'deck')+'.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);message('JSON을 내보냈습니다. 덱 불러오기에서 다시 사용할 수 있어요.');}catch(e){message(e.message);}

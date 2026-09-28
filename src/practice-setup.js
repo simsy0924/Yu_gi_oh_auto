@@ -34,7 +34,12 @@ export async function openPracticeSetup(root,{deck,mode,onClose,onStart}) {
     $('randomOptions').hidden=handMode!=='random';$('fixedOptions').hidden=handMode!=='fixed';status('');
   };
   $('practiceResults').onclick=e=>{const button=e.target.closest('[data-add]');if(!button||hand.length>=5)return;const code=Number(button.dataset.add);if(hand.filter(item=>item===code).length>=3){status('같은 카드는 시작 패에 최대 3장까지 넣을 수 있습니다.');return;}hand.push(code);renderHand();};
-  $('practiceHand').onclick=e=>{const button=e.target.closest('[data-remove]');if(!button)return;const code=Number(button.dataset.remove),index=hand.indexOf(code);if(index>=0)hand.splice(index,1);renderHand();status('');};
+  $('practiceHand').onclick=e=>{
+    const button=e.target.closest('[data-remove]');if(!button)return;
+    const code=Number(button.dataset.remove),index=hand.indexOf(code);if(index<0)return;
+    if(!confirm(`"${cards[code]?.name??code}" 카드 1장을 시작 패에서 뺄까요?`))return;
+    hand.splice(index,1);renderHand();status('');
+  };
   $('practiceSearch').oninput=e=>{query=e.target.value;page=0;renderResults();};$('practiceKind').onchange=e=>{kind=e.target.value;page=0;renderResults();};$('randomKind').onchange=e=>{randomKind=e.target.value;};
   $('practiceStart').onclick=()=>{
     try{

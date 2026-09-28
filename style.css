@@ -62,3 +62,11 @@ a{color:var(--accent);font-size:11px}.picker{grid-template-rows:auto 1fr auto}.i
 
 /* Keep the orientation gate above every app screen, including builder views. */
 .orientation-guard{position:fixed;inset:0;z-index:2147483000;width:100vw;height:100dvh;overflow:auto;background:var(--bg);color:var(--text)}
+
+
+/* Saved deck and ghost removal controls */
+.saved-entry{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px;min-width:0}
+.saved-entry .item{min-width:0}
+.setup .saved-entry .delete-entry{min-width:50px;min-height:42px;height:auto;padding:6px 9px;border-color:#a8413c;background:#381c20;color:#ffc2bc;font-size:11px}
+:root[data-theme="light"] .setup .saved-entry .delete-entry{border-color:#d2948d;background:#fff0ee;color:#832d28}
+@media(max-width:740px){.saved-entry{gap:4px}.setup .saved-entry .delete-entry{min-width:44px;padding:5px}}

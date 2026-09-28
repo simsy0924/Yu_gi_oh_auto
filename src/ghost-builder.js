@@ -54,8 +54,10 @@ export function openGhostBuilder(root,{source,decks,selectedDeck,onClose,onSave}
   $('ghostStepList').onclick=e=>{
     const button=e.target.closest('button'),row=button?.closest('[data-step]');if(!row)return;
     const i=Number(row.dataset.step),script=draft.behavior.script;
-    if(button.hasAttribute('data-remove'))script.splice(i,1);
-    else if(button.hasAttribute('data-move')){const j=i+Number(button.dataset.move);if(j<0||j>=script.length)return;[script[i],script[j]]=[script[j],script[i]];}
+    if(button.hasAttribute('data-remove')){
+      if(!confirm(`${i+1}단계 행동을 삭제할까요?`))return;
+      script.splice(i,1);
+    }else if(button.hasAttribute('data-move')){const j=i+Number(button.dataset.move);if(j<0||j>=script.length)return;[script[i],script[j]]=[script[j],script[i]];}
     else return;
     renderSteps();
   };
@@ -76,7 +78,11 @@ export function openGhostBuilder(root,{source,decks,selectedDeck,onClose,onSave}
   $('ghostStepList').oninput=update;
   $('ghostStepList').onchange=update;
   $('ghostClose').onclick=()=>{persist();onClose();};
-  $('ghostNew').onclick=()=>{if(draft.behavior.script.length&&!confirm('작성 중인 고스트를 비우고 새로 만들까요?'))return;draft=empty(decks.find(d=>d.id===deckSelection)??selectedDeck);deckSelection=selectedDeck.id;$('ghostDeck').value=deckSelection;$('ghostName').value=draft.name;$('ghostDescription').value='';$('ghostStartingHand').value='';$('ghostFallback').value='basic';$('ghostMode').value='priority';renderSteps();};
+  $('ghostNew').onclick=()=>{
+    const hasDraft=!!source||draft.behavior.script.length>0||draft.name!=='새 고스트'||!!draft.description||!!draft.startingHand?.length||deckSelection!==selectedDeck.id||draft.behavior.mode!=='priority'||draft.behavior.fallback!=='basic';
+    if(hasDraft&&!confirm('현재 고스트 설정과 행동을 비우고 새 고스트를 만들까요?'))return;
+    draft=empty(decks.find(d=>d.id===deckSelection)??selectedDeck);deckSelection=selectedDeck.id;$('ghostDeck').value=deckSelection;$('ghostName').value=draft.name;$('ghostDescription').value='';$('ghostStartingHand').value='';$('ghostFallback').value='basic';$('ghostMode').value='priority';renderSteps();
+  };
   function ready(){try{return exportGhost(draft);}catch(e){status(e.message);return null;}}
   $('ghostSave').onclick=()=>{const ghost=ready();if(ghost)onSave(ghost);};
   $('ghostExport').onclick=()=>{
