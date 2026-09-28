@@ -10,6 +10,8 @@ import {cardFacts,cardInfoHtml} from '../src/card-info.js';
 import {promptHelp,selectionProgress} from '../src/duel-guidance.js';
 import {deckWithStartingHand} from '../src/practice.js';
 import {soloOpponentChoice} from '../src/solo.js';
+import {replayPlayerInputs} from '../src/duel-history.js';
+import {describeDecision} from '../src/duel-log.js';
 const cards=JSON.parse(gunzipSync(readFileSync('public/engine/cards.json.gz')));
 const koreanStrings=JSON.parse(gunzipSync(readFileSync('public/engine/ko-strings.json.gz')));
 const scripts=JSON.parse(gunzipSync(readFileSync('public/engine/scripts.json.gz')));
@@ -46,6 +48,22 @@ test('card details include the applicable printed stats and selection progress',
   assert.match(cardInfoHtml(normal),/카드 설명/);
   assert.equal(selectionProgress({mode:'sort',options:[1,2,3]},[0,1]),'2/3장 순서 지정');
 });
+test('duel action descriptions identify selected cards and effects',()=>{
+  const cards={73218792:{name:'정크 마이스터'}};
+  const action={type:'SELECT_IDLECMD',title:'행동을 선택하세요',choices:[{id:'1',card:73218792,shortLabel:'특수 소환'}]};
+  assert.equal(describeDecision(action,{choice:'1'},cards),'정크 마이스터 · 특수 소환');
+  const selection={type:'SELECT_CARD',title:'카드 선택',selection:{options:[{id:0,label:'정크 싱크론 · 묘지 1'}]}};
+  assert.equal(describeDecision(selection,{indices:[0]},cards),'카드 선택 · 정크 싱크론 · 묘지 1');
+  const effect={type:'SELECT_EFFECTYN',title:'정크 마이스터 · 특수 소환할까요?',choices:[{id:'0',kind:'yes',shortLabel:'예'}]};
+  assert.equal(describeDecision(effect,{choice:'0'},cards),'정크 마이스터 · 특수 소환할까요? · 예');
+});
+test('duel logs retain actions from the beginning of a long match',()=>{
+  const session=new DuelSession();session.logs=[];
+  for(let i=0;i<60;i++)session.log(`고스트 · 행동 ${i+1}`);
+  assert.equal(session.logs.length,60);
+  assert.equal(session.logs[0],'고스트 · 행동 1');
+  assert.equal(session.logs.at(-1),'고스트 · 행동 60');
+});
 test('real WASM core: draw, summon, battle, damage and win',async()=>{
   const s=await DuelSession.create({cards,scripts,wasmBinary,you,ghost});
   try {
@@ -61,6 +79,39 @@ test('real WASM core: draw, summon, battle, damage and win',async()=>{
     assert.ok(s.ended,'duel completes');assert.ok(summons>1);assert.ok(attacks>0);assert.ok(damage);
     console.log({turns:s.turn,winner:s.winner,summons,attacks,lp:s.lp});
   }finally{s.destroy();}
+});
+test('duel history replay restores the same state before the latest player action',async()=>{
+  const createSession=()=>DuelSession.create({cards,scripts,wasmBinary,you,ghost,seed:[343,2,3,4]});
+  const original=await createSession();let restored;
+  try{
+    const action=original.prompt.choices.find(choice=>choice.kind==='end');
+    assert.ok(action,'the opening hand should allow ending the turn');
+    const input={choice:action.id},prompt=original.prompt;
+    original.log(`나 · ${describeDecision(prompt,input,original.cards)}`);original.respond(input);
+    let cursor=0;
+    for(let actions=0;original.prompt?.player===1&&!original.ended&&actions<1000;actions++){
+      const decision=ghostChoice(original.prompt,ghost.behavior,cursor);assert.ok(!decision.blocked,decision.blocked);
+      cursor=decision.cursor??cursor;original.respond(decision);
+    }
+    assert.equal(original.prompt?.player,0,'the next player decision is available');
+    const before=JSON.stringify(original.snapshot());
+    const replayed=await replayPlayerInputs({
+      createSession,
+      playerInputs:[input],
+      logPlayerAction:(session,actionPrompt,actionInput)=>session.log(`나 · ${describeDecision(actionPrompt,actionInput,session.cards)}`),
+      resolveOpponent:(session,nextCursor)=>{
+        let replayCursor=nextCursor;
+        for(let actions=0;session.prompt?.player===1&&!session.ended&&actions<1000;actions++){
+          const decision=ghostChoice(session.prompt,ghost.behavior,replayCursor);assert.ok(!decision.blocked,decision.blocked);
+          replayCursor=decision.cursor??replayCursor;session.respond(decision);
+        }
+        if(session.prompt?.player===1&&!session.ended)throw new Error('opponent replay did not finish');
+        return replayCursor;
+      }
+    });
+    restored=replayed.session;
+    assert.equal(JSON.stringify(restored.snapshot()),before);
+  }finally{original.destroy();restored?.destroy();}
 });
 test('place mask is relative to player, including opponent zones',()=>{
   assert.deepEqual(fieldPlaces((~((1<<2)|(1<<25)))>>>0,1),[{player:1,location:4,sequence:2},{player:0,location:8,sequence:1}]);

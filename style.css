@@ -71,7 +71,20 @@ a{color:var(--accent);font-size:11px}.picker{grid-template-rows:auto 1fr auto}.i
 :root[data-theme="light"] .setup .saved-entry .delete-entry{border-color:#d2948d;background:#fff0ee;color:#832d28}
 @media(max-width:740px){.saved-entry{gap:4px}.setup .saved-entry .delete-entry{min-width:44px;padding:5px}}
 
-
 /* Keep both solo fields and the shared Extra Monster Zones visible. */
 .live-board.solo .solo-note{min-height:0;padding:2px 6px;font-size:9px}
 @media(max-height:450px){.live-board.solo .live-field{grid-template-rows:auto repeat(3,minmax(22px,1fr));gap:2px;padding:2px 5px}.live-board.solo .live-field .field-row,.live-board.solo .live-field .slot,.live-board.solo .live-field .live-hand,.live-board.solo .live-field .live-hand .slot{min-height:22px}}
+
+/* Ghost action notice and readable duel history. */
+.live-duel .topbar{grid-template-columns:auto minmax(0,1fr) auto;gap:7px}
+.live-duel .top-right{gap:4px}
+.action-toast{position:fixed;z-index:40;top:calc(env(safe-area-inset-top,0px) + 44px);right:max(10px,env(safe-area-inset-right,0px));display:grid;gap:3px;max-width:min(26rem,calc(100vw - 20px));padding:9px 12px;border:1px solid var(--ghost);border-radius:10px;background:var(--panel);box-shadow:0 8px 28px #0008;font-size:11px;line-height:1.4;pointer-events:none}
+.action-toast strong{color:var(--ghost);font-size:10px}
+.action-toast span{overflow-wrap:anywhere}
+#duelLog{width:min(680px,calc(100vw - 24px));max-width:none;max-height:min(82dvh,720px);padding:0;overflow:hidden}
+.duel-log-dialog>header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 14px;border-bottom:1px solid var(--line)}
+.duel-log-list{max-height:min(calc(82dvh - 56px),660px);overflow:auto;overscroll-behavior:contain;margin:0;padding:12px 18px 14px 44px;display:grid;gap:7px;font-size:12px;line-height:1.45}
+.duel-log-list li{padding-left:3px;overflow-wrap:anywhere}
+.duel-log-list li::marker{color:var(--muted);font-variant-numeric:tabular-nums}
+.duel-log-empty{color:var(--muted)}
+@media(max-height:450px){.action-toast{top:calc(env(safe-area-inset-top,0px) + 35px);padding:7px 10px}.duel-log-list{max-height:min(calc(82dvh - 52px),660px);padding-block:8px;gap:5px}}

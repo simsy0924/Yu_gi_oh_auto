@@ -44,7 +44,7 @@ export class DuelSession {
       s.core.startDuel(s.handle);s.advance();return s;
     }catch(e){s.destroy();throw e;}
   }
-  log(text){this.logs.push(text);if(this.logs.length>40)this.logs.shift();}
+  log(text){this.logs.push(text);}
   advance() {
     for(let tick=0;tick<10000;tick++) {
       const status=this.core.duelProcess(this.handle),messages=this.core.duelGetMessage(this.handle);
