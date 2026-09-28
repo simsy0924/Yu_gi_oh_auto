@@ -57,6 +57,13 @@ test('duel action descriptions identify selected cards and effects',()=>{
   const effect={type:'SELECT_EFFECTYN',title:'정크 마이스터 · 특수 소환할까요?',choices:[{id:'0',kind:'yes',shortLabel:'예'}]};
   assert.equal(describeDecision(effect,{choice:'0'},cards),'정크 마이스터 · 특수 소환할까요? · 예');
 });
+test('duel logs retain actions from the beginning of a long match',()=>{
+  const session=new DuelSession();session.logs=[];
+  for(let i=0;i<60;i++)session.log(`고스트 · 행동 ${i+1}`);
+  assert.equal(session.logs.length,60);
+  assert.equal(session.logs[0],'고스트 · 행동 1');
+  assert.equal(session.logs.at(-1),'고스트 · 행동 60');
+});
 test('real WASM core: draw, summon, battle, damage and win',async()=>{
   const s=await DuelSession.create({cards,scripts,wasmBinary,you,ghost});
   try {
