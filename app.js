@@ -71,7 +71,7 @@ function bindFullscreenButton(){
 }
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let ghosts=[],decks=[],ghostId,deckId,worker=null,state=null,selection=[],counters=[],announcementQuery='',inputError='',selectedCard=null,busy=false,error='',loading='';
-let setupMode='duel',sessionMode='duel',sessionDeck=null,sessionGhost=null,currentScenario=null,recordedSteps=[],scenarioCaptured=false;
+let setupMode='duel',sessionMode='duel',sessionDeck=null,sessionGhost=null,currentScenario=null,recordedSteps=[],recordedActionFlags=[],scenarioCaptured=false;
 const THEME_KEY='ghost-duel.theme.v1';
 let theme='dark';
 try{theme=localStorage.getItem(THEME_KEY)==='light'?'light':'dark';}catch{}
@@ -178,13 +178,13 @@ function renderSetup(){
   document.getElementById('editGhost')?.addEventListener('click',()=>ghostBuilder(ghosts.find(g=>g.id===ghostId)));
 }
 function launchDuel(mode='duel',scenario=null){
-  sessionMode=mode;currentScenario=scenario;sessionDeck=scenario?.deck??decks.find(d=>d.id===deckId);sessionGhost=mode==='duel'?ghosts.find(g=>g.id===ghostId):null;recordedSteps=[];scenarioCaptured=false;
+  sessionMode=mode;currentScenario=scenario;sessionDeck=scenario?.deck??decks.find(d=>d.id===deckId);sessionGhost=mode==='duel'?ghosts.find(g=>g.id===ghostId):null;recordedSteps=[];recordedActionFlags=[];scenarioCaptured=false;
   error='';loading='엔진 준비 중...';state=null;busy=true;selection=[];counters=[];announcementQuery='';inputError='';selectedCard=null;
   worker?.terminate();worker=new Worker(new URL('./src/engine.worker.js',import.meta.url),{type:'module'});
   worker.onmessage=({data:m})=>{
-    if(m.type==='state'){root.querySelector('.decision')?.scrollTo(0,0);state=m.state;if(sessionMode==='ghost-create'&&!scenarioCaptured&&state.zones?.[0]?.[2]?.cards){currentScenario={...currentScenario,startingHand:state.zones[0][2].cards.map(card=>card.code),handNames:state.zones[0][2].cards.map(card=>card.name)};scenarioCaptured=true;}loading='';busy=false;selection=[];counters=[];announcementQuery='';inputError='';selectedCard=null;}
+    if(m.type==='state'){if(m.undone&&sessionMode==='ghost-create'&&recordedActionFlags.pop())recordedSteps.pop();root.querySelector('.decision')?.scrollTo(0,0);state=m.state;if(sessionMode==='ghost-create'&&!scenarioCaptured&&state.zones?.[0]?.[2]?.cards){currentScenario={...currentScenario,startingHand:state.zones[0][2].cards.map(card=>card.code),handNames:state.zones[0][2].cards.map(card=>card.name)};scenarioCaptured=true;}loading='';busy=false;selection=[];counters=[];announcementQuery='';inputError=m.undoError?`되돌리기 실패: ${m.undoError}`:'';selectedCard=null;}
     if(m.type==='loading')loading=m.message;
-    if(m.type==='input-error'){inputError=m.message;busy=false;}
+    if(m.type==='input-error'){if(sessionMode==='ghost-create'&&recordedActionFlags.pop())recordedSteps.pop();inputError=m.message;busy=false;}
     if(m.type==='error'){error=m.message;loading='';busy=false;}
     renderDuel();
   };
@@ -259,7 +259,7 @@ function panel(){
   if(loading)return `<h2>준비 중</h2><p>${esc(loading)}</p>`;
   if(state?.ended)return `<h2>${state.winner===2?'무승부':state.winner===0?'승리':'패배'}</h2>${draftControl}<button class="primary" id="restart">다시 시작</button>`;
   const p=state?.prompt;if(!p)return '<p>듀얼 처리 중...</p>';
-  if(p.player===1){const opponentTurn=sessionMode==='duel'?'고스트 차례':sessionMode==='ghost-create'?'상대 차례':'연습 상대 차례';return `<h2>${opponentTurn}</h2><p>${esc(state.ghostBlocked??(state.paused?'자동 진행 일시정지':'상대가 차례를 넘기는 중...'))}</p>${draftControl}`;}
+  if(p.player===1){const opponentTurn=sessionMode==='duel'?'고스트 차례':sessionMode==='ghost-create'?'상대 차례':'연습 상대 차례';return `<h2>${opponentTurn}</h2>${inputError?`<p role="alert" class="input-error">${esc(inputError)}</p>`:''}<p>${esc(state.ghostBlocked??(state.paused?'자동 진행 일시정지':'상대가 차례를 넘기는 중...'))}</p>${draftControl}`;}
   let html=`<div class="decision-intro"><h2>${esc(p.title)}</h2><p>${esc(promptHelp(p))}</p></div>${inputError?`<p role="alert" class="input-error">${esc(inputError)}</p>`:''}`;
   if(draftControl)html+=draftControl;
   if(p.blocked)return html+`<p role="alert">${esc(p.blocked)}</p><p>이 선택은 현재 화면에서 지원하지 않습니다.</p>`;
@@ -281,7 +281,8 @@ function panel(){
   if(!p.selection)html+=availableCards(p);
   return html;
 }
-function send(input){if(busy||error)return;if(sessionMode==='ghost-create'){const step=recordDecision(state?.prompt,input);if(step)recordedSteps.push(step);}busy=true;inputError='';worker.postMessage({type:'respond',revision:state.revision,...input});renderDuel();}
+function send(input){if(busy||error)return;if(sessionMode==='ghost-create'){const step=recordDecision(state?.prompt,input);recordedActionFlags.push(!!step);if(step)recordedSteps.push(step);}busy=true;inputError='';worker.postMessage({type:'respond',revision:state.revision,...input});renderDuel();}
+function undo(){if(busy||error||!state?.undoAvailable)return;busy=true;loading='이전 상태로 되돌리는 중...';inputError='';worker.postMessage({type:'undo'});renderDuel();}
 function toggleSelection(id){selection=selection.includes(id)?selection.filter(x=>x!==id):[...selection,id];inputError='';renderDuel();}
 function focusCard(key){selectedCard=key;const target=targetFor(key);if(target&&myPrompt()?.selection?.mode!=='counter'){toggleSelection(target.id);}else renderDuel();root.querySelector('.decision')?.scrollTo(0,0);}
 function renderDuel(){
@@ -290,7 +291,7 @@ function renderDuel(){
   const choiceScrolls=[...root.querySelectorAll('.decision .choices')].map(list=>list.scrollTop);
   const board=sessionMode==='duel'?`${field(1)}${sharedExtra()}${field(0)}`:`<div class="solo-note">${sessionMode==='ghost-create'?'고스트 생성 · 내 전개를 기록 중':'전개 연습 · 상대 턴 자동 진행'}</div>${field(1)}${sharedExtra()}${field(0)}`;
   const activeName=state?.active===0?'나':sessionMode==='duel'?'고스트':sessionMode==='ghost-create'?'상대':'연습 상대';
-  root.innerHTML=`<main class="screen live-duel"><header class="topbar"><strong>Ghost Duel</strong><span>${state?`${state.turn}턴 · ${activeName} · ${phaseName[state.phase]??''}`:'YGOPro Core'}</span><div class="top-right">${themeToggle()}${fullscreenButton()}<button class="mini" id="pause" ${!state||error?'disabled':''}>${state?.paused?'자동 진행':'일시정지'}</button>${state?.paused?'<button class="mini" id="step">한 행동</button>':''}<button class="mini" id="exit">종료</button></div></header><div class="live-layout"><div class="live-board ${sessionMode==='duel'?'':'solo'}">${board}</div><aside class="decision" aria-live="polite">${panel()}</aside></div><footer class="live-log">${esc(state?.logs.at(-1)??'카드를 눌러 행동을 선택하세요.')}</footer></main><dialog id="details"><div id="detailContent"></div><button class="action" id="closeDetail">닫기</button></dialog>`;
+  root.innerHTML=`<main class="screen live-duel"><header class="topbar"><strong>Ghost Duel</strong><span>${state?`${state.turn}턴 · ${activeName} · ${phaseName[state.phase]??''}`:'YGOPro Core'}</span><div class="top-right">${themeToggle()}${fullscreenButton()}<button class="mini" id="undo" ${!state?.undoAvailable||busy||error?'disabled':''}>되돌리기</button><button class="mini" id="pause" ${!state||busy||error?'disabled':''}>${state?.paused?'자동 진행':'일시정지'}</button>${state?.paused?'<button class="mini" id="step" '+(busy?'disabled':'')+'>한 행동</button>':''}<button class="mini" id="exit">종료</button></div></header><div class="live-layout"><div class="live-board ${sessionMode==='duel'?'':'solo'}">${board}</div><aside class="decision" aria-live="polite">${panel()}</aside></div><footer class="live-log">${esc(state?.logs.at(-1)??'카드를 눌러 행동을 선택하세요.')}</footer></main><dialog id="details"><div id="detailContent"></div><button class="action" id="closeDetail">닫기</button></dialog>`;
   root.querySelector('.decision').scrollTop=decisionScroll;
   root.querySelector('.live-board').scrollTop=boardScroll;
   root.querySelectorAll('.decision .choices').forEach((list,index)=>{list.scrollTop=choiceScrolls[index]??0;});
@@ -298,6 +299,7 @@ function renderDuel(){
   bindFullscreenButton();
   document.getElementById('restart')?.addEventListener('click',start);
   document.getElementById('makeGhostDraft')?.addEventListener('click',editRecordedDraft);
+  document.getElementById('undo').onclick=undo;
   document.getElementById('pause').onclick=()=>worker.postMessage({type:'pause'});
   document.getElementById('step')?.addEventListener('click',()=>worker.postMessage({type:'step'}));
   document.getElementById('clearCard')?.addEventListener('click',()=>{selectedCard=null;renderDuel();});
