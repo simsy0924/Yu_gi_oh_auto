@@ -41,13 +41,7 @@ export async function openDeckBuilder(root,{source,onSave,onClose}) {
     const b=event.target.closest('button');if(!b)return;
     if(b.dataset.inspect){inspect(Number(b.dataset.inspect));return;}
     if(b.dataset.part){part=b.dataset.part;renderDeck();return;}
-    if(b.dataset.remove){
-      const code=Number(b.dataset.remove),i=draft[part].indexOf(code);
-      if(i<0)return;
-      const name=cards[code]?.name??String(code);
-      if(!confirm(`덱에서 "${name}" 카드 1장을 뺄까요?`))return;
-      draft[part].splice(i,1);redraw();return;
-    }
+    if(b.dataset.remove){const code=Number(b.dataset.remove),i=draft[part].indexOf(code);if(i>=0)draft[part].splice(i,1);redraw();return;}
     if(b.dataset.add)try{const c=cards[Number(b.dataset.add)];if(!c)throw new Error('카드 DB에 없는 카드입니다.');const target=addCard(draft,c,part,cards);if(part!=='side')part=target;inspect(c.code);redraw();}catch(e){message(e.message);}
   }
   $('searchResults').onclick=edit;$('deckContents').onclick=edit;$('deckTabs').onclick=edit;
