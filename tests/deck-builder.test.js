@@ -6,7 +6,7 @@ import {addCard,exportDeck,searchCards,cardStatKind,applyCatalogTranslations} fr
 import {parseDeck} from '../src/decks.js';
 const cards=JSON.parse(gunzipSync(readFileSync('public/engine/cards.json.gz')));
 const translations=JSON.parse(gunzipSync(readFileSync('public/engine/ko.json.gz')));
-Object.assign(translations,JSON.parse(readFileSync('public/engine/ko-overrides.json')));
+const overrides=JSON.parse(readFileSync('public/engine/ko-overrides.json'));
 const starter=JSON.parse(readFileSync('public/decks/starter.json'));
 test('a built deck exports into the existing import format without losing name or zones',()=>{
   const draft={name:'검색으로 만든 덱',main:[],extra:[],side:[]};
@@ -52,20 +52,20 @@ test('the bundled card data exposes levels, ranks and link ratings separately',(
 
 test('the Korean title for Red Dragon Archfiend’s Chain searches both card IDs',()=>{
   const codes=['92936364','92936365'];
-  const catalog=applyCatalogTranslations(Object.fromEntries(codes.map(code=>[code,{...cards[code]}])),{...translations});
+  const catalog=applyCatalogTranslations(Object.fromEntries(codes.map(code=>[code,{...cards[code]}])),{...translations},overrides);
   const variants=codes.map(code=>catalog[code]);
   assert.deepEqual(searchCards(variants,{query:'레드 데몬즈 체인'}).map(c=>c.code),[92936364,92936365]);
 });
 test('the Korean title for Cyberse Code Magician searches both card IDs',()=>{
   const codes=['64865','64866'];
-  const catalog=applyCatalogTranslations(Object.fromEntries(codes.map(code=>[code,{...cards[code]}])),{...translations});
+  const catalog=applyCatalogTranslations(Object.fromEntries(codes.map(code=>[code,{...cards[code]}])),{...translations},overrides);
   const variants=codes.map(code=>catalog[code]);
   assert.deepEqual(searchCards(variants,{query:'사이버스 코드 매지션'}).map(c=>c.code),[64865,64866]);
 });
 test('an untranslated alternate card ID inherits the Korean name and effect from its matching alias',()=>{
   const code='89631148';
   const alias=String(cards[code].alias);
-  const catalog=applyCatalogTranslations({[code]:{...cards[code]},[alias]:{...cards[alias]}},{...translations});
+  const catalog=applyCatalogTranslations({[code]:{...cards[code]},[alias]:{...cards[alias]}},{...translations},overrides);
   const variant=catalog[code];
   assert.equal(variant.name,'푸른 눈의 백룡');
   assert.deepEqual(searchCards([variant],{query:'푸른 눈의 백룡'}),[variant]);

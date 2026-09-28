@@ -37,5 +37,10 @@ are served locally from the same deployment, without runtime third-party CDNs.
   AGPL-3.0. The pinned revision is recorded in `public/engine/sources.json`.
   Only the 16 effect strings for cards in the bundled core database are included.
   Regenerate with `python3 scripts/prepare-ko-strings.py /path/to/edopro-korean/cards.cdb`.
+- **Additional Korean card names and text**: used where the official Korean card
+  catalog has no entry, from the pinned EDOPro Korean `cards.cdb` at the same
+  revision listed above, and from project-maintained provisional translations.
+  Provisional card names are marked `(임시 번역)`. These entries remain in
+  `public/engine/ko-overrides.json` so catalog generation preserves them.
 
 License copies are also published under `public/licenses/`.

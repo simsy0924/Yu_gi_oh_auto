@@ -46,6 +46,17 @@ test('cards with the same alias resolve to the canonical card ID',()=>{
   assert.deepEqual(deck.main,[100]);
 });
 
+test('a temporary Korean card name imports with or without its marker',()=>{
+  const cards={
+    1:{code:1,type:0x21,name:'임시 카드명 (임시 번역)',englishName:'Temporary Card Name'}
+  };
+  const deck=makeDeck();
+  const result=addNamedCards(deck,'임시 카드명\n임시 카드명 (임시 번역)','main',cards);
+
+  assert.deepEqual(result.added,[1,1]);
+  assert.deepEqual(result.issues,[]);
+});
+
 test('the side tab sends every matched card to the side deck',()=>{
   const cards={
     1:{code:1,type:0x21,name:'몬스터',englishName:'Monster'},

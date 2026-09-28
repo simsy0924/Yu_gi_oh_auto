@@ -11,7 +11,9 @@ async function readJson(path) {
   return response.json();
 }
 export function applyCatalogTranslations(cards,ko,overrides={}) {
-  Object.assign(ko,overrides);
+  for(const [id,translation] of Object.entries(overrides)) {
+    ko[id]={...ko[id],...translation};
+  }
   for(const c of Object.values(cards)) {
     c.englishName=c.name;
     c.englishDesc=c.desc;
@@ -19,9 +21,12 @@ export function applyCatalogTranslations(cards,ko,overrides={}) {
   for(const [id,c] of Object.entries(cards)) {
     const alias=cards[c.alias];
     const aliasText=c.alias&&alias?.englishName===c.englishName?ko[c.alias]:undefined;
-    const aliasTranslation=aliasText?{name:aliasText.name,...(alias.englishDesc===c.englishDesc?{desc:aliasText.desc}:{})}:undefined;
-    const translation=ko[id]??aliasTranslation;
-    if(translation)Object.assign(c,translation);
+    const aliasTranslation=aliasText?{
+      ...(aliasText.name?{name:aliasText.name}:{}),
+      ...(alias.englishDesc===c.englishDesc&&aliasText.desc?{desc:aliasText.desc}:{})
+    }:undefined;
+    const translation={...(aliasTranslation??{}),...(ko[id]??{})};
+    if(Object.keys(translation).length)Object.assign(c,translation);
     c.searchName=normalize(c.name+' '+c.englishName+' '+c.code);
     c.searchEffect=normalize(c.desc+' '+c.englishDesc);
   }
@@ -83,7 +88,13 @@ export function addNamedCards(deck,text,part,cards) {
     const code=Number(source.code??key);
     if(!Number.isSafeInteger(code)||code<=0)continue;
     const card={...source,code};
-    const names=new Set([card.name,card.englishName].map(normalize).filter(Boolean));
+    const localizedName=card.name;
+    const importNames=[localizedName,card.englishName];
+    const temporarySuffix=' (임시 번역)';
+    if(typeof localizedName==='string'&&localizedName.endsWith(temporarySuffix)) {
+      importNames.push(localizedName.slice(0,-temporarySuffix.length));
+    }
+    const names=new Set(importNames.map(normalize).filter(Boolean));
     for(const name of names) {
       const matches=byName.get(name)??[];
       if(!matches.some(match=>match.code===code))matches.push(card);

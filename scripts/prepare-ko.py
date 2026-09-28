@@ -48,7 +48,7 @@ def main():
 
     engine = ROOT / 'public/engine'
     cards = json.loads(gzip.decompress((engine / 'cards.json.gz').read_bytes()))
-    translations = json.loads(gzip.decompress((engine / 'ko.json.gz').read_bytes()))
+    translations = {}
     counts = {'name': 0, 'desc': 0, 'records': 0}
 
     for path in sorted(source.glob('*.json')):
