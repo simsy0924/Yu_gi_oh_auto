@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {gunzipSync} from 'node:zlib';
-import {deckWithStartingHand,randomStartingHand} from '../src/practice.js';
+import {deckWithStartingHand,randomStartingHand,startingHandChoices} from '../src/practice.js';
 
 const cards=JSON.parse(gunzipSync(readFileSync('public/engine/cards.json.gz')));
 const deck=JSON.parse(readFileSync('public/decks/starter.json'));
@@ -14,6 +14,16 @@ test('custom hand cards are added to a valid deck by replacing unused cards',()=
   assert.equal(result.main.length,deck.main.length);
   assert.equal(result.main.filter(code=>code===newCard.code).length,2);
   assert.equal(deck.main.includes(newCard.code),false);
+});
+
+test('fixed hand choices only include cards and copy counts from the selected main deck',()=>{
+  const choices=startingHandChoices(deck,cards);
+  const deckCodes=new Set(deck.main);
+  assert.equal(choices.length,deckCodes.size);
+  assert.ok(choices.every(card=>deckCodes.has(card.code)));
+  for(const card of choices) {
+    assert.equal(card.deckCopies,deck.main.filter(code=>code===card.code).length);
+  }
 });
 
 test('custom hands reject empty, oversized and extra deck card lists',()=>{
