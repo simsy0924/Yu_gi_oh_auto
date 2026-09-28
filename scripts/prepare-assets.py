@@ -5,6 +5,10 @@ SOURCES = {
     'CardScripts': ('https://github.com/ProjectIgnis/CardScripts.git', '1e28935380407e8f4e5a7edf50875b4b38fe56a6'),
     'BabelCDB': ('https://github.com/ProjectIgnis/BabelCDB.git', '52d5221df32c943877c8a63639edcc4f3d918916'),
 }
+KOREAN_CARD_CATALOG = (
+    'https://github.com/DawnbrandBots/yaml-yugi.git',
+    'eb6042f1a33661ca570c29939f7aa70807119857',
+)
 base = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / '.sources'
 base.mkdir(exist_ok=True)
 for name, (url, ref) in SOURCES.items():
@@ -41,5 +45,18 @@ for path in [*sorted((base/'CardScripts').glob('*.lua')), *sorted((base/'CardScr
     scripts[path.name] = path.read_text(encoding='utf-8-sig')
 write('cards.json.gz', cards)
 write('scripts.json.gz', scripts)
-(out/'sources.json').write_text(json.dumps({'ocgcore-wasm':'0.1.2','sources':{**{k:{'url':u,'commit':r} for k,(u,r) in SOURCES.items()},'KoreanEffectStrings':{'url':'https://github.com/Team-AllYGOPro/edopro-korean.git','commit':'b4a750d9d93efb2b1449608f89c94836b690b389'}},'cards':len(cards),'scripts':len(scripts)}, indent=2)+'\n')
+source_manifest = {
+    **{key: {'url': url, 'commit': ref} for key, (url, ref) in SOURCES.items()},
+    'KoreanCardCatalog': {'url': KOREAN_CARD_CATALOG[0], 'commit': KOREAN_CARD_CATALOG[1]},
+    'KoreanEffectStrings': {
+        'url': 'https://github.com/Team-AllYGOPro/edopro-korean.git',
+        'commit': 'b4a750d9d93efb2b1449608f89c94836b690b389',
+    },
+}
+(out/'sources.json').write_text(json.dumps({
+    'ocgcore-wasm': '0.1.2',
+    'sources': source_manifest,
+    'cards': len(cards),
+    'scripts': len(scripts),
+}, indent=2)+'\n')
 print(f'{len(cards)} cards, {len(scripts)} scripts')

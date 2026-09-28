@@ -23,13 +23,15 @@ are served locally from the same deployment, without runtime third-party CDNs.
 - **ProjectIgnis/BabelCDB**: official and prerelease master-rule card data.
   Revision and source URL are in `public/engine/sources.json`. Card names and
   text belong to their respective rights holders. No card images are included.
-- **Korean text**: reused from this repository's existing July 2026 catalog
-  (`da20f72`, `public/data/ygo-ko-cards/part-*.json`). Only records not flagged as
-  unofficial translations are used. The original catalog was derived from
-  [YAML Yugi](https://github.com/DawnbrandBots/yaml-yugi), with Korean text from
-  the official Yu-Gi-Oh! Neuron OCG Card Database. Cards without a matching
-  Korean record retain BabelCDB's name/text. The bundle can be regenerated with
-  `python3 scripts/prepare-ko.py /path/to/original/catalog`.
+- **Korean card names and text**: refreshed from the pinned
+  [YAML Yugi card catalog](https://github.com/DawnbrandBots/yaml-yugi/tree/eb6042f1a33661ca570c29939f7aa70807119857/data/cards),
+  which derives Korean entries from the official Yu-Gi-Oh! Neuron OCG Card
+  Database. The source revision is recorded in `public/engine/sources.json`.
+  `<ruby>` reading annotations are removed from names, and `<br>` separators in
+  effects become plain line breaks because the client escapes catalog text.
+  Cards without matching Korean data retain BabelCDB's name/text. Regenerate
+  with `python3 scripts/prepare-ko.py /path/to/yaml-yugi/data/cards`; the script
+  checks that the source checkout matches the pinned revision.
 - **Korean effect-choice strings**: extracted from the community
   [EDOPro Korean database](https://github.com/Team-AllYGOPro/edopro-korean),
   AGPL-3.0. The pinned revision is recorded in `public/engine/sources.json`.

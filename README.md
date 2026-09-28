@@ -150,6 +150,11 @@ GitHub Pages용 Actions 워크플로가 포함되어 있으며 Pages Source는
   gzip JSON을 재생성합니다. 이미 다른 revision이 있으면 자동 변경하지 않고
   중단하므로 `scripts/prepare-assets.py`에 기록된 커밋으로 checkout하세요.
 - `public/engine/sources.json`: 데이터 출처와 정확한 커밋.
+- `python3 scripts/prepare-ko.py /path/to/yaml-yugi/data/cards`: 고정된 YAML Yugi
+  스냅샷에서 공식 한국어 카드명과 효과를 갱신합니다. 소스 커밋이 다르면 중단합니다.
+- `npm run audit:translations`: 덱에 넣을 수 있는 카드 중 한국어 이름이나 효과가
+  없는 항목 수를 확인합니다. `npm run audit:translations -- --list`는 카드 번호와
+  원본 이름 목록도 출력합니다.
 - `scripts/patch-core.mjs`: 공개 npm 패키지 0.1.2에 필요한 상류 버그 수정 적용.
 - 한국어 스냅샷의 출처 및 재생성 절차, 코어 전체 소스 및 빌드 절차 링크는
   [THIRD_PARTY.md](./THIRD_PARTY.md)에 있습니다.
