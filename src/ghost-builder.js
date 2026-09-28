@@ -54,10 +54,8 @@ export function openGhostBuilder(root,{source,decks,selectedDeck,onClose,onSave}
   $('ghostStepList').onclick=e=>{
     const button=e.target.closest('button'),row=button?.closest('[data-step]');if(!row)return;
     const i=Number(row.dataset.step),script=draft.behavior.script;
-    if(button.hasAttribute('data-remove')){
-      if(!confirm(`${i+1}단계 행동을 삭제할까요?`))return;
-      script.splice(i,1);
-    }else if(button.hasAttribute('data-move')){const j=i+Number(button.dataset.move);if(j<0||j>=script.length)return;[script[i],script[j]]=[script[j],script[i]];}
+    if(button.hasAttribute('data-remove'))script.splice(i,1);
+    else if(button.hasAttribute('data-move')){const j=i+Number(button.dataset.move);if(j<0||j>=script.length)return;[script[i],script[j]]=[script[j],script[i]];}
     else return;
     renderSteps();
   };
