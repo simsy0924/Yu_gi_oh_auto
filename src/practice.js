@@ -1,7 +1,18 @@
 import {validateDeck} from './decks.js';
-import {isExtra} from './catalog.js';
+import {deckable,isExtra} from './catalog.js';
 
 const copyDeck=deck=>({id:deck.id,name:deck.name,main:[...deck.main],extra:[...deck.extra??[]],side:[...deck.side??[]]});
+
+export function startingHandChoices(deck,cards) {
+  const copies=new Map();
+  for(const code of deck.main) {
+    const card=cards[code];
+    if(!card||!deckable(card)||isExtra(card))continue;
+    copies.set(code,(copies.get(code)??0)+1);
+  }
+  return [...copies].map(([code,deckCopies])=>({...cards[code],deckCopies}))
+    .sort((a,b)=>a.name.localeCompare(b.name,'ko')||a.code-b.code);
+}
 
 export function randomStartingHand(deck,cards,{kind='',size=5,random=Math.random}={}) {
   const bit=({몬스터:1,마법:2,함정:4})[kind];
