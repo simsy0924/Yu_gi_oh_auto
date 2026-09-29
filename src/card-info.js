@@ -30,6 +30,30 @@ export function cardFacts(c){
   return facts;
 }
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+
+function cardInfoText(c,copies=1){
+  const descriptionTitle=(c.type&0x10)&&!(c.type&0x20)?'카드 설명':'카드 효과';
+  const lines=[c.name??c.code];
+  if(copies>1)lines.push(`매수: ${copies}장`);
+  lines.push(...cardFacts(c).map(([key,value])=>`${key}: ${value}`),`${descriptionTitle}:`,c.desc||'효과 텍스트가 없습니다.');
+  return lines.join('\n');
+}
+export function deckCardInfoText(deck,cards){
+  const parts=[['main','메인 덱'],['extra','엑스트라 덱'],['side','사이드 덱']];
+  const output=[`덱 이름: ${deck?.name?.trim()||'내 덱'}`];
+  for(const [part,label] of parts){
+    const list=Array.isArray(deck?.[part])?deck[part]:[];
+    const grouped=new Map();
+    for(const code of list)grouped.set(code,(grouped.get(code)||0)+1);
+    const entries=[...grouped].map(([code,copies])=>{
+      const card=cards?.[code];
+      return card?cardInfoText(card,copies):`카드 번호: ${code}\n카드 정보: 데이터베이스에 없습니다.`;
+    });
+    output.push(`${label} (${list.length}장)\n${entries.length?entries.join('\n\n'):'등록된 카드가 없습니다.'}`);
+  }
+  return `${output.join('\n\n')}\n`;
+}
+
 export function cardInfoHtml(c){
   if(!c||c.hidden)return '<p>공개된 카드 정보가 없습니다.</p>';
   const descriptionTitle=(c.type&0x10)&&!(c.type&0x20)?'카드 설명':'카드 효과';
