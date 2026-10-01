@@ -70,7 +70,7 @@ function bindFullscreenButton(){
   };
 }
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let ghosts=[],decks=[],ghostId,deckId,worker=null,state=null,selection=[],counters=[],announcementQuery='',inputError='',selectedCard=null,busy=false,error='',loading='',actionNotice='',actionNoticeTimer=null;
+let ghosts=[],decks=[],ghostId,deckId,worker=null,state=null,selection=[],counters=[],announcementQuery='',inputError='',selectedCard=null,busy=false,error='',loading='',actionNotice='',actionNoticeTimer=null,lastShownConfirmationId=0;
 let setupMode='duel',sessionMode='duel',sessionDeck=null,sessionGhost=null,currentScenario=null,recordedSteps=[],recordedActionFlags=[],scenarioCaptured=false;
 function clearActionNotice(){clearTimeout(actionNoticeTimer);actionNoticeTimer=null;actionNotice='';}
 function showActionNotice(message){
@@ -185,7 +185,7 @@ function renderSetup(){
 }
 function launchDuel(mode='duel',scenario=null){
   sessionMode=mode;currentScenario=scenario;sessionDeck=scenario?.deck??decks.find(d=>d.id===deckId);sessionGhost=mode==='duel'?ghosts.find(g=>g.id===ghostId):null;recordedSteps=[];recordedActionFlags=[];scenarioCaptured=false;
-  clearActionNotice();error='';loading='엔진 준비 중...';state=null;busy=true;selection=[];counters=[];announcementQuery='';inputError='';selectedCard=null;
+  clearActionNotice();error='';loading='엔진 준비 중...';state=null;busy=true;selection=[];counters=[];announcementQuery='';inputError='';selectedCard=null;lastShownConfirmationId=0;
   worker?.terminate();worker=new Worker(new URL('./src/engine.worker.js',import.meta.url),{type:'module'});
   worker.onmessage=({data:m})=>{
     if(m.type==='state'){if(m.undone){clearActionNotice();if(sessionMode==='ghost-create'&&recordedActionFlags.pop())recordedSteps.pop();}if(m.actionNotice&&sessionMode==='duel')showActionNotice(m.actionNotice);root.querySelector('.decision')?.scrollTo(0,0);state=m.state;if(sessionMode==='ghost-create'&&!scenarioCaptured&&state.zones?.[0]?.[2]?.cards){currentScenario={...currentScenario,startingHand:state.zones[0][2].cards.map(card=>card.code),handNames:state.zones[0][2].cards.map(card=>card.name)};scenarioCaptured=true;}loading='';busy=false;selection=[];counters=[];announcementQuery='';inputError=m.undoError?`되돌리기 실패: ${m.undoError}`:'';selectedCard=null;}
@@ -301,7 +301,7 @@ function renderDuel(){
   const logWasAtBottom=!oldLogList||oldLogList.scrollHeight-oldLogList.scrollTop-oldLogList.clientHeight<24;
   const board=sessionMode==='duel'?`${field(1)}${sharedExtra()}${field(0)}`:`<div class="solo-note">${sessionMode==='ghost-create'?'고스트 생성 · 내 전개를 기록 중':'전개 연습 · 상대 턴 자동 진행'}</div>${field(1)}${sharedExtra()}${field(0)}`;
   const activeName=state?.active===0?'나':sessionMode==='duel'?'고스트':sessionMode==='ghost-create'?'상대':'연습 상대';
-  root.innerHTML=`<main class="screen live-duel"><header class="topbar"><strong>Ghost Duel</strong><span>${state?`${state.turn}턴 · ${activeName} · ${phaseName[state.phase]??''}`:'YGOPro Core'}</span><div class="top-right">${themeToggle()}${fullscreenButton()}<button class="mini" id="openDuelLog" type="button" aria-label="듀얼 로그 열기">로그</button><button class="mini" id="undo" ${!state?.undoAvailable||busy||error?'disabled':''}>되돌리기</button><button class="mini" id="pause" ${!state||busy||error?'disabled':''}>${state?.paused?'자동 진행':'일시정지'}</button>${state?.paused?'<button class="mini" id="step" '+(busy?'disabled':'')+'>한 행동</button>':''}<button class="mini" id="exit">종료</button></div></header>${actionNotice&&sessionMode==='duel'?`<div class="action-toast" role="status" aria-live="polite"><strong>고스트 행동</strong><span>${esc(actionNotice)}</span></div>`:''}<div class="live-layout"><div class="live-board ${sessionMode==='duel'?'':'solo'}">${board}</div><aside class="decision" aria-live="polite">${panel()}</aside></div><footer class="live-log">${esc(state?.logs.at(-1)??'카드를 눌러 행동을 선택하세요.')}</footer></main><dialog id="duelLog" class="duel-log-dialog" aria-labelledby="duelLogTitle"><header><strong id="duelLogTitle">듀얼 로그</strong><button class="mini" id="closeDuelLog" type="button">닫기</button></header><ol class="duel-log-list">${(state?.logs??[]).map(line=>`<li>${esc(line)}</li>`).join('')||'<li class="duel-log-empty">아직 기록이 없습니다.</li>'}</ol></dialog><dialog id="details"><div id="detailContent"></div><button class="action" id="closeDetail">닫기</button></dialog>`;
+  root.innerHTML=`<main class="screen live-duel"><header class="topbar"><strong>Ghost Duel</strong><span>${state?`${state.turn}턴 · ${activeName} · ${phaseName[state.phase]??''}`:'YGOPro Core'}</span><div class="top-right">${themeToggle()}${fullscreenButton()}${state?.confirmation?.cards?.length?'<button class="mini" id="openConfirmation" type="button">확인 카드</button>':''}<button class="mini" id="openDuelLog" type="button" aria-label="듀얼 로그 열기">로그</button><button class="mini" id="undo" ${!state?.undoAvailable||busy||error?'disabled':''}>되돌리기</button><button class="mini" id="pause" ${!state||busy||error?'disabled':''}>${state?.paused?'자동 진행':'일시정지'}</button>${state?.paused?'<button class="mini" id="step" '+(busy?'disabled':'')+'>한 행동</button>':''}<button class="mini" id="exit">종료</button></div></header>${actionNotice&&sessionMode==='duel'?`<div class="action-toast" role="status" aria-live="polite"><strong>고스트 행동</strong><span>${esc(actionNotice)}</span></div>`:''}<div class="live-layout"><div class="live-board ${sessionMode==='duel'?'':'solo'}">${board}</div><aside class="decision" aria-live="polite">${panel()}</aside></div><footer class="live-log">${esc(state?.logs.at(-1)??'카드를 눌러 행동을 선택하세요.')}</footer></main><dialog id="duelLog" class="duel-log-dialog" aria-labelledby="duelLogTitle"><header><strong id="duelLogTitle">듀얼 로그</strong><button class="mini" id="closeDuelLog" type="button">닫기</button></header><ol class="duel-log-list">${(state?.logs??[]).map(line=>`<li>${esc(line)}</li>`).join('')||'<li class="duel-log-empty">아직 기록이 없습니다.</li>'}</ol></dialog><dialog id="details"><div id="detailContent"></div><button class="action" id="closeDetail">닫기</button></dialog>`;
   const duelLog=document.getElementById('duelLog');
   if(logWasOpen){duelLog.showModal();const list=duelLog.querySelector('.duel-log-list');list.scrollTop=logWasAtBottom?list.scrollHeight:logScroll;}
   root.querySelector('.decision').scrollTop=decisionScroll;
@@ -344,6 +344,12 @@ function renderDuel(){
     send({indices:selection});
   });
   const show=cards=>{document.getElementById('detailContent').innerHTML=cards.length?cards.map(cardInfoHtml).join(''):'<p>공개된 카드가 없습니다.</p>';document.getElementById('details').showModal();};
+  const confirmedCards=()=>state?.confirmation?.cards?.map(c=>({...c,zoneLabel:zoneLabel(c.controller,c.location,c.sequence)}))??[];
+  document.getElementById('openConfirmation')?.addEventListener('click',()=>show(confirmedCards()));
+  if(state?.confirmation?.id&&state.confirmation.id!==lastShownConfirmationId){
+    lastShownConfirmationId=state.confirmation.id;
+    show(confirmedCards());
+  }
   document.getElementById('inspectCard')?.addEventListener('click',()=>{const [p,l,i]=selectedCard.split(',').map(Number),c=state?.zones[p][l].cards[i];if(c)show([{...c,zoneLabel:zoneLabel(p,l,i)}]);});
   root.querySelectorAll('[data-card]').forEach(b=>b.onclick=()=>{const key=b.dataset.card,[p,l,i]=key.split(',').map(Number),c=state?.zones[p][l].cards[i];if(myPrompt()&&c&&!c.hidden)focusCard(key);else if(c)show([{...c,zoneLabel:zoneLabel(p,l,i)}]);});
   root.querySelectorAll('[data-pile]').forEach(b=>b.onclick=()=>{

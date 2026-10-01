@@ -57,6 +57,22 @@ test('duel action descriptions identify selected cards and effects',()=>{
   const effect={type:'SELECT_EFFECTYN',title:'정크 마이스터 · 특수 소환할까요?',choices:[{id:'0',kind:'yes',shortLabel:'예'}]};
   assert.equal(describeDecision(effect,{choice:'0'},cards),'정크 마이스터 · 특수 소환할까요? · 예');
 });
+test('confirmed hidden cards are exposed only when the local player is allowed to see them',()=>{
+  const session=new DuelSession();
+  session.cards={
+    12345:{code:12345,name:'확인 카드',desc:'테스트 효과',type:1|0x20,race:'1',attribute:1,level:4,attack:1700,defense:1200}
+  };
+  session.confirmation=null;session.confirmationSerial=0;
+  const card={code:12345,controller:1,location:2,sequence:0};
+  session.recordConfirmation({type:M.CONFIRM_CARDS,player:1,cards:[card]});
+  assert.equal(session.confirmation,null,'상대만 확인한 비공개 정보는 노출하지 않는다');
+  session.recordConfirmation({type:M.CONFIRM_CARDS,player:0,cards:[card]});
+  assert.equal(session.confirmation.id,1);
+  assert.equal(session.confirmation.type,'CONFIRM_CARDS');
+  assert.equal(session.confirmation.cards[0].name,'확인 카드');
+  assert.equal(session.confirmation.cards[0].location,2);
+  assert.equal(session.confirmation.cards[0].attack,1700);
+});
 test('duel logs retain actions from the beginning of a long match',()=>{
   const session=new DuelSession();session.logs=[];
   for(let i=0;i<60;i++)session.log(`고스트 · 행동 ${i+1}`);
