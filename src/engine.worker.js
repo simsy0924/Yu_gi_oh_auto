@@ -4,7 +4,7 @@ import {soloOpponentChoice} from './solo.js';
 import {replayPlayerInputs} from './duel-history.js';
 import {describeDecision} from './duel-log.js';
 import wasmUrl from 'ocgcore-wasm/lib/ocgcore.sync.wasm?url';
-let session, assets,engineData,sessionConfig,playerInputs=[],behavior,cursor=0,paused=false,timer=null,revision=0,soloMode=false,undoing=false;
+let session, assets,engineData,sessionConfig,playerInputs=[],claudeInputs=[],behavior,cursor=0,paused=false,timer=null,revision=0,soloMode=false,claudeMode=false,undoing=false;
 const post=(type,data={})=>self.postMessage({type,...data});
 function opponentDecision(target=session,context={cursor,behavior,soloMode}){
   const p=target?.prompt;
@@ -15,17 +15,24 @@ async function bundle(url){
   const r=await fetch(url);if(!r.ok)throw new Error(`엔진 데이터 로드 실패 (${r.status})`);
   return new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).json();
 }
-function publish({undone=false,undoError='',actionNotice=''}={}){
+function publish({undone=false,undoError='',actionNotice='',actionResult=null}={}){
   const state=session.snapshot();state.paused=paused;state.solo=soloMode;state.revision=++revision;
   state.undoAvailable=playerInputs.length>0;
+  let claudeState=null;
+  if(claudeMode){claudeState=session.snapshot(1);claudeState.revision=revision;}
   if(state.prompt?.player===1) {
-    const decision=opponentDecision();state.ghostBlocked=soloMode?(paused?'연습 엔진 자동 진행 일시정지':'연습 엔진이 상대 차례를 자동으로 넘깁니다.'):decision.blocked;
-    if(decision.blocked)state.ghostBlocked=decision.blocked;
-    // Only the worker holds the opponent's available actions and hand identities.
-    state.prompt={player:1,title:decision.blocked??(soloMode?'연습 엔진 자동 진행 중...':'고스트가 생각하는 중...'),type:state.prompt.type,choices:[]};
-    if(!decision.blocked&&!paused&&!state.ended)timer=setTimeout(()=>actGhost(),soloMode?40:450+Math.floor(Math.random()*450));
+    if(claudeMode){
+      state.ghostBlocked='Claude MCP에서 get_duel_state를 확인하고 행동을 선택하세요.';
+      state.prompt={player:1,title:'Claude 차례 · MCP에서 행동을 선택하세요',type:state.prompt.type,choices:[]};
+    }else{
+      const decision=opponentDecision();state.ghostBlocked=soloMode?(paused?'연습 엔진 자동 진행 일시정지':'연습 엔진이 상대 차례를 자동으로 넘깁니다.'):decision.blocked;
+      if(decision.blocked)state.ghostBlocked=decision.blocked;
+      // Only the worker holds the opponent's available actions and hand identities.
+      state.prompt={player:1,title:decision.blocked??(soloMode?'연습 엔진 자동 진행 중...':'고스트가 생각하는 중...'),type:state.prompt.type,choices:[]};
+      if(!decision.blocked&&!paused&&!state.ended)timer=setTimeout(()=>actGhost(),soloMode?40:450+Math.floor(Math.random()*450));
+    }
   }
-  post('state',{state,undone,undoError,...(actionNotice?{actionNotice}:{})});
+  post('state',{state,...(claudeState?{claudeState}:{}),undone,undoError,...(actionNotice?{actionNotice}:{}),...(actionResult?{actionResult}:{})});
 }
 function performOpponentAction(target,currentCursor,context){
   const decision=opponentDecision(target,{...context,cursor:currentCursor});
@@ -43,6 +50,16 @@ function resolveOpponentPrompts(target,currentCursor,context={behavior,soloMode}
   }
   return nextCursor;
 }
+function resolveClaudeHistoryPrompts(target,currentCursor,history){
+  for(let actions=0;target?.prompt?.player===1&&!target.ended;actions++){
+    if(actions>=10000)throw new Error('Claude 행동 기록 재생 횟수를 초과했습니다.');
+    const input=history.inputs[history.index++];
+    if(!input)throw new Error('Claude 행동 기록이 부족해 이전 상태를 복원할 수 없습니다.');
+    target.log(`Claude · ${describeDecision(target.prompt,input,target.cards)}`);
+    target.respond(input);
+  }
+  return currentCursor;
+}
 function actGhost(){try{clearTimeout(timer);if(!session||session.ended||session.prompt?.player!==1)return;const action=performOpponentAction(session,cursor,{behavior,soloMode});cursor=action.cursor;publish({actionNotice:soloMode?'':action.description});}catch(e){post('error',{message:e.message});}}
 function responseInput(message){
   if(Array.isArray(message.counters))return {counters:[...message.counters]};
@@ -56,13 +73,14 @@ async function undoLastPlayerAction(){
   const previousSession=session,previousCursor=cursor;
   post('loading',{message:'이전 상태로 되돌리는 중...'});
   try{
+    const claudeHistory={inputs:claudeInputs.slice(),index:0};
     const restored=await replayPlayerInputs({
       createSession:()=>DuelSession.create({...engineData,...sessionConfig}),
       playerInputs:playerInputs.slice(0,-1),
-      resolveOpponent:(target,nextCursor)=>resolveOpponentPrompts(target,nextCursor,{behavior,soloMode}),
+      resolveOpponent:(target,nextCursor)=>claudeMode?resolveClaudeHistoryPrompts(target,nextCursor,claudeHistory):resolveOpponentPrompts(target,nextCursor,{behavior,soloMode}),
       logPlayerAction:(target,prompt,input)=>target.log(`나 · ${describeDecision(prompt,input,target.cards)}`)
     });
-    session=restored.session;cursor=restored.cursor;playerInputs.pop();previousSession.destroy();publish({undone:true});
+    session=restored.session;cursor=restored.cursor;playerInputs.pop();if(claudeMode)claudeInputs=claudeInputs.slice(0,claudeHistory.index);previousSession.destroy();publish({undone:true});
   }catch(error){
     session=previousSession;cursor=previousCursor;publish({undoError:error.message});
   }finally{undoing=false;}
@@ -70,7 +88,7 @@ async function undoLastPlayerAction(){
 self.onmessage=async({data:m})=>{
   try {
     if(m.type==='start') {
-      clearTimeout(timer);session?.destroy();session=null;cursor=0;paused=false;soloMode=m.mode==='practice'||m.mode==='ghost-create';behavior=m.ghost?.behavior??{};playerInputs=[];sessionConfig=null;undoing=false;
+      clearTimeout(timer);session?.destroy();session=null;cursor=0;paused=false;soloMode=m.mode==='practice'||m.mode==='ghost-create';claudeMode=m.mode==='claude';behavior=m.ghost?.behavior??{};playerInputs=[];claudeInputs=[];sessionConfig=null;undoing=false;
       post('loading',{message:'듀얼 엔진과 카드 데이터를 불러오는 중...'});
       assets??=Promise.all([bundle(new URL('engine/cards.json.gz',m.base)),bundle(new URL('engine/scripts.json.gz',m.base)),bundle(new URL('engine/ko-strings.json.gz',m.base)),fetch(wasmUrl).then(r=>{if(!r.ok)throw new Error('WASM 로드 실패');return r.arrayBuffer();})]);
       const [cards,scripts,koStrings,wasmBinary]=await assets;
@@ -92,6 +110,13 @@ self.onmessage=async({data:m})=>{
     } else if(m.type==='respond') {
       if(undoing||m.revision!==revision||session?.prompt?.player!==0)return;
       clearTimeout(timer);const previousLogs=[...session.logs];try{const prompt=session.prompt,input=responseInput(m);session.log(`나 · ${describeDecision(prompt,input,session.cards)}`);session.respond(input);playerInputs.push(input);publish();}catch(e){session.logs=previousLogs;post(session.prompt?'input-error':'error',{message:e.message});}
+    } else if(m.type==='remote-action') {
+      if(!claudeMode){post('action-result',{actionResult:{requestId:m.requestId,ok:false,error:'Claude 대전 중이 아닙니다.'}});return;}
+      if(m.revision!==revision||session?.prompt?.player!==1){const claudeState=session?.snapshot(1)??null;if(claudeState)claudeState.revision=revision;post('action-result',{actionResult:{requestId:m.requestId,ok:false,error:'듀얼 상태가 바뀌었습니다. 현재 상태를 다시 확인하세요.'},claudeState});return;}
+      const previousLogs=[...session.logs];
+      try{
+        const prompt=session.prompt,input=responseInput(m);session.log(`Claude · ${describeDecision(prompt,input,session.cards)}`);session.respond(input);claudeInputs.push(input);publish({actionResult:{requestId:m.requestId,ok:true}});
+      }catch(e){session.logs=previousLogs;const claudeState=session.snapshot(1);claudeState.revision=revision;post('action-result',{actionResult:{requestId:m.requestId,ok:false,error:e.message},claudeState});}
     } else if(m.type==='undo') {await undoLastPlayerAction();}
     else if(m.type==='pause') {if(undoing)return;clearTimeout(timer);paused=!paused;publish();}
     else if(m.type==='step') {if(!undoing&&paused)actGhost();}

@@ -1,6 +1,7 @@
 import createCore,{OcgDuelMode as D,OcgMessageType as M,OcgProcessResult as P,OcgResponseType as R,OcgQueryFlags as Q} from 'ocgcore-wasm';
 import {validateDeck} from './decks.js';
 import {makePrompt,requestTypes,selectionResponse,counterResponse} from './prompts.js';
+import {isHiddenZoneForViewer,promptForViewer} from './duel-visibility.js';
 
 function coreCompatibleChainScript(scripts){
   const source=scripts['chain.lua'];
@@ -15,7 +16,7 @@ export class DuelSession {
   static async create({cards,scripts,wasmBinary,you,ghost,seed=[1,2,3,4],startingHand=null}) {
     validateDeck(you,cards);validateDeck(ghost.deck,cards);
     const chainScript=coreCompatibleChainScript(scripts);
-    const s=new DuelSession();Object.assign(s,{cards,scripts,lp:[8000,8000],turn:0,phase:0,active:0,logs:[],prompt:null,ended:false,issue:null,confirmation:null,confirmationSerial:0});
+    const s=new DuelSession();Object.assign(s,{cards,scripts,lp:[8000,8000],turn:0,phase:0,active:0,logs:[],prompt:null,ended:false,issue:null,confirmation:null,confirmationByPlayer:{0:null,1:null},confirmationSerial:0,confirmationSerialByPlayer:{0:0,1:0}});
     s.core=await createCore({sync:true,wasmBinary});
     const team={startingLP:8000,startingDrawCount:5,drawCountPerTurn:1};
     const firstTeam=startingHand?.length?{...team,startingDrawCount:startingHand.length}:team;
@@ -46,7 +47,9 @@ export class DuelSession {
   }
   log(text){this.logs.push(text);}
   recordConfirmation(message) {
-    if(message.player!==0||!Array.isArray(message.cards))return;
+    if(![0,1].includes(message.player)||!Array.isArray(message.cards))return;
+    this.confirmationByPlayer??={0:this.confirmation??null,1:null};
+    this.confirmationSerialByPlayer??={0:this.confirmationSerial??0,1:0};
     const cards=message.cards.map(card=>{
       const db=this.cards?.[card.code]??{};
       return {
@@ -57,7 +60,9 @@ export class DuelSession {
         originalAttack:db.attack,originalDefense:db.defense
       };
     });
-    this.confirmation={id:++this.confirmationSerial,type:M[message.type]??String(message.type),cards};
+    const confirmation={id:++this.confirmationSerialByPlayer[message.player],type:M[message.type]??String(message.type),cards};
+    this.confirmationByPlayer[message.player]=confirmation;
+    if(message.player===0){this.confirmationSerial=this.confirmationSerialByPlayer[0];this.confirmation=confirmation;}
   }
   advance() {
     for(let tick=0;tick<10000;tick++) {
@@ -90,17 +95,17 @@ export class DuelSession {
     if(!response)throw new Error('유효하지 않은 행동입니다.');
     this.core.duelSetResponse(this.handle,response);this.prompt=null;this.advance();
   }
-  snapshot() {
+  snapshot(viewer=0) {
     const zones={};
     for(const controller of [0,1]) {
       zones[controller]={};
       for(const location of [1,2,4,8,16,32,64]) {
-        const hidden=location===1||(controller===1&&(location===2||location===64));
+        const hidden=isHiddenZoneForViewer(controller,location,viewer);
         if(hidden){zones[controller][location]={count:this.core.duelQueryCount(this.handle,controller,location)};continue;}
         const list=this.core.duelQueryLocation(this.handle,{controller,location,flags:Q.CODE|Q.POSITION|Q.ATTACK|Q.DEFENSE|Q.LINK|Q.OVERLAY_CARD|Q.COUNTERS});
         zones[controller][location]={cards:list.map((c,sequence)=>{
           if(!c)return null;
-          if(controller===1&&(c.position&10))return {sequence,position:c.position,hidden:true};
+          if(controller!==viewer&&(c.position&10))return {sequence,position:c.position,hidden:true};
           const db=this.cards[c.code]??{};
           return {...c,sequence,name:db.name??String(c.code),desc:db.desc??'',type:db.type??0,
             race:db.race??'0',attribute:db.attribute??0,level:db.level??0,
@@ -109,7 +114,7 @@ export class DuelSession {
         })};
       }
     }
-    return {zones,lp:this.lp,turn:this.turn,phase:this.phase,active:this.active,logs:this.logs,prompt:this.prompt,ended:this.ended,winner:this.winner,confirmation:this.confirmation};
+    return {viewer,zones,lp:this.lp,turn:this.turn,phase:this.phase,active:this.active,logs:this.logs,prompt:viewer===0?this.prompt:promptForViewer(this.prompt,viewer),ended:this.ended,winner:this.winner,confirmation:this.confirmationByPlayer[viewer]??(viewer===0?this.confirmation:null)};
   }
   destroy(){if(this.handle){this.core.destroyDuel(this.handle);this.handle=null;}}
 }

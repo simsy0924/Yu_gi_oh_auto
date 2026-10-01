@@ -72,6 +72,8 @@ function bindFullscreenButton(){
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let ghosts=[],decks=[],ghostId,deckId,worker=null,state=null,selection=[],counters=[],announcementQuery='',inputError='',selectedCard=null,busy=false,error='',loading='',actionNotice='',actionNoticeTimer=null,lastShownConfirmationId=0;
 let setupMode='duel',sessionMode='duel',sessionDeck=null,sessionGhost=null,currentScenario=null,recordedSteps=[],recordedActionFlags=[],scenarioCaptured=false;
+const CLAUDE_BRIDGE='http://127.0.0.1:3210';
+let claudeBridgeClientId=null,claudeBridgeCursor=0,claudePollTimer=null,claudePollBusy=false,claudeRelayChain=Promise.resolve(),lastClaudeState=null,claudeBridgeStatus='MCP 서버 연결을 확인해 주세요.';
 function clearActionNotice(){clearTimeout(actionNoticeTimer);actionNoticeTimer=null;actionNotice='';}
 function showActionNotice(message){
   actionNotice=message;
@@ -129,6 +131,60 @@ const choiceItem=(x,selected,kind)=>{
   return `<div class="saved-entry"><button class="item ${x.id===selected?'active':''}" data-id="${esc(x.id)}"><div class="thumb"></div><div><strong>${esc(x.name)}</strong><small>${esc(x.description??`${x.main?.length??0}장 / 엑스트라 ${x.extra?.length??0}장`)}</small></div></button>${removeButton}</div>`;
 };
 async function json(url){const r=await fetch(url);if(!r.ok)throw new Error(`${url} 로드 실패`);return r.json();}
+async function claudeBridgeRequest(path,options={}){
+  const response=await fetch(`${CLAUDE_BRIDGE}${path}`,{cache:'no-store',...options});
+  const body=response.status===204?null:await response.json().catch(()=>null);
+  if(!response.ok)throw new Error(body?.error??`MCP 서버 요청 실패 (${response.status})`);
+  return body;
+}
+async function checkClaudeBridge(){
+  claudeBridgeStatus='Claude MCP 서버 확인 중...';
+  if(setupMode==='claude')renderSetup();
+  try{
+    const health=await claudeBridgeRequest('/health');
+    claudeBridgeStatus=health.gameConnected?'MCP 서버에 기존 듀얼 탭이 연결되어 있습니다.':'MCP 서버 연결됨 · 내 덱과 상대 덱을 고른 뒤 시작하세요.';
+  }catch{
+    claudeBridgeStatus='MCP 서버에 연결할 수 없습니다. Claude Code/Claude Desktop에서 MCP 서버를 실행하고 이 사이트도 localhost로 여세요.';
+  }
+  if(setupMode==='claude')renderSetup();
+}
+function relayClaudeState(remoteState,actionResult=null){
+  if(!claudeBridgeClientId||!remoteState)return;
+  lastClaudeState=remoteState;
+  const clientId=claudeBridgeClientId;
+  claudeRelayChain=claudeRelayChain.then(async()=>{
+    const response=await fetch(`${CLAUDE_BRIDGE}/state`,{method:'POST',cache:'no-store',headers:{'content-type':'application/json'},body:JSON.stringify({clientId,state:remoteState,...(actionResult?{actionResult}:{})})});
+    if(!response.ok){const body=await response.json().catch(()=>null);throw new Error(body?.error??`MCP 상태 전송 실패 (${response.status})`);}
+  }).catch(error=>{claudeBridgeStatus=`MCP 연결이 끊겼습니다: ${error.message}`;});
+}
+async function pollClaudeActions(){
+  if(!claudeBridgeClientId||claudePollBusy)return;
+  claudePollBusy=true;
+  try{
+    const response=await fetch(`${CLAUDE_BRIDGE}/action?clientId=${encodeURIComponent(claudeBridgeClientId)}&after=${claudeBridgeCursor}`,{cache:'no-store'});
+    if(response.status===200){
+      const action=await response.json();claudeBridgeCursor=Math.max(claudeBridgeCursor,action.sequence);
+      if(worker&&sessionMode==='claude')worker.postMessage({type:'remote-action',requestId:action.id,revision:action.revision,...action.input});
+      else relayClaudeState(lastClaudeState,{requestId:action.id,ok:false,error:'Claude 대전 탭이 더 이상 활성 상태가 아닙니다.'});
+    }else if(!response.ok&&response.status!==204){const body=await response.json().catch(()=>null);throw new Error(body?.error??`MCP 행동 요청 실패 (${response.status})`);}
+  }catch(error){claudeBridgeStatus=`MCP 연결이 끊겼습니다: ${error.message}`;}
+  finally{claudePollBusy=false;if(claudeBridgeClientId)claudePollTimer=setTimeout(pollClaudeActions,350);}
+}
+async function connectClaudeBridge(){
+  if(claudeBridgeClientId){
+    clearTimeout(claudePollTimer);const previous=claudeBridgeClientId;claudeBridgeClientId=null;
+    await claudeBridgeRequest('/disconnect',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({clientId:previous})}).catch(()=>{});
+  }
+  const clientId=crypto.randomUUID();
+  await claudeBridgeRequest('/connect',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({clientId})});
+  claudeBridgeClientId=clientId;claudeBridgeCursor=0;claudeRelayChain=Promise.resolve();lastClaudeState=null;claudeBridgeStatus='Claude MCP 연결됨';
+  clearTimeout(claudePollTimer);void pollClaudeActions();
+}
+function disconnectClaudeBridge(){
+  clearTimeout(claudePollTimer);const clientId=claudeBridgeClientId;claudeBridgeClientId=null;claudeBridgeCursor=0;lastClaudeState=null;
+  if(clientId)fetch(`${CLAUDE_BRIDGE}/disconnect`,{method:'POST',keepalive:true,headers:{'content-type':'application/json'},body:JSON.stringify({clientId})}).catch(()=>{});
+}
+window.addEventListener('pagehide',disconnectClaudeBridge);
 const SAVED_DECKS_KEY='ghost-duel.decks.v1';
 const SAVED_GHOSTS_KEY='ghost-duel.ghosts.v1';
 function persistDecks(){try{localStorage.setItem(SAVED_DECKS_KEY,JSON.stringify(decks.filter(d=>d.id!=='starter')));return true;}catch{return false;}}
@@ -157,11 +213,16 @@ function saveGhost(ghost){if(ghost.id==='sample')ghost.id=crypto.randomUUID();co
 function ghostBuilder(source){openGhostBuilder(root,{source,decks,selectedDeck:decks.find(d=>d.id===deckId),onClose:renderSetup,onSave:saveGhost});}
 function renderSetup(){
   const deckPicker=`<div class="picker"><div class="deck-picker-heading"><h2>내 덱 선택</h2><button class="mini" id="newDeck">덱 만들기 / 이어서</button><button class="mini" id="editDeck">선택 덱 편집</button></div><div class="list" id="deckList">${decks.map(x=>choiceItem(x,deckId,'deck')).join('')}</div><label class="import">YDK / JSON 덱 불러오기<input id="deckFile" type="file" accept=".ydk,.json"></label></div>`;
-  const ghostPicker=`<div class="picker"><div class="deck-picker-heading"><h2>고스트 선택</h2><button class="mini" id="newGhost">행동 만들기 / 이어서</button><button class="mini" id="editGhost">선택 고스트 편집</button></div><div class="list" id="ghostList">${ghosts.map(x=>choiceItem(x,ghostId,'ghost')).join('')}</div><label class="import">고스트 JSON 불러오기<input id="ghostFile" type="file" accept=".json"></label></div>`;
+  const claudeMode=setupMode==='claude';
+  const multiplayerMode=setupMode==='duel'||claudeMode;
+  const ghostPicker=`<div class="picker"><div class="deck-picker-heading"><h2>${claudeMode?'Claude가 사용할 덱':'고스트 선택'}</h2><button class="mini" id="newGhost">행동 만들기 / 이어서</button><button class="mini" id="editGhost">선택 고스트 편집</button></div>${claudeMode?'<p class="scenario-hint">목록의 덱만 Claude가 사용합니다. 고스트 행동 기록은 대전에 사용하지 않습니다.</p>':''}<div class="list" id="ghostList">${ghosts.map(x=>choiceItem(x,ghostId,'ghost')).join('')}</div><label class="import">${claudeMode?'상대 덱':'고스트'} JSON 불러오기<input id="ghostFile" type="file" accept=".json"></label>${claudeMode?`<div class="scenario-summary"><b>Claude MCP 상태</b><small id="claudeBridgeStatus" role="status">${esc(claudeBridgeStatus)}</small><button class="mini" id="checkClaudeBridge" type="button">연결 확인</button></div><p class="scenario-hint">MCP 서버를 실행한 Claude Code / Claude Desktop과 듀얼 화면이 모두 켜져 있어야 합니다. 연결에는 Claude API 키가 필요하지 않습니다.</p>`:''}</div>`;
   const scenarioInfo=`<section class="picker scenario-card"><h2>${setupMode==='practice'?'전개 연습':'고스트 생성'} · 상황</h2><p>${setupMode==='practice'?'상대를 두지 않고 혼자 전개합니다. 덱에서 무작위 시작 패를 뽑거나 카드를 골라 시작 패를 고정할 수 있어요.':'혼자 전개하면서 선택한 행동을 기록하고, 기록을 바탕으로 고스트 초안을 만듭니다.'}</p><div class="scenario-summary">선택 덱 <b>${esc(decks.find(d=>d.id===deckId)?.name??'없음')}</b><small>${decks.find(d=>d.id===deckId)?.main.length??0}장 · 시작 패는 다음 화면에서 설정</small></div><p class="scenario-hint">덱 목록에서 덱을 바꾸거나, 직접 편집·불러오기 할 수 있습니다.</p></section>`;
-  root.innerHTML=`<main class="screen setup"><header><div class="brand"><div class="brand-mark">GD</div><div><h1>Ghost Duel</h1><p>고스트 듀얼 · 혼자 전개 연습 · 고스트 생성</p></div></div><div class="setup-head-tools">${themeToggle()}${fullscreenButton()}<a href="https://github.com/simsy0924/Yu_gi_oh_auto" target="_blank" rel="noreferrer">소스 / 라이선스</a></div></header><nav class="setup-modes" aria-label="플레이 모드">${[['duel','고스트 듀얼'],['practice','전개 연습'],['ghost-create','고스트 생성']].map(([id,label])=>`<button class="deck-tab ${setupMode===id?'active':''}" data-mode="${id}" aria-pressed="${setupMode===id}">${label}</button>`).join('')}</nav><section class="setup-grid ${setupMode==='duel'?'':'solo-setup'}">${setupMode==='duel'?ghostPicker+deckPicker:deckPicker+scenarioInfo}</section><footer class="setup-footer"><div class="selection"><span role="alert">${esc(error)}</span><p>${setupMode==='duel'?'기본 덱으로 바로 시작할 수 있어요. 금제 검사는 적용하지 않습니다.':setupMode==='practice'?'시작 패 설정에서 덱 전체 또는 카드 종류별 무작위 패를 고를 수 있어요.':'전개 기록은 편집 가능한 고스트 초안으로 변환합니다.'}</p></div><button class="primary" id="start" ${!decks.length||(setupMode==='duel'&&!ghosts.length)?'disabled':''}>${setupMode==='duel'?'듀얼 시작':setupMode==='practice'?'시작 패 설정':'상황 설정'}</button></footer></main>`;
+  const modes=[['duel','고스트 듀얼'],['claude','Claude 대전'],['practice','전개 연습'],['ghost-create','고스트 생성']];
+  const footerText=setupMode==='duel'?'기본 덱으로 바로 시작할 수 있어요. 금제 검사는 적용하지 않습니다.':claudeMode?'Claude Code 또는 Claude Desktop의 MCP 서버를 켜고, 사이트를 localhost로 열어 주세요.':setupMode==='practice'?'시작 패 설정에서 덱 전체 또는 카드 종류별 무작위 패를 고를 수 있어요.':'전개 기록은 편집 가능한 고스트 초안으로 변환합니다.';
+  const startText=setupMode==='duel'?'듀얼 시작':claudeMode?'Claude와 듀얼 시작':setupMode==='practice'?'시작 패 설정':'상황 설정';
+  root.innerHTML=`<main class="screen setup"><header><div class="brand"><div class="brand-mark">GD</div><div><h1>Ghost Duel</h1><p>고스트 듀얼 · Claude 대전 · 혼자 전개 연습 · 고스트 생성</p></div></div><div class="setup-head-tools">${themeToggle()}${fullscreenButton()}<a href="https://github.com/simsy0924/Yu_gi_oh_auto" target="_blank" rel="noreferrer">소스 / 라이선스</a></div></header><nav class="setup-modes" aria-label="플레이 모드">${modes.map(([id,label])=>`<button class="deck-tab ${setupMode===id?'active':''}" data-mode="${id}" aria-pressed="${setupMode===id}">${label}</button>`).join('')}</nav><section class="setup-grid ${multiplayerMode?'':'solo-setup'}">${multiplayerMode?ghostPicker+deckPicker:deckPicker+scenarioInfo}</section><footer class="setup-footer"><div class="selection"><span role="alert">${esc(error)}</span><p>${footerText}</p></div><button class="primary" id="start" ${!decks.length||((setupMode==='duel'||claudeMode)&&!ghosts.length)?'disabled':''}>${startText}</button></footer></main>`;
   bindFullscreenButton();
-  root.querySelector('.setup-modes').onclick=e=>{const button=e.target.closest('[data-mode]');if(button){setupMode=button.dataset.mode;error='';renderSetup();}};
+  root.querySelector('.setup-modes').onclick=e=>{const button=e.target.closest('[data-mode]');if(button){setupMode=button.dataset.mode;error='';renderSetup();if(setupMode==='claude')void checkClaudeBridge();}};
   document.getElementById('ghostList')?.addEventListener('click',e=>{
     const remove=e.target.closest('[data-delete-ghost]');
     if(remove){deleteGhost(remove.dataset.deleteGhost);return;}
@@ -174,8 +235,9 @@ function renderSetup(){
   });
   document.getElementById('deckFile').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;const d=parseDeck(await file.text(),file.name);d.id=crypto.randomUUID();decks.push(d);deckId=d.id;error=persistDecks()?'':'기기 저장에 실패했습니다.';}catch(e){error=e.message;}renderSetup();};
   document.getElementById('ghostFile')?.addEventListener('change',async e=>{try{const file=e.target.files[0];if(!file)return;const g=JSON.parse(await file.text());g.deck=parseDeck(JSON.stringify(g.deck));if(g.behavior?.type==='basic')g.behavior={type:'scripted',script:[],fallback:'basic'};g.id=crypto.randomUUID();const imported=exportGhost(g);ghosts.push(imported);ghostId=imported.id;error=persistGhosts()?'':'기기 저장에 실패했습니다. 고스트 JSON을 보관해 주세요.';}catch(e){error=e.message;}renderSetup();});
+  document.getElementById('checkClaudeBridge')?.addEventListener('click',()=>void checkClaudeBridge());
   document.getElementById('start').onclick=()=>{
-    if(setupMode==='duel')launchDuel('duel',{deck:decks.find(d=>d.id===deckId),startingHand:null,handNames:[]});
+    if(setupMode==='duel'||claudeMode)void launchDuel(setupMode,{deck:decks.find(d=>d.id===deckId),startingHand:null,handNames:[]});
     else openPracticeSetup(root,{deck:decks.find(d=>d.id===deckId),mode:setupMode,onClose:renderSetup,onStart:scenario=>launchDuel(setupMode,scenario)});
   };
   document.getElementById('newDeck').onclick=()=>builder();
@@ -183,14 +245,26 @@ function renderSetup(){
   document.getElementById('newGhost')?.addEventListener('click',()=>ghostBuilder());
   document.getElementById('editGhost')?.addEventListener('click',()=>ghostBuilder(ghosts.find(g=>g.id===ghostId)));
 }
-function launchDuel(mode='duel',scenario=null){
-  sessionMode=mode;currentScenario=scenario;sessionDeck=scenario?.deck??decks.find(d=>d.id===deckId);sessionGhost=mode==='duel'?ghosts.find(g=>g.id===ghostId):null;recordedSteps=[];recordedActionFlags=[];scenarioCaptured=false;
+async function launchDuel(mode='duel',scenario=null){
+  if(mode==='claude'){
+    try{await connectClaudeBridge();}
+    catch(e){error=`Claude MCP 연결에 실패했습니다: ${e.message}`;claudeBridgeStatus='연결 실패 · MCP 서버와 localhost 탭을 확인하세요.';renderSetup();return;}
+  }else disconnectClaudeBridge();
+  sessionMode=mode;currentScenario=scenario;sessionDeck=scenario?.deck??decks.find(d=>d.id===deckId);const selectedOpponent=mode==='duel'||mode==='claude'?ghosts.find(g=>g.id===ghostId):null;sessionGhost=mode==='duel'?selectedOpponent:mode==='claude'?{deck:selectedOpponent?.deck}:null;recordedSteps=[];recordedActionFlags=[];scenarioCaptured=false;
   clearActionNotice();error='';loading='엔진 준비 중...';state=null;busy=true;selection=[];counters=[];announcementQuery='';inputError='';selectedCard=null;lastShownConfirmationId=0;
   worker?.terminate();worker=new Worker(new URL('./src/engine.worker.js',import.meta.url),{type:'module'});
   worker.onmessage=({data:m})=>{
-    if(m.type==='state'){if(m.undone){clearActionNotice();if(sessionMode==='ghost-create'&&recordedActionFlags.pop())recordedSteps.pop();}if(m.actionNotice&&sessionMode==='duel')showActionNotice(m.actionNotice);root.querySelector('.decision')?.scrollTo(0,0);state=m.state;if(sessionMode==='ghost-create'&&!scenarioCaptured&&state.zones?.[0]?.[2]?.cards){currentScenario={...currentScenario,startingHand:state.zones[0][2].cards.map(card=>card.code),handNames:state.zones[0][2].cards.map(card=>card.name)};scenarioCaptured=true;}loading='';busy=false;selection=[];counters=[];announcementQuery='';inputError=m.undoError?`되돌리기 실패: ${m.undoError}`:'';selectedCard=null;}
+    if(m.type==='state'){
+      if(m.undone){clearActionNotice();if(sessionMode==='ghost-create'&&recordedActionFlags.pop())recordedSteps.pop();}
+      if(m.actionNotice&&sessionMode==='duel')showActionNotice(m.actionNotice);
+      root.querySelector('.decision')?.scrollTo(0,0);state=m.state;
+      if(sessionMode==='claude'&&m.claudeState)relayClaudeState(m.claudeState,m.actionResult??null);
+      if(sessionMode==='ghost-create'&&!scenarioCaptured&&state.zones?.[0]?.[2]?.cards){currentScenario={...currentScenario,startingHand:state.zones[0][2].cards.map(card=>card.code),handNames:state.zones[0][2].cards.map(card=>card.name)};scenarioCaptured=true;}
+      loading='';busy=false;selection=[];counters=[];announcementQuery='';inputError=m.undoError?`되돌리기 실패: ${m.undoError}`:'';selectedCard=null;
+    }
     if(m.type==='loading')loading=m.message;
     if(m.type==='input-error'){if(sessionMode==='ghost-create'&&recordedActionFlags.pop())recordedSteps.pop();inputError=m.message;busy=false;}
+    if(m.type==='action-result'&&sessionMode==='claude'&&m.actionResult){relayClaudeState(m.claudeState??null,m.actionResult);}
     if(m.type==='error'){error=m.message;loading='';busy=false;}
     renderDuel();
   };
@@ -198,8 +272,8 @@ function launchDuel(mode='duel',scenario=null){
   worker.postMessage({type:'start',mode:sessionMode,you:sessionDeck,ghost:sessionGhost,startingHand:scenario?.startingHand,base:new URL('.',location.href).href,seed:Array.from(crypto.getRandomValues(new Uint32Array(4)))});
   renderDuel();
 }
-function start(){launchDuel(sessionMode,currentScenario);}
-function stop(){worker?.terminate();worker=null;state=null;error='';selectedCard=null;clearActionNotice();sessionMode='duel';currentScenario=null;renderSetup();}
+function start(){void launchDuel(sessionMode,currentScenario);}
+function stop(){worker?.terminate();worker=null;state=null;error='';selectedCard=null;clearActionNotice();disconnectClaudeBridge();sessionMode='duel';currentScenario=null;renderSetup();}
 function editRecordedDraft(){
   const source=createGhostDraft({deck:sessionDeck,steps:recordedSteps,handNames:currentScenario?.handNames??[],startingHand:currentScenario?.startingHand,name:`${sessionDeck.name} 전개 초안`});
   worker?.terminate();worker=null;state=null;busy=false;
@@ -228,7 +302,7 @@ function field(player){
   const count=l=>z[l]?.count??z[l]?.cards?.filter(Boolean).length??0;
   const row=(l,n)=>`<div class="field-row">${Array.from({length:n},(_,i)=>card(z[l]?.cards?.[i],player,l,i)).join('')}</div>`;
   const piles=`<div class="pilebar">${[[1,'덱'],[64,'엑스트라'],[16,'묘지'],[32,'제외']].map(([l,t])=>`<button class="mini" data-pile="${player},${l}">${t} ${count(l)}</button>`).join('')}</div>`;
-  const opponentName=sessionMode==='duel'?'고스트':sessionMode==='ghost-create'?'상대':'연습 상대';
+  const opponentName=sessionMode==='duel'?'고스트':sessionMode==='claude'?'Claude':sessionMode==='ghost-create'?'상대':'연습 상대';
   const h=player===0?`<div class="live-hand" aria-label="내 패">${(z[2]?.cards??[]).map((c,i)=>card(c,player,2,i)).join('')}</div>`:`<div class="opponent-hand">상대 패 ${count(2)}장</div>`;
   const extra=`<div class="field-spell"><span>필드</span>${card(z[8]?.cards?.[5],player,8,5)}</div>`;
   return `<section class="live-field ${player===1?'opponent':''}"><div class="field-caption"><b>${player===1?opponentName:'나'} · ${state?.lp[player]??8000} LP</b>${piles}${extra}</div>${player===1?h+row(8,5)+row(4,5):row(4,5)+row(8,5)+h}</section>`;
@@ -265,7 +339,7 @@ function panel(){
   if(loading)return `<h2>준비 중</h2><p>${esc(loading)}</p>`;
   if(state?.ended)return `<h2>${state.winner===2?'무승부':state.winner===0?'승리':'패배'}</h2>${draftControl}<button class="primary" id="restart">다시 시작</button>`;
   const p=state?.prompt;if(!p)return '<p>듀얼 처리 중...</p>';
-  if(p.player===1){const opponentTurn=sessionMode==='duel'?'고스트 차례':sessionMode==='ghost-create'?'상대 차례':'연습 상대 차례';return `<h2>${opponentTurn}</h2>${inputError?`<p role="alert" class="input-error">${esc(inputError)}</p>`:''}<p>${esc(state.ghostBlocked??(state.paused?'자동 진행 일시정지':'상대가 차례를 넘기는 중...'))}</p>${draftControl}`;}
+  if(p.player===1){const opponentTurn=sessionMode==='duel'?'고스트 차례':sessionMode==='claude'?'Claude 차례':sessionMode==='ghost-create'?'상대 차례':'연습 상대 차례';return `<h2>${opponentTurn}</h2>${inputError?`<p role="alert" class="input-error">${esc(inputError)}</p>`:''}<p>${esc(state.ghostBlocked??(state.paused?'자동 진행 일시정지':'상대가 차례를 넘기는 중...'))}</p>${sessionMode==='claude'?`<p class="muted">Claude 대화에서 <code>get_duel_state</code>와 <code>duel_action</code>을 사용하면 이어서 진행됩니다.</p>`:''}${draftControl}`;}
   let html=`<div class="decision-intro"><h2>${esc(p.title)}</h2><p>${esc(promptHelp(p))}</p></div>${inputError?`<p role="alert" class="input-error">${esc(inputError)}</p>`:''}`;
   if(draftControl)html+=draftControl;
   if(p.blocked)return html+`<p role="alert">${esc(p.blocked)}</p><p>이 선택은 현재 화면에서 지원하지 않습니다.</p>`;
@@ -299,9 +373,10 @@ function renderDuel(){
   const logWasOpen=root.querySelector('#duelLog')?.open??false;
   const logScroll=oldLogList?.scrollTop??0;
   const logWasAtBottom=!oldLogList||oldLogList.scrollHeight-oldLogList.scrollTop-oldLogList.clientHeight<24;
-  const board=sessionMode==='duel'?`${field(1)}${sharedExtra()}${field(0)}`:`<div class="solo-note">${sessionMode==='ghost-create'?'고스트 생성 · 내 전개를 기록 중':'전개 연습 · 상대 턴 자동 진행'}</div>${field(1)}${sharedExtra()}${field(0)}`;
-  const activeName=state?.active===0?'나':sessionMode==='duel'?'고스트':sessionMode==='ghost-create'?'상대':'연습 상대';
-  root.innerHTML=`<main class="screen live-duel"><header class="topbar"><strong>Ghost Duel</strong><span>${state?`${state.turn}턴 · ${activeName} · ${phaseName[state.phase]??''}`:'YGOPro Core'}</span><div class="top-right">${themeToggle()}${fullscreenButton()}${state?.confirmation?.cards?.length?'<button class="mini" id="openConfirmation" type="button">확인 카드</button>':''}<button class="mini" id="openDuelLog" type="button" aria-label="듀얼 로그 열기">로그</button><button class="mini" id="undo" ${!state?.undoAvailable||busy||error?'disabled':''}>되돌리기</button><button class="mini" id="pause" ${!state||busy||error?'disabled':''}>${state?.paused?'자동 진행':'일시정지'}</button>${state?.paused?'<button class="mini" id="step" '+(busy?'disabled':'')+'>한 행동</button>':''}<button class="mini" id="exit">종료</button></div></header>${actionNotice&&sessionMode==='duel'?`<div class="action-toast" role="status" aria-live="polite"><strong>고스트 행동</strong><span>${esc(actionNotice)}</span></div>`:''}<div class="live-layout"><div class="live-board ${sessionMode==='duel'?'':'solo'}">${board}</div><aside class="decision" aria-live="polite">${panel()}</aside></div><footer class="live-log">${esc(state?.logs.at(-1)??'카드를 눌러 행동을 선택하세요.')}</footer></main><dialog id="duelLog" class="duel-log-dialog" aria-labelledby="duelLogTitle"><header><strong id="duelLogTitle">듀얼 로그</strong><button class="mini" id="closeDuelLog" type="button">닫기</button></header><ol class="duel-log-list">${(state?.logs??[]).map(line=>`<li>${esc(line)}</li>`).join('')||'<li class="duel-log-empty">아직 기록이 없습니다.</li>'}</ol></dialog><dialog id="details"><div id="detailContent"></div><button class="action" id="closeDetail">닫기</button></dialog>`;
+  const liveDuel=['duel','claude'].includes(sessionMode);
+  const board=liveDuel?`${field(1)}${sharedExtra()}${field(0)}`:`<div class="solo-note">${sessionMode==='ghost-create'?'고스트 생성 · 내 전개를 기록 중':'전개 연습 · 상대 턴 자동 진행'}</div>${field(1)}${sharedExtra()}${field(0)}`;
+  const activeName=state?.active===0?'나':sessionMode==='duel'?'고스트':sessionMode==='claude'?'Claude':sessionMode==='ghost-create'?'상대':'연습 상대';
+  root.innerHTML=`<main class="screen live-duel"><header class="topbar"><strong>Ghost Duel</strong><span>${state?`${state.turn}턴 · ${activeName} · ${phaseName[state.phase]??''}`:'YGOPro Core'}</span><div class="top-right">${themeToggle()}${fullscreenButton()}${state?.confirmation?.cards?.length?'<button class="mini" id="openConfirmation" type="button">확인 카드</button>':''}<button class="mini" id="openDuelLog" type="button" aria-label="듀얼 로그 열기">로그</button><button class="mini" id="undo" ${!state?.undoAvailable||busy||error?'disabled':''}>되돌리기</button>${sessionMode==='claude'?'':`<button class="mini" id="pause" ${!state||busy||error?'disabled':''}>${state?.paused?'자동 진행':'일시정지'}</button>${state?.paused?'<button class="mini" id="step" '+(busy?'disabled':'')+'>한 행동</button>':''}`}<button class="mini" id="exit">종료</button></div></header>${actionNotice&&sessionMode==='duel'?`<div class="action-toast" role="status" aria-live="polite"><strong>고스트 행동</strong><span>${esc(actionNotice)}</span></div>`:''}<div class="live-layout"><div class="live-board ${liveDuel?'':'solo'}">${board}</div><aside class="decision" aria-live="polite">${panel()}</aside></div><footer class="live-log">${esc(state?.logs.at(-1)??'카드를 눌러 행동을 선택하세요.')}</footer></main><dialog id="duelLog" class="duel-log-dialog" aria-labelledby="duelLogTitle"><header><strong id="duelLogTitle">듀얼 로그</strong><button class="mini" id="closeDuelLog" type="button">닫기</button></header><ol class="duel-log-list">${(state?.logs??[]).map(line=>`<li>${esc(line)}</li>`).join('')||'<li class="duel-log-empty">아직 기록이 없습니다.</li>'}</ol></dialog><dialog id="details"><div id="detailContent"></div><button class="action" id="closeDetail">닫기</button></dialog>`;
   const duelLog=document.getElementById('duelLog');
   if(logWasOpen){duelLog.showModal();const list=duelLog.querySelector('.duel-log-list');list.scrollTop=logWasAtBottom?list.scrollHeight:logScroll;}
   root.querySelector('.decision').scrollTop=decisionScroll;
@@ -314,7 +389,7 @@ function renderDuel(){
   document.getElementById('restart')?.addEventListener('click',start);
   document.getElementById('makeGhostDraft')?.addEventListener('click',editRecordedDraft);
   document.getElementById('undo').onclick=undo;
-  document.getElementById('pause').onclick=()=>worker.postMessage({type:'pause'});
+  document.getElementById('pause')?.addEventListener('click',()=>worker.postMessage({type:'pause'}));
   document.getElementById('step')?.addEventListener('click',()=>worker.postMessage({type:'step'}));
   document.getElementById('clearCard')?.addEventListener('click',()=>{selectedCard=null;renderDuel();});
   root.querySelectorAll('[data-focus]').forEach(b=>b.onclick=()=>focusCard(b.dataset.focus));

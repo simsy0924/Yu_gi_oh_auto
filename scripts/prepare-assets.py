@@ -1,5 +1,6 @@
 """Build versioned, same-origin data bundles. Requires Python 3 and git only."""
 import gzip, json, pathlib, sqlite3, subprocess, sys
+from effect_scripts import collect_effect_scripts
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SOURCES = {
     'CardScripts': ('https://github.com/ProjectIgnis/CardScripts.git', '1e28935380407e8f4e5a7edf50875b4b38fe56a6'),
@@ -15,6 +16,7 @@ for name, (url, ref) in SOURCES.items():
     path = base / name
     if not path.exists():
         subprocess.run(['git', 'clone', url, str(path)], check=True)
+        subprocess.run(['git', '-C', str(path), 'checkout', '--detach', ref], check=True)
     actual = subprocess.check_output(['git', '-C', str(path), 'rev-parse', 'HEAD'], text=True).strip()
     if actual != ref:
         raise SystemExit(f'{name}: expected {ref}, got {actual}; checkout pinned revision first')
@@ -40,9 +42,7 @@ for path in [base/'BabelCDB/cards.cdb', *sorted((base/'BabelCDB').glob('prerelea
             race=str(d['race']), attribute=d['attribute'], name=t['name'], desc=t['desc'],
             strings=[t.get(f'str{i}', '') for i in range(1,17)])
     db.close()
-scripts = {}
-for path in [*sorted((base/'CardScripts').glob('*.lua')), *sorted((base/'CardScripts/official').glob('*.lua'))]:
-    scripts[path.name] = path.read_text(encoding='utf-8-sig')
+scripts, pre_release_count = collect_effect_scripts(base/'CardScripts')
 write('cards.json.gz', cards)
 write('scripts.json.gz', scripts)
 source_manifest = {
@@ -59,4 +59,4 @@ source_manifest = {
     'cards': len(cards),
     'scripts': len(scripts),
 }, indent=2)+'\n')
-print(f'{len(cards)} cards, {len(scripts)} scripts')
+print(f'{len(cards)} cards, {len(scripts)} scripts ({pre_release_count} prerelease Lua files)')
