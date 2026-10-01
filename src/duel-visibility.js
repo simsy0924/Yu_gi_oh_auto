@@ -3,9 +3,9 @@ export function isHiddenZoneForViewer(controller,location,viewer) {
 }
 
 function visibleOption(option,viewer,index) {
-  const {card,...rest}=option;
-  const hidden=option.source&&isHiddenZoneForViewer(option.source.controller,option.source.location,viewer);
-  return hidden?{...rest,label:`비공개 카드 ${index+1}`}:{...rest};
+  const {card,cardName,...rest}=option;
+  const hidden=option.source&&option.source.controller!==viewer&&isHiddenZoneForViewer(option.source.controller,option.source.location,viewer);
+  return hidden?{...rest,label:`비공개 카드 ${index+1}`}:{...rest,...(cardName?{cardName}:{})};
 }
 
 export function promptForViewer(prompt,viewer) {
@@ -20,9 +20,9 @@ export function promptForViewer(prompt,viewer) {
 
   const {choices=[],selection,...rest}=prompt;
   const visibleChoices=choices.map(choice=>{
-    const {response,card,...safeChoice}=choice;
-    const hidden=choice.source&&isHiddenZoneForViewer(choice.source.controller,choice.source.location,viewer);
-    return hidden?{...safeChoice,label:`비공개 카드 행동 ${choice.id}`,shortLabel:'비공개 카드 행동'}:safeChoice;
+    const {response,card,cardName,...safeChoice}=choice;
+    const hidden=choice.source&&choice.source.controller!==viewer&&isHiddenZoneForViewer(choice.source.controller,choice.source.location,viewer);
+    return hidden?{...safeChoice,label:`비공개 카드 행동 ${choice.id}`,shortLabel:'비공개 카드 행동'}:{...safeChoice,...(cardName?{cardName}:{})};
   });
   const visibleSelection=selection?{
     ...selection,
