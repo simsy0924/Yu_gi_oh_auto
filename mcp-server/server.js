@@ -9,8 +9,11 @@ const DEFAULT_HOST='127.0.0.1';
 const DEFAULT_PORT=3210;
 const CLIENT_TIMEOUT_MS=15000;
 const ACTION_TIMEOUT_MS=60000;
+const ACTION_AUTO_WAIT_MS=55000;
 const MAX_BODY_BYTES=8*1024*1024;
 const PAGE_SIZE=100;
+const STATE_HISTORY_LIMIT=32;
+const TOOL_LOG_LIMIT=12;
 const DEFAULT_ALLOWED_ORIGINS=['https://simsy0924.github.io','http://localhost:5173','http://127.0.0.1:5173'];
 const PAIRING_CODE_PATTERN=/^[0-9a-f-]{36}$/i;
 const ROOM_IDLE_TIMEOUT_MS=60*60*1000;
@@ -37,13 +40,113 @@ async function bodyJson(req) {
   catch{throw new Error('JSON 요청 본문을 읽을 수 없습니다.');}
 }
 
-function stateForTool(state) {
-  const result={...state,logs:(state.logs??[]).slice(-30)};
+function toolStateSnapshot(state) {
+  const result={...state,logs:(state.logs??[]).slice(-TOOL_LOG_LIMIT)};
   const options=result.prompt?.selection?.options;
   if(options?.length>PAGE_SIZE) {
     result.prompt={...result.prompt,selection:{...result.prompt.selection,options:options.slice(0,PAGE_SIZE),optionSummary:{total:options.length,shown:PAGE_SIZE,tool:'list_legal_options'}}};
   }
   return result;
+}
+
+function pointerPath(path,key) {
+  return `${path}/${String(key).replace(/~/g,'~0').replace(/\//g,'~1')}`;
+}
+
+function arrayItemKeys(items) {
+  const occurrences=new Map();
+  return items.map(item=>{
+    if(!item||typeof item!=='object'||Array.isArray(item))return null;
+    if(typeof item.id==='string'||typeof item.id==='number')return `id:${typeof item.id}:${item.id}`;
+    if(typeof item.code!=='string'&&typeof item.code!=='number')return null;
+    const base=`card:${item.controller??''}:${item.location??''}:${item.code}`;
+    const occurrence=occurrences.get(base)??0;occurrences.set(base,occurrence+1);
+    return `${base}:${occurrence}`;
+  });
+}
+
+function diffArray(previous,next,path,changes) {
+  const previousKeys=arrayItemKeys(previous),nextKeys=arrayItemKeys(next);
+  if(!previousKeys.some(key=>key===null)&&!nextKeys.some(key=>key===null)) {
+    const rows=Array.from({length:previous.length+1},()=>new Uint32Array(next.length+1));
+    for(let i=previous.length-1;i>=0;i--)for(let j=next.length-1;j>=0;j--)
+      rows[i][j]=previousKeys[i]===nextKeys[j]?rows[i+1][j+1]+1:Math.max(rows[i+1][j],rows[i][j+1]);
+    const matches=[];let i=0,j=0;
+    while(i<previous.length&&j<next.length) {
+      if(previousKeys[i]===nextKeys[j]){matches.push([i,j]);i++;j++;}
+      else if(rows[i+1][j]>=rows[i][j+1])i++;
+      else j++;
+    }
+    const matchedPrevious=new Set(matches.map(([previousIndex])=>previousIndex));
+    const matchedNext=new Set(matches.map(([,nextIndex])=>nextIndex));
+    for(let index=previous.length-1;index>=0;index--)if(!matchedPrevious.has(index))changes.push({op:'remove',path:pointerPath(path,index)});
+    for(let index=0;index<next.length;index++)if(!matchedNext.has(index))changes.push({op:'add',path:pointerPath(path,index),value:next[index]});
+    for(const [previousIndex,nextIndex] of matches)diffJson(previous[previousIndex],next[nextIndex],pointerPath(path,nextIndex),changes);
+    return changes;
+  }
+  if(previous.length===next.length) {
+    for(let index=0;index<previous.length;index++)diffJson(previous[index],next[index],pointerPath(path,index),changes);
+    return changes;
+  }
+  changes.push({op:'replace',path,value:next});
+  return changes;
+}
+
+function diffJson(previous,next,path='',changes=[]) {
+  if(Object.is(previous,next))return changes;
+  const previousObject=previous!==null&&typeof previous==='object'&&!Array.isArray(previous);
+  const nextObject=next!==null&&typeof next==='object'&&!Array.isArray(next);
+  if(previousObject&&nextObject) {
+    for(const key of new Set([...Object.keys(previous),...Object.keys(next)])) {
+      const previousHas=Object.hasOwn(previous,key),nextHas=Object.hasOwn(next,key),childPath=pointerPath(path,key);
+      if(!previousHas)changes.push({op:'add',path:childPath,value:next[key]});
+      else if(!nextHas)changes.push({op:'remove',path:childPath});
+      else diffJson(previous[key],next[key],childPath,changes);
+    }
+    return changes;
+  }
+  if(Array.isArray(previous)&&Array.isArray(next))return diffArray(previous,next,path,changes);
+  changes.push({op:'replace',path,value:next});
+  return changes;
+}
+
+function diffLogs(previous=[],next=[]) {
+  let overlap=Math.min(previous.length,next.length);
+  while(overlap>0&&!previous.slice(-overlap).every((entry,index)=>entry===next[index]))overlap--;
+  if(previous.length&&next.length&&!overlap)return {replace:next};
+  if(next.length<previous.length&&overlap<next.length)return {replace:next};
+  return {append:next.slice(overlap),drop:overlap?previous.length-overlap:0};
+}
+
+function stateForTool(state,baseState=null) {
+  if(!state)return null;
+  const current=toolStateSnapshot(state);
+  if(!baseState||baseState.viewer!==state.viewer||!Number.isInteger(baseState.revision)||!Number.isInteger(state.revision)||baseState.revision>state.revision)
+    return {kind:'full',revision:current.revision,state:current};
+  const previous=toolStateSnapshot(baseState),before={...previous},after={...current};
+  delete before.logs;delete after.logs;
+  return {
+    kind:'delta',baseRevision:previous.revision,revision:current.revision,
+    changes:diffJson(before,after),logs:diffLogs(previous.logs,current.logs)
+  };
+}
+
+function rememberState(history,state) {
+  if(!Number.isInteger(state?.revision))return;
+  history.delete(state.revision);history.set(state.revision,toolStateSnapshot(state));
+  while(history.size>STATE_HISTORY_LIMIT)history.delete(history.keys().next().value);
+}
+
+function readSinceRevision(value) {
+  if(value===undefined)return null;
+  if(!Number.isInteger(value)||value<0)throw new Error('sinceRevision은 0 이상의 정수여야 합니다.');
+  return value;
+}
+
+function readWaitDuration(value,fallback,{minimum=0}={}) {
+  if(value===undefined)return fallback;
+  if(!Number.isInteger(value)||value<minimum||value>60000)throw new Error('대기 시간은 허용 범위 안의 정수여야 합니다.');
+  return value;
 }
 
 function validateAction(state,args) {
@@ -80,10 +183,12 @@ function validateCommentary(value) {
 export function createBridgeServer({host=DEFAULT_HOST,port=DEFAULT_PORT}={}) {
   let activeClientId=null,lastClientSeen=0,latestState=null,latestAction=null,pendingAction=null,actionSequence=0;
   const turnWaiters=new Set();
+  const stateHistory=new Map();
 
   const connected=()=>!!activeClientId&&Date.now()-lastClientSeen<CLIENT_TIMEOUT_MS;
   const clearSession=()=>{
     activeClientId=null;lastClientSeen=0;latestState=null;latestAction=null;actionSequence=0;
+    stateHistory.clear();
     if(pendingAction){pendingAction.reject(new Error('듀얼 페이지 연결이 끊겼습니다.'));pendingAction=null;}
     for(const waiter of turnWaiters){clearTimeout(waiter.timer);waiter.reject(new Error('듀얼 페이지 연결이 끊겼습니다.'));}
     turnWaiters.clear();
@@ -128,10 +233,10 @@ export function createBridgeServer({host=DEFAULT_HOST,port=DEFAULT_PORT}={}) {
         const body=await bodyJson(req);
         if(!connected()||body?.clientId!==activeClientId){json(res,409,{error:'연결된 Claude 대전 탭이 아닙니다.'},cors);return;}
         if(!body.state||body.state.viewer!==1||!Array.isArray(body.state.logs)){json(res,400,{error:'player 1 시점의 듀얼 상태가 필요합니다.'},cors);return;}
-        latestState=body.state;lastClientSeen=Date.now();notifyWaiters();
+        latestState=body.state;lastClientSeen=Date.now();rememberState(stateHistory,latestState);notifyWaiters();
         if(body.actionResult&&pendingAction?.id===body.actionResult.requestId){
           const action=pendingAction;pendingAction=null;latestAction=null;
-          if(body.actionResult.ok)action.resolve(latestState);
+          if(body.actionResult.ok)action.resolve({state:latestState,baseState:action.baseState});
           else action.reject(new Error(body.actionResult.error||'듀얼 행동을 적용하지 못했습니다.'));
         }
         json(res,200,{ok:true},cors);return;
@@ -163,10 +268,11 @@ export function createBridgeServer({host=DEFAULT_HOST,port=DEFAULT_PORT}={}) {
     const input=validateAction(latestState,args);
     const commentary=validateCommentary(args.commentary);
     if(pendingAction)throw new Error('앞서 보낸 행동이 아직 처리 중입니다.');
+    const baseState=toolStateSnapshot(latestState);
     const id=randomUUID();
     const action={id,sequence:++actionSequence,revision:latestState.revision,input,...(commentary?{commentary}:{})};
     latestAction=action;
-    const result=new Promise((resolve,reject)=>{pendingAction={id,resolve,reject};});
+    const result=new Promise((resolve,reject)=>{pendingAction={id,resolve,reject,baseState};});
     let timeout;
     try{return await Promise.race([result,new Promise((_,reject)=>{timeout=setTimeout(()=>reject(new Error('듀얼 페이지가 행동 응답을 보내지 않았습니다. 연결 상태를 확인하세요.')),ACTION_TIMEOUT_MS);})]);}
     finally{clearTimeout(timeout);if(pendingAction?.id===id){pendingAction=null;latestAction=null;}}
@@ -178,28 +284,35 @@ export function createBridgeServer({host=DEFAULT_HOST,port=DEFAULT_PORT}={}) {
     close:()=>new Promise(resolve=>{clearSession();server.close(()=>resolve());}),
     connected,
     getState:()=>latestState,
+    getKnownState:revision=>stateHistory.get(revision),
     waitForTurn,
     submitAction
   };
 }
 
 const toolDefinitions=[
-  {name:'get_duel_state',description:'Read the current duel from Claude player 1’s perspective. This includes Claude’s own hand, visible board cards, the current legal prompt, and legal choices. Opponent hand and unrevealed cards are hidden. Call once to start; duel_action returns nextState, which you can use for the next decision without another state call.',inputSchema:{type:'object',properties:{},additionalProperties:false}},
-  {name:'wait_for_duel_turn',description:'Wait for the user’s turn to finish and return the state when Claude can act. Use this while the user is choosing a move.',inputSchema:{type:'object',properties:{timeoutMs:{type:'integer',minimum:1000,maximum:60000,description:'Maximum wait in milliseconds (default 30000).'}},additionalProperties:false}},
+  {name:'get_duel_state',description:'Read the current duel from Claude player 1’s perspective. The first call returns Claude’s own hand, visible board cards, the current legal prompt, and legal choices; opponent hand and unrevealed cards are hidden. For later calls, pass the last known revision as sinceRevision to receive only changed fields and new logs. duel_action returns nextState as a compact delta; apply its changes and logs before deciding. If kind=full, replace your stored state; if kind=delta, apply the JSON Patch changes and log update. Do not request another full state after every action.',inputSchema:{type:'object',properties:{sinceRevision:{type:'integer',minimum:0,description:'Last known state revision. Omit only for the initial full state.'}},additionalProperties:false}},
+  {name:'wait_for_duel_turn',description:'Wait for the next Claude action prompt or duel end. Pass sinceRevision to receive only changes since the last state. Use this to keep a duel response active while the user plays; it returns waitingForClaude=true if the wait expires before a Claude prompt appears. For continuous play, call again with the newest revision while waitingForClaude is true.',inputSchema:{type:'object',properties:{timeoutMs:{type:'integer',minimum:1000,maximum:60000,description:'Maximum wait in milliseconds (default 30000).'},sinceRevision:{type:'integer',minimum:0,description:'Last known state revision, so only changes are returned.'}},additionalProperties:false}},
   {name:'list_legal_options',description:'List or search the current selection options when get_duel_state reports more than 100 options. Use the returned option IDs with duel_action.',inputSchema:{type:'object',properties:{query:{type:'string',description:'Optional case-insensitive text to search in visible option labels.'},offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:100}},additionalProperties:false}},
-  {name:'duel_action',description:'Submit exactly one legal choice or selection from the current Claude prompt. The result includes nextState; use it immediately for the next Claude decision instead of calling get_duel_state again. Continue handling Claude prompts until it is the user’s turn or the duel ends. Optionally include a short commentary message to show in the duel screen.',inputSchema:{type:'object',properties:{choiceId:{type:'string',description:'The id of one item in prompt.choices.'},selectionIds:{type:'array',items:{type:'integer'},description:'Option IDs selected from prompt.selection.options.'},counterCounts:{type:'array',items:{type:'integer',minimum:0},description:'Counter amounts, one for each prompt.selection.options item.'},commentary:{type:'string',maxLength:280,description:'Optional short message (up to 280 characters) shown in the duel screen and log.'}},additionalProperties:false}}
+  {name:'duel_action',description:'Submit exactly one legal choice or selection from the current Claude prompt. The result includes nextState as a compact delta from the state used for this action; apply its changes and logs before deciding, and do not call get_duel_state again. If this action hands priority to the user, the tool waits up to waitForTurnMs for the next Claude prompt or duel end, so immediate draw/standby responses can continue without a new user message. If waitingForClaude is still true, keep the response active by calling wait_for_duel_turn with nextState.revision; apply its delta and repeat while waitingForClaude stays true. Optionally include short commentary for the duel screen.',inputSchema:{type:'object',properties:{choiceId:{type:'string',description:'The id of one item in prompt.choices.'},selectionIds:{type:'array',items:{type:'integer'},description:'Option IDs selected from prompt.selection.options.'},counterCounts:{type:'array',items:{type:'integer',minimum:0},description:'Counter amounts, one for each prompt.selection.options item.'},commentary:{type:'string',maxLength:280,description:'Optional short message (up to 280 characters) shown in the duel screen and log.'},waitForTurnMs:{type:'integer',minimum:0,maximum:60000,description:'How long to wait after yielding priority for the next Claude prompt (default 55000; use 0 to return immediately).'}},additionalProperties:false}}
 ];
 
 export function createToolHandlers(bridge) {
   return {
-    get_duel_state:()=>{
+    get_duel_state:({sinceRevision:sinceValue}={})=>{
       const state=bridge.getState();
       if(!bridge.connected()||!state)throw new Error('듀얼 페이지가 연결되지 않았습니다. Ghost Duel에서 Claude 대전을 시작하세요.');
-      return stateForTool(state);
+      const sinceRevision=readSinceRevision(sinceValue);
+      return stateForTool(state,sinceRevision===null?null:bridge.getKnownState(sinceRevision));
     },
-    wait_for_duel_turn:async({timeoutMs=30000}={})=>{
-      const state=await bridge.waitForTurn(Math.max(1000,Math.min(60000,Number(timeoutMs)||30000)));
-      return state?stateForTool(state):{waiting:true,message:'아직 듀얼 상태가 없습니다.'};
+    wait_for_duel_turn:async({timeoutMs=30000,sinceRevision:sinceValue}={})=>{
+      const sinceRevision=readSinceRevision(sinceValue);
+      const waitMs=readWaitDuration(timeoutMs,30000,{minimum:1000});
+      const baseState=sinceRevision===null?null:bridge.getKnownState(sinceRevision);
+      const state=await bridge.waitForTurn(waitMs);
+      if(!state)return {kind:'empty',waitingForClaude:true,message:'아직 듀얼 상태가 없습니다.'};
+      const snapshot=stateForTool(state,baseState);
+      return {...snapshot,waitingForClaude:!state.ended&&state.prompt?.player!==1};
     },
     list_legal_options:({query='',offset=0,limit=PAGE_SIZE}={})=>{
       const state=bridge.getState();
@@ -212,8 +325,15 @@ export function createToolHandlers(bridge) {
       return {options:matches.slice(start,start+size),offset:start,limit:size,total:matches.length,hasMore:start+size<matches.length};
     },
     duel_action:async args=>{
-      const state=await bridge.submitAction(args);
-      return {applied:true,nextState:state?stateForTool(state):null};
+      const waitMs=readWaitDuration(args.waitForTurnMs,ACTION_AUTO_WAIT_MS);
+      const submitted=await bridge.submitAction(args);
+      let state=submitted?.state??null;
+      if(waitMs>0&&state&&!state.ended&&state.prompt?.player!==1)state=await bridge.waitForTurn(waitMs)??state;
+      return {
+        applied:true,
+        nextState:state?stateForTool(state,submitted?.baseState??null):null,
+        waitingForClaude:!!state&&!state.ended&&state.prompt?.player!==1
+      };
     }
   };
 }
@@ -236,9 +356,10 @@ function remoteToolDefinitions() {
 function createRemoteDuelBridge() {
   let activeSocket=null,latestState=null,lastClientSeen=Date.now(),latestAction=null,pendingAction=null,actionSequence=0;
   const turnWaiters=new Set();
+  const stateHistory=new Map();
   const connected=()=>!!latestState&&Date.now()-lastClientSeen<ROOM_IDLE_TIMEOUT_MS;
   const close=()=>{
-    latestState=null;latestAction=null;
+    latestState=null;latestAction=null;stateHistory.clear();
     if(pendingAction){pendingAction.reject(new Error('듀얼 페이지 연결이 끊겼습니다.'));pendingAction=null;}
     for(const waiter of turnWaiters){clearTimeout(waiter.timer);waiter.reject(new Error('듀얼 페이지 연결이 끊겼습니다.'));}
     turnWaiters.clear();
@@ -251,10 +372,10 @@ function createRemoteDuelBridge() {
   };
   function updateState(message) {
     if(!message.state||message.state.viewer!==1||!Array.isArray(message.state.logs))throw new Error('player 1 시점의 듀얼 상태가 필요합니다.');
-    latestState=message.state;lastClientSeen=Date.now();notifyWaiters();
+    latestState=message.state;lastClientSeen=Date.now();rememberState(stateHistory,latestState);notifyWaiters();
     if(message.actionResult&&pendingAction?.id===message.actionResult.requestId){
       const action=pendingAction;pendingAction=null;latestAction=null;
-      if(message.actionResult.ok)action.resolve(latestState);
+      if(message.actionResult.ok)action.resolve({state:latestState,baseState:action.baseState});
       else action.reject(new Error(message.actionResult.error||'듀얼 행동을 적용하지 못했습니다.'));
     }
   }
@@ -275,10 +396,11 @@ function createRemoteDuelBridge() {
     const input=validateAction(latestState,args);
     const commentary=validateCommentary(args.commentary);
     if(pendingAction)throw new Error('앞서 보낸 행동이 아직 처리 중입니다.');
+    const baseState=toolStateSnapshot(latestState);
     const id=randomUUID();
     const action={id,sequence:++actionSequence,revision:latestState.revision,input,...(commentary?{commentary}:{})};
     latestAction=action;
-    const result=new Promise((resolve,reject)=>{pendingAction={id,resolve,reject};});
+    const result=new Promise((resolve,reject)=>{pendingAction={id,resolve,reject,baseState};});
     let timeout;
     try{
       sendPendingAction();
@@ -286,7 +408,7 @@ function createRemoteDuelBridge() {
     }finally{clearTimeout(timeout);if(pendingAction?.id===id){pendingAction=null;latestAction=null;}}
   }
   return {
-    connected,getState:()=>latestState,updateState,waitForTurn,submitAction,close,touch:()=>{lastClientSeen=Date.now();},
+    connected,getState:()=>latestState,getKnownState:revision=>stateHistory.get(revision),updateState,waitForTurn,submitAction,close,touch:()=>{lastClientSeen=Date.now();},
     attach:nextSocket=>{activeSocket=nextSocket;sendPendingAction();},
     detach:closedSocket=>{if(activeSocket===closedSocket)activeSocket=null;}
   };
