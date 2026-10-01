@@ -194,11 +194,12 @@ test('remote Streamable HTTP MCP pairs through an origin-checked WebSocket and a
   assert.equal(initialize.result.protocolVersion,'2025-06-18');
   const listed=await mcp(2,'tools/list');
   assert.ok(listed.result.tools.every(tool=>tool.inputSchema.required.includes('pairingCode')));
+  assert.ok(Buffer.byteLength(JSON.stringify(listed.result.tools))<3200,'MCP tool definitions should remain compact');
   const actionTool=listed.result.tools.find(tool=>tool.name==='duel_action');
   assert.equal(actionTool.inputSchema.properties.commentary.maxLength,280);
   assert.equal(actionTool.inputSchema.properties.waitForTurnMs.maximum,60000);
   assert.ok(!actionTool.inputSchema.required.includes('commentary'));
-  assert.match(actionTool.description,/compact delta/);
+  assert.match(actionTool.description,/JSON Patch/);
 
   const connect=async()=>{
     const socket=new WebSocket(`${base.replace(/^http/,'ws')}/relay`,{headers:{origin:'http://localhost:5173'}});

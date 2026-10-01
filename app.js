@@ -467,7 +467,7 @@ function renderDuel(){
   root.querySelectorAll('.decision .choices').forEach((list,index)=>{list.scrollTop=choiceScrolls[index]??0;});
   document.getElementById('exit').onclick=stop;
   document.getElementById('copyClaudePairing')?.addEventListener('click',async()=>{
-    const text=`Ghost Duel에서 Claude로 듀얼해줘. 처음 get_duel_state를 호출하고, Claude 차례의 합법 행동을 duel_action으로 제출해. 첫 상태는 전체 스냅샷이고 이후 nextState는 changes(JSON Patch)와 logs 변경분만 담은 델타이니 반영해서 사용해. 매번 get_duel_state를 다시 호출하지 마. 네 행동으로 내 차례가 되면 duel_action은 기본 55초 동안 다음 Claude 선택지를 기다렸다가 반환하니, 새 prompt가 오면 계속 처리해. waitingForClaude가 true인데 듀얼이 계속 중이면 nextState.revision을 sinceRevision으로 wait_for_duel_turn을 다시 호출해. Claude 선택지가 생기거나 듀얼이 끝날 때까지 반환된 델타만 반영하며 기다려. 체인 우선권은 매번 직접 판단해. 짧은 대사는 각 행동의 commentary에 넣어(최대 280자). 연결 코드: ${claudePairingCode}`;
+    const text=`Ghost Duel에서 Claude로 듀얼해줘. 처음 get_duel_state를 호출하고, Claude 차례의 합법 행동을 duel_action으로 제출해. 첫 상태는 전체 스냅샷이고 이후 nextState는 changes(JSON Patch)와 logs 변경분만 담은 델타이니 반영해서 사용해. 매번 get_duel_state를 다시 호출하지 마. 네 행동으로 내 차례가 되면 duel_action은 기본 55초 동안 다음 Claude 선택지를 기다렸다가 반환하니, 새 prompt가 오면 계속 처리해. waitingForClaude가 true인데 듀얼이 계속 중이면 nextState.revision을 sinceRevision으로 wait_for_duel_turn을 다시 호출해. Claude 선택지가 생기거나 듀얼이 끝날 때까지 반환된 델타만 반영하며 기다려. 사용량을 아끼도록 짧게 판단해 바로 행동 도구를 호출하고, 설명이나 중계 대사는 기본 생략해. 꼭 필요한 장면에만 commentary를 짧게 넣어. 연결 코드: ${claudePairingCode}`;
     try{await navigator.clipboard.writeText(text);const button=document.getElementById('copyClaudePairing');if(button)button.textContent='복사 완료';}
     catch{claudeBridgeStatus='복사할 수 없습니다. 화면의 연결 코드를 길게 눌러 복사하세요.';}
   });
