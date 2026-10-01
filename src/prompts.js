@@ -96,6 +96,19 @@ export function counterResponse(p,counts){
   if(s?.mode!=='counter'||!Array.isArray(counts)||counts.length!==s.options.length||counts.some((n,i)=>!Number.isInteger(n)||n<0||n>s.options[i].cap)||counts.reduce((n,c)=>n+c,0)!==s.total)throw new Error(`카운터를 정확히 ${s?.total??0}개 분배하세요.`);
   return {type:R.SELECT_COUNTER,counters:counts};
 }
+export function unambiguousResponse(p){
+  if(!p)return null;
+  if(!p.selection&&p.choices?.length===1)return p.choices[0].response??null;
+  const selection=p.selection,options=selection?.options??[];
+  if(p.choices?.length||!selection)return null;
+  if(selection.mode==='counter'&&options.length===1&&Number.isInteger(selection.total)&&selection.total>=0&&selection.total<=options[0].cap){
+    try{return counterResponse(p,[selection.total]);}catch{return null;}
+  }
+  if(options.length===1&&selection.min===1&&selection.max===1&&selection.mode!=='toggle'&&selection.mode!=='sum'){
+    try{return selectionResponse(p,[options[0].id]);}catch{return null;}
+  }
+  return null;
+}
 function validSum(s,selected){
   const cards=[...s.mandatory,...selected];if(!cards.length)return false;
   if(s.selectMax){
