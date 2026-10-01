@@ -185,14 +185,20 @@ Claude Desktop에서 쓰려면 설정 화면에서 `claude_desktop_config.json`�
 ```
 
 Claude를 다시 열고 Ghost Duel에서 `Claude 대전`을 선택해 내 덱과 Claude 덱을 고른 뒤
-시작합니다. Claude 대화에서는 `get_duel_state`로 현재 공개 정보와 합법 선택지를 읽고,
-`duel_action`으로 한 행동을 제출합니다. 선택 요청이 많을 때는 `list_legal_options`,
-내 차례를 기다릴 때는 `wait_for_duel_turn`을 사용합니다. 카드 효과는 기존 WASM 엔진이
-판정합니다.
+시작합니다. Claude 대화에서는 첫 `get_duel_state` 호출에서 전체 상태를 읽고,
+그다음부터는 상태 revision을 사용한 변경분만 받습니다. `duel_action` 응답의 `nextState`도
+전체 스냅샷 대신 바뀐 필드와 새 로그만 반환하므로 다음 판단에 바로 적용합니다. 선택 요청이
+많을 때는 `list_legal_options`를 사용합니다. 카드 효과는 기존 WASM 엔진이 판정합니다.
 
-`duel_action` 응답에는 다음 상태(`nextState`)가 들어 있으므로, Claude는 이를 바로
-사용해 이어지는 선택을 처리할 수 있습니다. 체인처럼 판단이 필요한 우선권은 행동마다
-Claude가 한 번씩 선택해야 하지만, 중복 상태 조회는 생략할 수 있습니다.
+`duel_action` 응답에는 다음 상태(`nextState`)가 JSON Patch 형식의 변경분으로 들어 있습니다.
+Claude는 변경분과 추가 로그를 적용해 이어지는 선택을 처리합니다. 행동으로 사용자 차례가
+되면 기본 55초 동안 다음 Claude 선택지를 기다립니다. 그 사이 드로우/스탠바이 등에 Claude의
+선택지가 생기면 같은 응답 흐름에서 바로 이어서 처리합니다. 시간 내 선택지가 생기지 않으면
+`waitingForClaude`가 `true`로 반환됩니다. 자동 대기를 이어가려면 Claude가 최신 revision을
+`wait_for_duel_turn`에 전달해 다시 기다릴 수 있습니다. 다만 Claude 원격 MCP가 서버에서 새 모델
+응답을 깨우는 sampling/resource subscription을 지원하지 않으므로, Claude 응답이 끝난 뒤에는
+서버가 모바일 앱에 새 응답을 강제로 시작시킬 수 없습니다. 체인처럼 판단이 필요한 우선권은
+행동마다 Claude가 한 번씩 선택해야 합니다.
 `duel_action`의 선택과 함께 `commentary`를 보내면 짧은 대사가 듀얼 화면과 로그에
 표시됩니다. Claude의 일반 답변 전체를 앱으로 복사하는 방식은 아닙니다.
 
