@@ -15,7 +15,7 @@ export function makePrompt(m,cards) {
   const description=d=>{const n=BigInt(d??0),c=cards[Number(n>>20n)];return c?.koreanStrings?.[Number(n&0xfffffn)]||'';};
   const label=c=>`${name(c)}${c.location?` · ${({'2':'패','4':'몬스터','8':'마법·함정','16':'묘지','32':'제외','64':'엑스트라'})[c.location]??'덱'} ${c.sequence+1}`:''}${c.description?` ${description(c.description)}`:''}`;
   const source=c=>c&&Number.isInteger(c.controller)&&Number.isInteger(c.location)&&Number.isInteger(c.sequence)?{controller:c.controller,location:c.location,sequence:c.sequence}:null;
-  const add=(label,response,kind='',card=null,from=null,shortLabel=label)=>p.choices.push({id:String(p.choices.length),label,shortLabel,response,kind,card,source:source(from)});
+  const add=(label,response,kind='',card=null,from=null,shortLabel=label)=>p.choices.push({id:String(p.choices.length),label,shortLabel,response,kind,card,cardName:card==null?null:name({code:card}),source:source(from)});
   const command=(list,action,kind,verb)=>(list??[]).forEach((c,index)=>add(`${verb} · ${label(c)}`,{type,action,index},kind,c.code,c,`${verb}${c.description&&description(c.description)?` · ${description(c.description)}`:''}`));
   switch(m.type) {
     case M.SELECT_IDLECMD:
@@ -44,10 +44,14 @@ export function makePrompt(m,cards) {
       p.selection={options:m.selects.map((c,index)=>({id:index,label:label(c),card:c.code,value:c.release_param??1,source:source(c)})),min:m.min,max:m.max,tribute:m.type===M.SELECT_TRIBUTE};
       if(m.can_cancel)add('취소',{type,indicies:null},'cancel');break;
     case M.SELECT_PLACE: case M.SELECT_DISFIELD:
-      p.title='존 선택';p.selection={options:fieldPlaces(m.field_mask,m.player).map((place,id)=>({id,label:`${place.player===0?'내':'상대'} ${place.location===4?'몬스터':'마법·함정'} 존 ${place.sequence+1}`,place})),min:m.count,max:m.count};break;
+      p.title='존 선택';p.selection={options:fieldPlaces(m.field_mask,m.player).map((place,id)=>({id,label:`${place.player===m.player?'내':'상대'} ${place.location===4?'몬스터':'마법·함정'} 존 ${place.sequence+1}`,place})),min:m.count,max:m.count};break;
     case M.SELECT_UNSELECT_CARD:
-      p.title='소재 선택 / 선택 해제';[...m.select_cards,...m.unselect_cards].forEach((c,index)=>add(`${index<m.select_cards.length?'선택':'해제'} · ${label(c)}`,{type,index},index<m.select_cards.length?'select':'unselect',c.code,c,index<m.select_cards.length?'소재 선택':'선택 해제'));
-      if(m.can_finish||m.can_cancel)add(m.can_finish?'선택 완료':'취소',{type,index:null},m.can_finish?'finish':'cancel');break;
+      p.title='소재 선택 / 선택 해제';
+      const firstCandidate=p.choices.length;
+      [...m.select_cards,...m.unselect_cards].forEach((c,index)=>add(`${index<m.select_cards.length?'선택':'해제'} · ${label(c)}`,{type,index},index<m.select_cards.length?'select':'unselect',c.code,c,index<m.select_cards.length?'소재 선택':'선택 해제'));
+      const candidates=p.choices.slice(firstCandidate).map(c=>({id:c.id,label:c.label,card:c.card,cardName:c.cardName,kind:c.kind,source:c.source}));
+      if(m.can_finish||m.can_cancel)add(m.can_finish?'선택 완료':'취소',{type,index:null},m.can_finish?'finish':'cancel');
+      p.selection={mode:'toggle',min:m.min,max:m.max,selectedCount:m.unselect_cards.length,canFinish:m.can_finish,options:candidates};break;
     case M.SELECT_COUNTER:
       p.title=`카운터 분배 · ${m.count}개 선택`;
       p.selection={mode:'counter',counterType:m.counter_type,total:m.count,options:m.cards.map((c,id)=>({id,label:`${label(c)} · 보유 ${c.count}개`,cap:c.count,source:source(c)}))};break;

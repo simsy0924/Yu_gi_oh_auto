@@ -105,7 +105,7 @@ self.onmessage=async({data:m})=>{
       }
       for(const [code,strings] of Object.entries(koStrings))if(cards[code])cards[code].koreanStrings=strings;
       const ghost=m.ghost??{deck:m.you,behavior:{type:'scripted',mode:'priority',script:[],fallback:'basic'}};
-      engineData={cards,scripts,wasmBinary};sessionConfig={you:m.you,ghost,seed:Array.isArray(m.seed)?[...m.seed]:[1,2,3,4],startingHand:Array.isArray(m.startingHand)?[...m.startingHand]:null};
+      engineData={cards,scripts,wasmBinary};sessionConfig={you:m.you,ghost,seed:Array.isArray(m.seed)?[...m.seed]:[1,2,3,4],startingHand:Array.isArray(m.startingHand)?[...m.startingHand]:null,firstPlayer:m.firstPlayer===1?1:0};
       session=await DuelSession.create({...engineData,...sessionConfig});publish();
     } else if(m.type==='respond') {
       if(undoing||m.revision!==revision||session?.prompt?.player!==0)return;

@@ -6,7 +6,7 @@ import {normalize} from './src/catalog.js';
 import {openPracticeSetup} from './src/practice-setup.js';
 import {createGhostDraft,recordDecision} from './src/ghost-recording.js';
 import {cardInfoHtml,linkArrows} from './src/card-info.js';
-import {promptHelp,selectionProgress} from './src/duel-guidance.js';
+import {promptHelp,selectionProgress,promptCardName} from './src/duel-guidance.js';
 const root=document.getElementById('app');
 const orientationQuery=window.matchMedia('(orientation: portrait)');
 const orientationGuard=document.createElement('div');
@@ -341,7 +341,8 @@ async function launchDuel(mode='duel',scenario=null){
     renderDuel();
   };
   worker.onerror=e=>{error=e.message||'듀얼 엔진 실행 실패';loading='';busy=false;renderDuel();};
-  worker.postMessage({type:'start',mode:sessionMode,you:sessionDeck,ghost:sessionGhost,startingHand:scenario?.startingHand,base:new URL('.',location.href).href,seed:Array.from(crypto.getRandomValues(new Uint32Array(4)))});
+  const seed=Array.from(crypto.getRandomValues(new Uint32Array(4)));
+  worker.postMessage({type:'start',mode:sessionMode,you:sessionDeck,ghost:sessionGhost,startingHand:scenario?.startingHand,base:new URL('.',location.href).href,seed,firstPlayer:['duel','claude'].includes(sessionMode)?seed[0]&1:0});
   renderDuel();
 }
 function start(){void launchDuel(sessionMode,currentScenario);}
@@ -382,6 +383,15 @@ function field(player){
 function sharedExtra(){return '<div class="shared-extra"><span>엑스트라 몬스터 존</span>'+[5,6].map(i=>{const own=state?.zones[0][4].cards[i],other=state?.zones[1][4].cards[11-i];return own?card(own,0,4,i):other?card(other,1,4,11-i):card(null,0,4,i);}).join('')+'</div>';}
 const choiceButton=(c,short=false)=>`<button class="pick" data-choice="${esc(c.id)}" ${busy?'disabled':''}>${esc(short?c.shortLabel??c.label:c.label)}</button>`;
 function selectionPanel(s){
+  if(s.mode==='toggle'){
+    const actions=state.prompt.choices.filter(c=>c.kind==='select'||c.kind==='unselect');
+    const finish=state.prompt.choices.find(c=>c.kind==='finish');
+    const cancel=state.prompt.choices.find(c=>c.kind==='cancel');
+    const completion=finish
+      ?`<button class="primary confirm-choice" data-choice="${esc(finish.id)}" ${busy?'disabled':''}>선택 완료</button>`
+      :`<button class="primary confirm-choice" disabled>선택 완료</button>`;
+    return `<div class="decision-group toggle-selection"><h3>카드를 하나씩 선택하거나 해제하세요</h3><p class="selection-progress">${selectionProgress(s,[])}</p><div class="choices">${actions.map(choiceButton).join('')}</div>${completion}${cancel?choiceButton(cancel):''}</div>`;
+  }
   if(s.mode==='counter'){
     const chosen=counters.reduce((total,n)=>total+(Number.isFinite(n)?n:0),0);
     return `<div class="decision-group"><h3>카운터 분배</h3><p id="counterRemaining" class="selection-progress">${chosen}/${s.total}개 선택 · 종류 ${s.counterType}</p><div class="counter-choices">${s.options.map(o=>`<label class="counter-option ${selectedCard===sourceKey(o.source)?'focused':''}"><span>${esc(o.label)}</span><input type="number" min="0" max="${o.cap}" step="1" inputmode="numeric" data-counter="${o.id}" value="${Number.isFinite(counters[o.id])?counters[o.id]:0}" aria-label="${esc(o.label)}에서 제거할 카운터"></label>`).join('')}</div><button class="primary confirm-choice" id="confirm" ${busy||chosen!==s.total?'disabled':''}>분배 완료</button></div>`;
@@ -403,7 +413,7 @@ function availableCards(prompt){
     const current=grouped.get(key)??[];current.push(c);grouped.set(key,current);
   }
   if(!grouped.size)return '';
-  return `<div class="decision-group"><h3>행동할 수 있는 카드</h3><div class="choices">${[...grouped].map(([key,choices])=>`<button class="pick card-shortcut ${selectedCard===key?'selected':''}" data-focus="${esc(key)}" aria-pressed="${selectedCard===key}"><strong>${esc(state?.zones?.[choices[0].source.controller]?.[choices[0].source.location]?.cards?.[choices[0].source.sequence]?.name??choices[0].card)}</strong><small>${esc([...new Set(choices.map(c=>c.shortLabel?.split(' · ')[0]??c.kind))].join(' · '))}</small></button>`).join('')}</div></div>`;
+  return `<div class="decision-group"><h3>행동할 수 있는 카드</h3><div class="choices">${[...grouped].map(([key,choices])=>`<button class="pick card-shortcut ${selectedCard===key?'selected':''}" data-focus="${esc(key)}" aria-pressed="${selectedCard===key}"><strong>${esc(promptCardName(choices[0],state?.zones))}</strong><small>${esc([...new Set(choices.map(c=>c.shortLabel?.split(' · ')[0]??c.kind))].join(' · '))}</small></button>`).join('')}</div></div>`;
 }
 function panel(){
   const draftControl=sessionMode==='ghost-create'?`<button class="primary ghost-draft-action" id="makeGhostDraft">고스트 초안 편집 · ${recordedSteps.length}개 행동</button>`:'';
@@ -420,7 +430,7 @@ function panel(){
   const selected=state?.zones?.[player]?.[location]?.cards?.[sequence];
   const cardActions=selectedCard?actionsFor(selectedCard):[];
   const target=selectedCard?targetFor(selectedCard):null;
-  if(selected){
+  if(selected&&p.selection?.mode!=='toggle'){
     html+=`<div class="focused-card"><div><strong>${esc(selected.name??'뒷면 카드')}</strong><small>${cardActions.length}개 행동 가능</small></div><button class="mini" id="inspectCard">카드 정보</button><button class="mini" id="clearCard">닫기</button></div>`;
     if(cardActions.length)html+=`<div class="choices">${cardActions.map(c=>choiceButton(c,true)).join('')}</div>`;
     if(target&&p.selection?.mode!=='counter')html+=`<button class="pick ${selection.includes(target.id)?'selected':''}" data-select="${target.id}">${selection.includes(target.id)?'선택 해제':'이 카드 선택'}</button>`;
@@ -428,7 +438,7 @@ function panel(){
     if(!cardActions.length&&!target)html+='<p class="muted">이 카드로 지금 할 수 있는 행동이 없습니다.</p>';
   }
   if(p.selection)html+=selectionPanel(p.selection);
-  const global=p.choices.filter(c=>!c.source);
+  const global=p.selection?.mode==='toggle'?[]:p.choices.filter(c=>!c.source);
   if(global.length)html+=`<div class="decision-group"><h3>페이즈 · 기타 선택</h3><div class="choices">${global.map(choiceButton).join('')}</div></div>`;
   if(!p.selection)html+=availableCards(p);
   return html;
