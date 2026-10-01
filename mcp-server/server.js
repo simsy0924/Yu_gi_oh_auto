@@ -2,6 +2,7 @@ import {createServer} from 'node:http';
 import {randomUUID} from 'node:crypto';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
+import {WebSocket,WebSocketServer} from 'ws';
 
 const MCP_PROTOCOL_VERSIONS=['2026-07-28','2025-11-25','2025-06-18','2025-03-26','2024-11-05'];
 const DEFAULT_HOST='127.0.0.1';
@@ -10,6 +11,10 @@ const CLIENT_TIMEOUT_MS=15000;
 const ACTION_TIMEOUT_MS=60000;
 const MAX_BODY_BYTES=8*1024*1024;
 const PAGE_SIZE=100;
+const DEFAULT_ALLOWED_ORIGINS=['https://simsy0924.github.io','http://localhost:5173','http://127.0.0.1:5173'];
+const PAIRING_CODE_PATTERN=/^[0-9a-f-]{36}$/i;
+const ROOM_IDLE_TIMEOUT_MS=60*60*1000;
+const MAX_REMOTE_ROOMS=256;
 
 function json(res,status,body,headers={}) {
   res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store',...headers});
@@ -204,6 +209,220 @@ export function createToolHandlers(bridge) {
   };
 }
 
+function remoteToolDefinitions() {
+  return toolDefinitions.map(tool=>({
+    ...tool,
+    description:`${tool.description} Every call must include the same pairingCode shown on the duel screen.`,
+    inputSchema:{
+      ...tool.inputSchema,
+      properties:{
+        pairingCode:{type:'string',pattern:PAIRING_CODE_PATTERN.source,description:'Ghost Duel 화면에서 만든 36자리 연결 코드. 이 듀얼에 접근할 때마다 전달하세요.'},
+        ...tool.inputSchema.properties
+      },
+      required:[...(tool.inputSchema.required??[]),'pairingCode']
+    }
+  }));
+}
+
+function createRemoteDuelBridge() {
+  let activeSocket=null,latestState=null,lastClientSeen=Date.now(),latestAction=null,pendingAction=null,actionSequence=0;
+  const turnWaiters=new Set();
+  const connected=()=>!!latestState&&Date.now()-lastClientSeen<ROOM_IDLE_TIMEOUT_MS;
+  const close=()=>{
+    latestState=null;latestAction=null;
+    if(pendingAction){pendingAction.reject(new Error('듀얼 페이지 연결이 끊겼습니다.'));pendingAction=null;}
+    for(const waiter of turnWaiters){clearTimeout(waiter.timer);waiter.reject(new Error('듀얼 페이지 연결이 끊겼습니다.'));}
+    turnWaiters.clear();
+  };
+  const notifyWaiters=()=>{
+    if(!latestState)return;
+    for(const waiter of [...turnWaiters]) {
+      if(latestState.ended||latestState.prompt?.player===1){turnWaiters.delete(waiter);clearTimeout(waiter.timer);waiter.resolve(latestState);}
+    }
+  };
+  function updateState(message) {
+    if(!message.state||message.state.viewer!==1||!Array.isArray(message.state.logs))throw new Error('player 1 시점의 듀얼 상태가 필요합니다.');
+    latestState=message.state;lastClientSeen=Date.now();notifyWaiters();
+    if(message.actionResult&&pendingAction?.id===message.actionResult.requestId){
+      const action=pendingAction;pendingAction=null;latestAction=null;
+      if(message.actionResult.ok)action.resolve(latestState);
+      else action.reject(new Error(message.actionResult.error||'듀얼 행동을 적용하지 못했습니다.'));
+    }
+  }
+  function sendPendingAction() {
+    if(!pendingAction||activeSocket?.readyState!==WebSocket.OPEN)return;
+    activeSocket.send(JSON.stringify({type:'action',...latestAction}));
+  }
+  function waitForTurn(timeoutMs=30000) {
+    if(!connected())return Promise.reject(new Error('연결 코드가 적용된 듀얼 화면이 열려 있어야 합니다.'));
+    if(latestState?.ended||latestState?.prompt?.player===1)return Promise.resolve(latestState);
+    return new Promise((resolve,reject)=>{
+      const waiter={resolve,reject,timer:setTimeout(()=>{turnWaiters.delete(waiter);resolve(latestState);},timeoutMs)};
+      turnWaiters.add(waiter);
+    });
+  }
+  async function submitAction(args) {
+    if(!connected())throw new Error('연결 코드가 적용된 듀얼 화면이 열려 있어야 합니다.');
+    const input=validateAction(latestState,args);
+    if(pendingAction)throw new Error('앞서 보낸 행동이 아직 처리 중입니다.');
+    const id=randomUUID();
+    const action={id,sequence:++actionSequence,revision:latestState.revision,input};
+    latestAction=action;
+    const result=new Promise((resolve,reject)=>{pendingAction={id,resolve,reject};});
+    let timeout;
+    try{
+      sendPendingAction();
+      return await Promise.race([result,new Promise((_,reject)=>{timeout=setTimeout(()=>reject(new Error('듀얼 페이지가 행동 응답을 보내지 않았습니다. 연결 상태를 확인하세요.')),ACTION_TIMEOUT_MS);})]);
+    }finally{clearTimeout(timeout);if(pendingAction?.id===id){pendingAction=null;latestAction=null;}}
+  }
+  return {
+    connected,getState:()=>latestState,updateState,waitForTurn,submitAction,close,touch:()=>{lastClientSeen=Date.now();},
+    attach:nextSocket=>{activeSocket=nextSocket;sendPendingAction();},
+    detach:closedSocket=>{if(activeSocket===closedSocket)activeSocket=null;}
+  };
+}
+
+function jsonRpc(res,id,result) {
+  json(res,200,{jsonrpc:'2.0',id,result});
+}
+
+function jsonRpcError(res,id,code,message,status=200) {
+  json(res,status,{jsonrpc:'2.0',id,error:{code,message}});
+}
+
+export function createRemoteMcpServer({host='0.0.0.0',port=Number(process.env.PORT)||3333,allowedOrigins=process.env.YGO_ALLOWED_ORIGINS}={}) {
+  const origins=new Set((allowedOrigins?String(allowedOrigins).split(','):DEFAULT_ALLOWED_ORIGINS).map(value=>value.trim()).filter(Boolean));
+  const rooms=new Map();
+  const cleanExpiredRooms=()=>{
+    const now=Date.now();
+    for(const [code,room] of rooms)if(now-room.lastSeen>ROOM_IDLE_TIMEOUT_MS){room.socket?.close(1001,'Duel expired');rooms.delete(code);room.bridge.close();}
+  };
+  const healthCors=origin=>origin&&origins.has(origin)?{
+    'access-control-allow-origin':origin,
+    'access-control-allow-methods':'GET, OPTIONS',
+    'access-control-allow-headers':'content-type',
+    'access-control-max-age':'600',
+    'vary':'Origin'
+  }:null;
+  const server=createServer(async(req,res)=>{
+    const url=new URL(req.url??'/',`http://${req.headers.host??'localhost'}`);
+    try{
+      if(url.pathname==='/health'){
+        const cors=healthCors(req.headers.origin);
+        if(req.headers.origin&&!cors){json(res,403,{error:'이 웹 출처는 듀얼 브리지에 연결할 수 없습니다.'});return;}
+        if(req.method==='OPTIONS'){res.writeHead(204,cors??{});res.end();return;}
+        if(req.method!=='GET'){json(res,405,{error:'GET 요청만 허용됩니다.'},cors??{});return;}
+        cleanExpiredRooms();json(res,200,{ok:true,transport:'streamable-http',relay:'websocket'},cors??{});return;
+      }
+      if(url.pathname!=='/mcp'){json(res,404,{error:'요청한 경로가 없습니다.'});return;}
+      if(req.method!=='POST'){json(res,405,{error:'MCP 요청에는 POST를 사용하세요.'},{allow:'POST'});return;}
+      if(!/^application\/json(?:\s*;|$)/i.test(req.headers['content-type']??'')){json(res,415,{error:'Content-Type은 application/json이어야 합니다.'});return;}
+      const request=await bodyJson(req);
+      if(!request||Array.isArray(request)||request.jsonrpc!=='2.0'||typeof request.method!=='string'){
+        jsonRpcError(res,request?.id??null,-32600,'Invalid Request',400);return;
+      }
+      const {id,method,params={}}=request;
+      if(id===undefined&&(method==='notifications/initialized'||method==='notifications/cancelled')){res.writeHead(202);res.end();return;}
+      if(method==='initialize'){
+        const requested=params.protocolVersion;
+        jsonRpc(res,id,{protocolVersion:MCP_PROTOCOL_VERSIONS.includes(requested)?requested:MCP_PROTOCOL_VERSIONS[0],capabilities:{tools:{listChanged:false}},serverInfo:{name:'ghost-duel-remote',version:'1.0.0'}});return;
+      }
+      if(method==='ping'){jsonRpc(res,id,{});return;}
+      if(method==='tools/list'){jsonRpc(res,id,{tools:remoteToolDefinitions()});return;}
+      if(method==='tools/call'){
+        const name=params.name,arguments_=params.arguments??{},code=arguments_.pairingCode;
+        if(typeof code!=='string'||!PAIRING_CODE_PATTERN.test(code)){jsonRpc(res,id,{content:[{type:'text',text:'듀얼 화면에 표시된 연결 코드를 입력하세요.'}],isError:true});return;}
+        cleanExpiredRooms();
+        const room=rooms.get(code);
+        if(!room||!room.bridge.connected()){jsonRpc(res,id,{content:[{type:'text',text:'연결 코드가 만료되었거나 듀얼 화면이 연결되지 않았습니다.'}],isError:true});return;}
+        room.lastSeen=Date.now();room.bridge.touch();
+        const handler=createToolHandlers(room.bridge)[name];
+        if(!handler){jsonRpc(res,id,{content:[{type:'text',text:`Unknown tool: ${String(name)}`}],isError:true});return;}
+        const {pairingCode:_pairingCode,...toolArgs}=arguments_;
+        try{const value=await handler(toolArgs);jsonRpc(res,id,{content:[{type:'text',text:JSON.stringify(value)}]});}
+        catch(error){jsonRpc(res,id,{content:[{type:'text',text:error.message||'Tool call failed'}],isError:true});}
+        return;
+      }
+      if(id!==undefined)jsonRpcError(res,id,-32601,`Method not found: ${method}`);
+      else{res.writeHead(202);res.end();}
+    }catch(error){json(res,400,{error:error.message||'요청을 처리하지 못했습니다.'});}
+  });
+  const webSockets=new WebSocketServer({noServer:true,maxPayload:MAX_BODY_BYTES});
+  const heartbeatTimer=setInterval(()=>{
+    for(const ws of webSockets.clients){
+      if(ws.isAlive===false){ws.terminate();continue;}
+      ws.isAlive=false;ws.ping();
+    }
+  },25000);
+  heartbeatTimer.unref();
+  server.on('upgrade',(req,socket,head)=>{
+    const url=new URL(req.url??'/',`http://${req.headers.host??'localhost'}`),origin=req.headers.origin;
+    if(url.pathname!=='/relay'||!origin||!origins.has(origin)){socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');socket.destroy();return;}
+    webSockets.handleUpgrade(req,socket,head,ws=>webSockets.emit('connection',ws,req));
+  });
+  webSockets.on('connection',ws=>{
+    let room=null,pairedCode=null,joined=false;
+    ws.isAlive=true;ws.on('pong',()=>{ws.isAlive=true;});
+    const joinTimeout=setTimeout(()=>{if(!joined)ws.close(1008,'Join message required');},10000);
+    ws.on('message',(data,isBinary)=>{
+      if(isBinary){ws.close(1003,'Text messages only');return;}
+      let message;
+      try{message=JSON.parse(data.toString());}catch{ws.close(1007,'Invalid JSON');return;}
+      if(!joined){
+        if(message?.type!=='join'||typeof message.pairingCode!=='string'||!PAIRING_CODE_PATTERN.test(message.pairingCode)){ws.close(1008,'Invalid pairing code');return;}
+        cleanExpiredRooms();
+        if(rooms.size>=MAX_REMOTE_ROOMS&&!rooms.has(message.pairingCode)){ws.close(1013,'Too many active duels');return;}
+        room=rooms.get(message.pairingCode);
+        if(!room){room={socket:null,lastSeen:Date.now()};room.bridge=createRemoteDuelBridge();rooms.set(message.pairingCode,room);}
+        const previous=room.socket;
+        pairedCode=message.pairingCode;
+        room.socket=ws;room.lastSeen=Date.now();
+        if(previous&&previous!==ws&&previous.readyState===WebSocket.OPEN)previous.close(4001,'Reconnected');
+        joined=true;clearTimeout(joinTimeout);
+        ws.send(JSON.stringify({type:'joined'}));room.bridge.attach(ws);return;
+      }
+      if(room.socket!==ws)return;
+      if(message?.type==='state'){
+        try{room.bridge.updateState(message);room.lastSeen=Date.now();}
+        catch(error){ws.send(JSON.stringify({type:'error',message:error.message}));}
+      }else if(message?.type==='leave'){
+        if(message.pairingCode!==pairedCode)return;
+        rooms.delete(pairedCode);
+        room.bridge.close();
+        room.socket=null;
+        ws.close(1000,'Duel ended');
+      }
+    });
+    ws.on('close',()=>{
+      clearTimeout(joinTimeout);
+      if(room&&room.socket===ws){room.socket=null;room.lastSeen=Date.now();room.bridge.detach(ws);}
+    });
+    ws.on('error',()=>{if(room)room.bridge.close();});
+  });
+  const cleanupTimer=setInterval(cleanExpiredRooms,60000);cleanupTimer.unref();
+  return {
+    server,webSockets,rooms,
+    listen:()=>new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,host,resolve);}),
+    close:()=>new Promise(resolve=>{
+      clearInterval(heartbeatTimer);
+      clearInterval(cleanupTimer);
+      for(const room of rooms.values()){room.socket?.close(1001,'Server stopping');room.bridge.close();}
+      rooms.clear();webSockets.close();server.close(()=>resolve());
+    })
+  };
+}
+
+export function startRemoteMcpServer(options={}) {
+  const remote=createRemoteMcpServer(options);
+  remote.listen().then(()=>process.stderr.write(`Ghost Duel remote MCP listening at http://${options.host??'0.0.0.0'}:${remote.server.address().port}\n`)).catch(error=>{
+    process.stderr.write(`Ghost Duel remote MCP failed: ${error.message}\n`);
+    process.exitCode=1;
+  });
+  const stop=()=>{void remote.close().finally(()=>process.exit(0));};
+  process.on('SIGINT',stop);process.on('SIGTERM',stop);
+  return remote;
+}
+
 function send(message) {process.stdout.write(`${JSON.stringify(message)}\n`);}
 
 export function startMcpServer({host=DEFAULT_HOST,port=DEFAULT_PORT}={}) {
@@ -251,4 +470,7 @@ export function startMcpServer({host=DEFAULT_HOST,port=DEFAULT_PORT}={}) {
   return {bridge,handlers};
 }
 
-if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href)startMcpServer({port:Number(process.env.YGO_DUEL_MCP_PORT)||DEFAULT_PORT});
+if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href) {
+  if(process.env.YGO_DUEL_MCP_MODE==='remote'||process.argv.includes('--remote'))startRemoteMcpServer({host:process.env.YGO_DUEL_MCP_HOST||'0.0.0.0',port:Number(process.env.PORT||process.env.YGO_DUEL_MCP_PORT)||3333});
+  else startMcpServer({port:Number(process.env.YGO_DUEL_MCP_PORT)||DEFAULT_PORT});
+}

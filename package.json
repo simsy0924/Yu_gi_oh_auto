@@ -8,12 +8,14 @@
     "build": "vite build",
     "test": "python3 tests/test_prepare_assets.py && node --test tests/*.test.js",
     "mcp": "node mcp-server/server.js",
+    "mcp:remote": "node mcp-server/server.js --remote",
     "assets": "python3 scripts/prepare-assets.py",
     "postinstall": "node scripts/patch-core.mjs",
     "audit:translations": "python3 scripts/audit-ko.py"
   },
   "dependencies": {
-    "ocgcore-wasm": "0.1.2"
+    "ocgcore-wasm": "0.1.2",
+    "ws": "8.22.0"
   },
   "devDependencies": {
     "vite": "6.3.6"
