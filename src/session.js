@@ -48,6 +48,7 @@ export class DuelSession {
   log(text){this.logs.push(text);}
   recordConfirmation(message) {
     if(![0,1].includes(message.player)||!Array.isArray(message.cards))return;
+    this.confirmationByPlayer??={0:this.confirmation??null,1:null};
     const cards=message.cards.map(card=>{
       const db=this.cards?.[card.code]??{};
       return {
