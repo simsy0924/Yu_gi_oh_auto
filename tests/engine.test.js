@@ -5,7 +5,7 @@ import {gunzipSync} from 'node:zlib';
 import {DuelSession} from '../src/session.js';
 import {ghostChoice,fieldPlaces,makePrompt,selectionResponse,counterResponse,requestTypes} from '../src/prompts.js';
 import {parseDeck} from '../src/decks.js';
-import {OcgMessageType as M,OcgResponseType as R,OcgQueryFlags as Q,OcgOpCode} from 'ocgcore-wasm';
+import {OcgMessageType as M,OcgResponseType as R,OcgProcessResult as P,OcgQueryFlags as Q,OcgOpCode} from 'ocgcore-wasm';
 import {cardFacts,cardInfoHtml} from '../src/card-info.js';
 import {promptHelp,selectionProgress,promptCardName} from '../src/duel-guidance.js';
 import {deckWithStartingHand} from '../src/practice.js';
@@ -142,6 +142,30 @@ test('selection validates bounds and duplicates; forced chain cannot pass',()=>{
   assert.throws(()=>selectionResponse(p,[]));assert.throws(()=>selectionResponse(p,[0,0]));assert.deepEqual(selectionResponse(p,[0]).indicies,[0]);
   const chain=makePrompt({type:M.SELECT_CHAIN,player:0,forced:true,selects:[{code:you.main[0]}]},cards);assert.equal(chain.choices.length,1);
 });
+test('duel engine auto-resolves only prompts with one legal response',()=>{
+  const responses=[];
+  const makeSession=message=>{
+    let waiting=true;
+    const session=new DuelSession();session.cards=cards;session.handle=1;
+    session.core={
+      duelProcess:()=>waiting?P.WAITING:P.END,
+      duelGetMessage:()=>{if(!waiting)return [];waiting=false;return [message];},
+      duelSetResponse:(_handle,response)=>responses.push(response)
+    };
+    return session;
+  };
+  const forced=makeSession({type:M.SELECT_CHAIN,player:1,forced:true,selects:[{code:you.main[0]}]});
+  forced.advance();
+  assert.deepEqual(responses,[{type:R.SELECT_CHAIN,index:0}]);
+  assert.equal(forced.prompt,null);
+  assert.equal(forced.ended,true);
+
+  responses.length=0;
+  const ambiguous=makeSession({type:M.SELECT_EFFECTYN,player:1,code:0,description:0});
+  ambiguous.advance();
+  assert.deepEqual(responses,[]);
+  assert.equal(ambiguous.prompt.choices.length,2);
+});
 test('Junk Speeder style toggle selection keeps Deck card names and completion progress',()=>{
   const p=makePrompt({type:M.SELECT_UNSELECT_CARD,player:0,min:2,max:2,can_finish:false,can_cancel:false,
     select_cards:[{code:63977008,controller:0,location:1,sequence:0}],
@@ -199,7 +223,7 @@ test('real Lua effect resolves through a chain and draws two cards',async()=>{
     assert.equal(s.snapshot().zones[0][16].cards[0].code,55144522);
   }finally{s.destroy();}
 });
-test('Junk Meister hand summon resolves without unsupported chain info flags',async()=>{
+test('Junk Meister hand summon auto-selects its sole required reveal and resolves',async()=>{
   const meister=73218792,stardustDragon=44508094;
   const deck={...you,main:[meister,...you.main.slice(1)],extra:[stardustDragon,...you.extra.slice(1)]};
   const s=await DuelSession.create({cards,scripts,wasmBinary,you:deck,ghost,seed:[71,2,3,4],startingHand:[meister]});
@@ -207,11 +231,7 @@ test('Junk Meister hand summon resolves without unsupported chain info flags',as
     const summon=s.prompt.choices.find(choice=>choice.kind==='activate'&&choice.card===meister);
     assert.ok(summon,'Junk Meister should be able to reveal Stardust Dragon and Special Summon itself');
     s.respond({choice:summon.id});
-    assert.equal(s.prompt.type,'SELECT_CARD');
-    const reveal=s.prompt.selection.options.find(option=>option.card===stardustDragon);
-    assert.ok(reveal,'the required Extra Deck Synchro should be available to reveal');
-    s.respond({indices:[reveal.id]});
-    assert.equal(s.prompt.type,'SELECT_PLACE');
+    assert.equal(s.prompt.type,'SELECT_PLACE','the sole legal Extra Deck reveal should be applied automatically');
     s.respond({indices:[s.prompt.selection.options[0].id]});
     assert.equal(s.prompt.type,'SELECT_POSITION');
     s.respond({choice:s.prompt.choices[0].id});
