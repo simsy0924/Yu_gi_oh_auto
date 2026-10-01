@@ -7,7 +7,7 @@ import {ghostChoice,fieldPlaces,makePrompt,selectionResponse,counterResponse,req
 import {parseDeck} from '../src/decks.js';
 import {OcgMessageType as M,OcgResponseType as R,OcgQueryFlags as Q,OcgOpCode} from 'ocgcore-wasm';
 import {cardFacts,cardInfoHtml} from '../src/card-info.js';
-import {promptHelp,selectionProgress} from '../src/duel-guidance.js';
+import {promptHelp,selectionProgress,promptCardName} from '../src/duel-guidance.js';
 import {deckWithStartingHand} from '../src/practice.js';
 import {soloOpponentChoice} from '../src/solo.js';
 import {replayPlayerInputs} from '../src/duel-history.js';
@@ -142,6 +142,45 @@ test('selection validates bounds and duplicates; forced chain cannot pass',()=>{
   assert.throws(()=>selectionResponse(p,[]));assert.throws(()=>selectionResponse(p,[0,0]));assert.deepEqual(selectionResponse(p,[0]).indicies,[0]);
   const chain=makePrompt({type:M.SELECT_CHAIN,player:0,forced:true,selects:[{code:you.main[0]}]},cards);assert.equal(chain.choices.length,1);
 });
+test('Junk Speeder style toggle selection keeps Deck card names and completion progress',()=>{
+  const p=makePrompt({type:M.SELECT_UNSELECT_CARD,player:0,min:2,max:2,can_finish:false,can_cancel:false,
+    select_cards:[{code:63977008,controller:0,location:1,sequence:0}],
+    unselect_cards:[{code:19642774,controller:0,location:1,sequence:1}]},cards);
+  assert.equal(p.selection.mode,'toggle');
+  assert.equal(p.selection.selectedCount,1);
+  assert.equal(p.selection.canFinish,false);
+  assert.equal(promptCardName(p.choices[0],{0:{1:{count:34}}}),cards[63977008].name);
+  assert.match(selectionProgress(p.selection,[]),/1\/2장 선택/);
+  assert.ok(p.choices.some(choice=>choice.kind==='select'));
+  assert.ok(p.choices.some(choice=>choice.kind==='unselect'));
+  assert.ok(!p.choices.some(choice=>choice.kind==='finish'));
+  const ready=makePrompt({type:M.SELECT_UNSELECT_CARD,player:0,min:2,max:2,can_finish:true,can_cancel:false,
+    select_cards:[],unselect_cards:[{code:63977008,controller:0,location:1,sequence:0},{code:19642774,controller:0,location:1,sequence:1}]},cards);
+  assert.equal(ready.selection.canFinish,true);
+  assert.ok(ready.choices.some(choice=>choice.kind==='finish'&&choice.label==='선택 완료'));
+});
+test('field-zone choices are named from the acting player\'s viewpoint',()=>{
+  const p=makePrompt({type:M.SELECT_PLACE,player:1,count:1,field_mask:0},{});
+  assert.equal(p.selection.options.find(option=>option.place.player===1&&option.place.location===4&&option.place.sequence===0).label,'내 몬스터 존 1');
+  assert.equal(p.selection.options.find(option=>option.place.player===0&&option.place.location===4&&option.place.sequence===0).label,'상대 몬스터 존 1');
+});
+test('core first-player assignment remaps zones while keeping both decks on their owners',async()=>{
+  const ghostCard=ghost.deck.main[0],ghostWithHand={...ghost,startingHand:[ghostCard]};
+  for(const firstPlayer of [0,1]){
+    const s=await DuelSession.create({cards,scripts,wasmBinary,you,ghost:ghostWithHand,seed:[781,2,3,4],startingHand:[you.main[0]],firstPlayer});
+    try{
+      assert.equal(s.active,firstPlayer);
+      assert.equal(s.prompt.player,firstPlayer);
+      assert.deepEqual(s.snapshot(0).zones[0][2].cards.map(card=>card.code),[you.main[0]]);
+      assert.deepEqual(s.snapshot(1).zones[1][2].cards.map(card=>card.code),[ghostCard]);
+      assert.equal(s.snapshot(0).zones[1][2].count,1);
+      if(firstPlayer===1){
+        assert.equal(s.snapshot(0).prompt.type,'WAITING_FOR_PLAYER');
+        assert.equal(s.snapshot(1).prompt.type,s.prompt.type);
+      }
+    }finally{s.destroy();}
+  }
+});
 test('real Lua effect resolves through a chain and draws two cards',async()=>{
   const deck={...you,main:[55144522,...you.main.slice(1)]};
   // Seed chosen by a bounded search: test the real shuffled opening, never alter field state.
@@ -178,6 +217,83 @@ test('Junk Meister hand summon resolves without unsupported chain info flags',as
     s.respond({choice:s.prompt.choices[0].id});
     assert.equal(s.snapshot().zones[0][4].cards[0].code,meister);
     assert.ok(s.prompt.choices.some(choice=>choice.kind==='activate'&&choice.card===meister),'the on-Special Summon effect should be available');
+  }finally{s.destroy();}
+});
+test('real Junk Speeder effect lists named Synchron Tuners and resolves one-at-a-time selection',async()=>{
+  const helper=64964750,junk=63977008,fleur=19642774,jet=9742784,speeder=77075360;
+  const nonTuner=Object.values(cards).find(card=>(card.type&1)&&!(card.type&0x1000)&&!(card.type&(0x40|0x2000|0x800000|0x4000000))&&card.level===2);
+  assert.ok(nonTuner);
+  const required=[helper,junk,junk,junk,fleur,jet,nonTuner.code];
+  const extraMask=0x40|0x2000|0x800000|0x4000000;
+  const fillers=Object.values(cards).filter(card=>(card.type&0x10)&&!(card.type&extraMask)&&!required.includes(card.code)).slice(0,40-required.length).map(card=>card.code);
+  const main=[...required,...fillers];
+  assert.equal(main.length,40);
+  const deck={...you,main,extra:[speeder]};
+  const vanilla=Object.values(cards).filter(card=>(card.type&0x10)&&!(card.type&(0x40|0x2000|0x800000|0x4000000))).slice(0,40).map(card=>card.code);
+  const simpleGhost={deck:{name:'Normal monsters',main:vanilla,extra:[],side:[]},behavior:{type:'scripted',script:[],fallback:'basic'}};
+  const setupScript=`local s,id=GetID()
+function s.initial_effect(c)
+  local e=Effect.CreateEffect(c)
+  e:SetType(EFFECT_TYPE_ACTIVATE)
+  e:SetCode(EVENT_FREE_CHAIN)
+  e:SetOperation(s.op)
+  c:RegisterEffect(e)
+end
+function s.op(e,tp,eg,ep,ev,re,r,rp)
+  local tuner=Duel.GetFirstMatchingCard(Card.IsCode,tp,LOCATION_DECK,0,nil,${junk})
+  local other=Duel.GetFirstMatchingCard(Card.IsCode,tp,LOCATION_DECK,0,nil,${nonTuner.code})
+  if not tuner or not other then return end
+  Duel.SpecialSummon(tuner,0,tp,tp,false,false,POS_FACEUP_ATTACK)
+  Duel.SpecialSummon(other,0,tp,tp,false,false,POS_FACEUP_ATTACK)
+  local synchro=Duel.GetFirstMatchingCard(Card.IsCode,tp,LOCATION_EXTRA,0,nil,${speeder})
+  if synchro then Duel.SynchroSummon(tp,synchro,nil) end
+end`;
+  const testScripts={...scripts,'c64964750.lua':setupScript};
+  const s=await DuelSession.create({cards,scripts:testScripts,wasmBinary,you:deck,ghost:simpleGhost,seed:[121,2,3,4],startingHand:[helper],firstPlayer:1});
+  try{
+    assert.equal(s.prompt.player,1,'the opponent occupies core player 0 and takes the first turn');
+    for(let i=0;i<100&&s.prompt?.player===1;i++){
+      const decision=ghostChoice(s.prompt,simpleGhost.behavior);assert.ok(!decision.blocked,decision.blocked);s.respond(decision);
+    }
+    assert.equal(s.prompt.player,0,'the user is mapped back to their own deck after the opponent turn');
+    for(let i=0;i<30&&!(s.prompt?.type==='SELECT_UNSELECT_CARD'&&s.prompt.selection.options.some(option=>option.source?.location===1));i++){
+      const p=s.prompt;
+      if(p.type==='SELECT_IDLECMD'){
+        const activate=p.choices.find(choice=>choice.kind==='activate'&&choice.card===helper);
+        assert.ok(activate,'test setup spell is available');s.respond({choice:activate.id});
+      }else if(p.type==='SELECT_PLACE')s.respond({indices:[p.selection.options[0].id]});
+      else if(p.type==='SELECT_POSITION')s.respond({choice:p.choices[0].id});
+      else if(p.type==='SELECT_EFFECTYN')s.respond({choice:p.choices.find(choice=>choice.kind==='yes').id});
+      else if(p.type==='SELECT_UNSELECT_CARD')s.respond({choice:p.choices.find(choice=>choice.kind==='select').id});
+      else if(p.type==='SELECT_CARD')s.respond({indices:p.selection.options.slice(0,p.selection.min).map(option=>option.id)});
+      else if(p.type==='SELECT_CHAIN')s.respond({choice:p.choices.find(choice=>choice.kind==='pass')?.id??p.choices[0].id});
+      else assert.fail(`unexpected Junk Speeder setup prompt: ${p.type}`);
+    }
+    let prompt=s.prompt;
+    for(let i=0;i<12&&prompt?.type==='SELECT_UNSELECT_CARD'&&!prompt.selection.options.some(option=>option.source?.location===1);i++){
+      const selectable=prompt.choices.find(choice=>choice.kind==='select');
+      assert.ok(selectable);s.respond({choice:selectable.id});prompt=s.prompt;
+    }
+    assert.equal(prompt?.type,'SELECT_UNSELECT_CARD');
+    assert.deepEqual(prompt.selection.options.filter(option=>option.kind==='select').map(option=>option.cardName).sort(),['Fleur Synchron','Jet Synchron','Junk Synchron'].sort());
+    assert.equal(prompt.selection.min,3);assert.equal(prompt.selection.max,3);assert.equal(prompt.selection.canFinish,false);
+    assert.equal(prompt.choices.some(choice=>choice.kind==='finish'),false);
+    const first=prompt.choices.find(choice=>choice.kind==='select');assert.ok(first);
+    s.respond({choice:first.id});prompt=s.prompt;
+    assert.equal(prompt.selection.selectedCount,1);
+    assert.match(selectionProgress(prompt.selection,[]),/1\/3장 선택/);
+    while(prompt?.type==='SELECT_UNSELECT_CARD'&&prompt.selection.options.some(option=>option.source?.location===1)){
+      const next=prompt.choices.find(choice=>choice.kind==='select');assert.ok(next);s.respond({choice:next.id});prompt=s.prompt;
+    }
+    for(let i=0;i<12&&prompt?.type!=='SELECT_IDLECMD';i++){
+      if(prompt.type==='SELECT_PLACE')s.respond({indices:[prompt.selection.options[0].id]});
+      else if(prompt.type==='SELECT_POSITION')s.respond({choice:prompt.choices[0].id});
+      else if(prompt.type==='SELECT_CHAIN')s.respond({choice:prompt.choices.find(choice=>choice.kind==='pass')?.id??prompt.choices[0].id});
+      else assert.fail(`unexpected Junk Speeder resolution prompt: ${prompt.type}`);
+      prompt=s.prompt;
+    }
+    const summoned=s.snapshot(0).zones[0][4].cards.filter(Boolean).map(card=>card.name);
+    for(const name of ['Junk Speeder','Fleur Synchron','Jet Synchron','Junk Synchron'])assert.ok(summoned.includes(name),`${name} should be on the field`);
   }finally{s.destroy();}
 });
 test('patched WASM card data preserves link markers',async()=>{
