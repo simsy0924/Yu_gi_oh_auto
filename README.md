@@ -190,6 +190,12 @@ Claude를 다시 열고 Ghost Duel에서 `Claude 대전`을 선택해 내 덱과
 내 차례를 기다릴 때는 `wait_for_duel_turn`을 사용합니다. 카드 효과는 기존 WASM 엔진이
 판정합니다.
 
+`duel_action` 응답에는 다음 상태(`nextState`)가 들어 있으므로, Claude는 이를 바로
+사용해 이어지는 선택을 처리할 수 있습니다. 체인처럼 판단이 필요한 우선권은 행동마다
+Claude가 한 번씩 선택해야 하지만, 중복 상태 조회는 생략할 수 있습니다.
+`duel_action`의 선택과 함께 `commentary`를 보내면 짧은 대사가 듀얼 화면과 로그에
+표시됩니다. Claude의 일반 답변 전체를 앱으로 복사하는 방식은 아닙니다.
+
 ### Claude 모바일 앱에서 원격 MCP로 사용
 
 Claude 모바일은 사용자 PC의 `localhost`에 접속할 수 없으므로, 원격 MCP 서버를 공개
