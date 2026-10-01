@@ -23,8 +23,16 @@ const help={
 };
 export function promptHelp(prompt){return help[prompt?.type]??'현재 선택할 수 있는 행동을 확인하세요.';}
 export function selectionProgress(s,ids){
+  if(s.mode==='toggle')return `${s.selectedCount}/${s.min===s.max?s.min:`${s.min}~${s.max}`}장 선택${s.canFinish?' · 선택 완료 가능':' · 필요한 수만큼 더 선택하세요'}`;
   if(s.mode==='sort')return `${ids.length}/${s.options.length}장 순서 지정`;
   if(s.mode==='sum')return `목표 ${s.amount} · 추가 소재 ${ids.length}장 선택`;
   if(s.tribute){const amount=ids.reduce((n,id)=>n+(s.options.find(o=>o.id===id)?.value??0),0);return `릴리스 수치 ${amount} / 필요 ${s.min}~${s.max}`;}
   return `${ids.length}/${s.min===s.max?s.min:`${s.min}~${s.max}`}개 선택`;
+}
+
+export function promptCardName(choice,zones){
+  const source=choice?.source;
+  return zones?.[source?.controller]?.[source?.location]?.cards?.[source?.sequence]?.name
+    ??choice?.cardName
+    ??(choice?.card==null?'카드':String(choice.card));
 }
