@@ -467,7 +467,7 @@ function renderDuel(){
   root.querySelectorAll('.decision .choices').forEach((list,index)=>{list.scrollTop=choiceScrolls[index]??0;});
   document.getElementById('exit').onclick=stop;
   document.getElementById('copyClaudePairing')?.addEventListener('click',async()=>{
-    const text=`Ghost Duel에서 Claude로 듀얼해줘. 처음 get_duel_state로 상태를 확인하고, Claude 차례의 합법 선택을 duel_action으로 제출해. duel_action 결과의 nextState를 다음 판단에 바로 사용하고 매번 get_duel_state를 다시 호출하지 마. 네 차례가 이어지면 내 차례 또는 듀얼 종료까지 모든 프롬프트를 계속 처리해. 체인 가능한 우선권도 매번 직접 판단해. 내가 행동 중일 땐 wait_for_duel_turn으로 기다려. 게임 화면에 보여줄 짧은 대사를 매 행동의 commentary에 넣어(최대 280자). 연결 코드: ${claudePairingCode}`;
+    const text=`Ghost Duel에서 Claude로 듀얼해줘. 처음 get_duel_state를 호출하고, Claude 차례의 합법 행동을 duel_action으로 제출해. 첫 상태는 전체 스냅샷이고 이후 nextState는 changes(JSON Patch)와 logs 변경분만 담은 델타이니 반영해서 사용해. 매번 get_duel_state를 다시 호출하지 마. 네 행동으로 내 차례가 되면 duel_action은 기본 55초 동안 다음 Claude 선택지를 기다렸다가 반환하니, 새 prompt가 오면 계속 처리해. waitingForClaude가 true인데 듀얼이 계속 중이면 nextState.revision을 sinceRevision으로 wait_for_duel_turn을 다시 호출해. Claude 선택지가 생기거나 듀얼이 끝날 때까지 반환된 델타만 반영하며 기다려. 체인 우선권은 매번 직접 판단해. 짧은 대사는 각 행동의 commentary에 넣어(최대 280자). 연결 코드: ${claudePairingCode}`;
     try{await navigator.clipboard.writeText(text);const button=document.getElementById('copyClaudePairing');if(button)button.textContent='복사 완료';}
     catch{claudeBridgeStatus='복사할 수 없습니다. 화면의 연결 코드를 길게 눌러 복사하세요.';}
   });
