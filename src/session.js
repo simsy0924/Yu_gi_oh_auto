@@ -1,6 +1,6 @@
 import createCore,{OcgDuelMode as D,OcgMessageType as M,OcgProcessResult as P,OcgResponseType as R,OcgQueryFlags as Q} from 'ocgcore-wasm';
 import {validateDeck} from './decks.js';
-import {makePrompt,requestTypes,selectionResponse,counterResponse} from './prompts.js';
+import {makePrompt,requestTypes,selectionResponse,counterResponse,unambiguousResponse} from './prompts.js';
 import {isHiddenZoneForViewer,promptForViewer} from './duel-visibility.js';
 
 function coreCompatibleChainScript(scripts){
@@ -99,7 +99,12 @@ export class DuelSession {
       }
       if(this.issue)throw new Error(this.issue);
       if(status===P.END||this.ended){this.ended=true;this.prompt=null;return;}
-      if(status===P.WAITING){if(this.prompt?.type==='SELECT_CHAIN' && this.prompt.choices.length===1 && this.prompt.choices[0].kind==='pass'){this.core.duelSetResponse(this.handle,{type:R.SELECT_CHAIN,index:null});this.prompt=null;continue;}if(!this.prompt)throw new Error('코어 입력 요청이 누락되었습니다.');return;}
+      if(status===P.WAITING){
+        if(!this.prompt)throw new Error('코어 입력 요청이 누락되었습니다.');
+        const forced=unambiguousResponse(this.prompt);
+        if(forced){this.core.duelSetResponse(this.handle,forced);this.prompt=null;continue;}
+        return;
+      }
     }
     throw new Error('듀얼 처리 횟수를 초과했습니다.');
   }
