@@ -15,7 +15,7 @@ export class DuelSession {
   static async create({cards,scripts,wasmBinary,you,ghost,seed=[1,2,3,4],startingHand=null}) {
     validateDeck(you,cards);validateDeck(ghost.deck,cards);
     const chainScript=coreCompatibleChainScript(scripts);
-    const s=new DuelSession();Object.assign(s,{cards,scripts,lp:[8000,8000],turn:0,phase:0,active:0,logs:[],prompt:null,ended:false,issue:null});
+    const s=new DuelSession();Object.assign(s,{cards,scripts,lp:[8000,8000],turn:0,phase:0,active:0,logs:[],prompt:null,ended:false,issue:null,confirmation:null,confirmationSerial:0});
     s.core=await createCore({sync:true,wasmBinary});
     const team={startingLP:8000,startingDrawCount:5,drawCountPerTurn:1};
     const firstTeam=startingHand?.length?{...team,startingDrawCount:startingHand.length}:team;
@@ -45,6 +45,20 @@ export class DuelSession {
     }catch(e){s.destroy();throw e;}
   }
   log(text){this.logs.push(text);}
+  recordConfirmation(message) {
+    if(message.player!==0||!Array.isArray(message.cards))return;
+    const cards=message.cards.map(card=>{
+      const db=this.cards?.[card.code]??{};
+      return {
+        code:card.code,controller:card.controller,location:card.location,sequence:card.sequence,
+        name:db.name??String(card.code),desc:db.desc??'',type:db.type??0,race:db.race??'0',
+        attribute:db.attribute??0,level:db.level??0,lscale:db.lscale??0,rscale:db.rscale??0,
+        link_marker:db.link_marker??0,attack:db.attack,defense:db.defense,
+        originalAttack:db.attack,originalDefense:db.defense
+      };
+    });
+    this.confirmation={id:++this.confirmationSerial,type:M[message.type]??String(message.type),cards};
+  }
   advance() {
     for(let tick=0;tick<10000;tick++) {
       const status=this.core.duelProcess(this.handle),messages=this.core.duelGetMessage(this.handle);
@@ -52,6 +66,7 @@ export class DuelSession {
         if(!m)throw new Error('코어 메시지를 해석할 수 없습니다.');
         if(m.type===M.RETRY)throw new Error('코어가 선택을 거부했습니다. 듀얼을 다시 시작하세요.');
         if(requestTypes.has(m.type))this.prompt=makePrompt(m,this.cards);
+        if(m.type===M.CONFIRM_CARDS||m.type===M.CONFIRM_DECKTOP||m.type===M.CONFIRM_EXTRATOP)this.recordConfirmation(m);
         if(m.type===M.NEW_TURN){this.turn++;this.active=m.player;this.log(`${this.turn}턴 · ${m.player===0?'나':'고스트'}`);}
         if(m.type===M.NEW_PHASE)this.phase=m.phase;
         if(m.type===M.DAMAGE||m.type===M.PAY_LPCOST)this.lp[m.player]=Math.max(0,this.lp[m.player]-m.amount);
@@ -94,7 +109,7 @@ export class DuelSession {
         })};
       }
     }
-    return {zones,lp:this.lp,turn:this.turn,phase:this.phase,active:this.active,logs:this.logs,prompt:this.prompt,ended:this.ended,winner:this.winner};
+    return {zones,lp:this.lp,turn:this.turn,phase:this.phase,active:this.active,logs:this.logs,prompt:this.prompt,ended:this.ended,winner:this.winner,confirmation:this.confirmation};
   }
   destroy(){if(this.handle){this.core.destroyDuel(this.handle);this.handle=null;}}
 }
