@@ -69,6 +69,14 @@ function validateAction(state,args) {
   return {counters:args.counterCounts};
 }
 
+function validateCommentary(value) {
+  if(value===undefined)return '';
+  if(typeof value!=='string')throw new Error('commentary는 문자열이어야 합니다.');
+  const commentary=value.trim();
+  if([...commentary].length>280)throw new Error('commentary는 280자 이내로 작성하세요.');
+  return commentary;
+}
+
 export function createBridgeServer({host=DEFAULT_HOST,port=DEFAULT_PORT}={}) {
   let activeClientId=null,lastClientSeen=0,latestState=null,latestAction=null,pendingAction=null,actionSequence=0;
   const turnWaiters=new Set();
@@ -153,9 +161,10 @@ export function createBridgeServer({host=DEFAULT_HOST,port=DEFAULT_PORT}={}) {
   async function submitAction(args) {
     if(!connected())throw new Error('Claude MCP 서버와 듀얼 페이지를 모두 연결하세요.');
     const input=validateAction(latestState,args);
+    const commentary=validateCommentary(args.commentary);
     if(pendingAction)throw new Error('앞서 보낸 행동이 아직 처리 중입니다.');
     const id=randomUUID();
-    const action={id,sequence:++actionSequence,revision:latestState.revision,input};
+    const action={id,sequence:++actionSequence,revision:latestState.revision,input,...(commentary?{commentary}:{})};
     latestAction=action;
     const result=new Promise((resolve,reject)=>{pendingAction={id,resolve,reject};});
     let timeout;
@@ -175,10 +184,10 @@ export function createBridgeServer({host=DEFAULT_HOST,port=DEFAULT_PORT}={}) {
 }
 
 const toolDefinitions=[
-  {name:'get_duel_state',description:'Read the current duel from Claude player 1’s perspective. This includes Claude’s own hand, visible board cards, the current legal prompt, and legal choices. Opponent hand and unrevealed cards are hidden.',inputSchema:{type:'object',properties:{},additionalProperties:false}},
+  {name:'get_duel_state',description:'Read the current duel from Claude player 1’s perspective. This includes Claude’s own hand, visible board cards, the current legal prompt, and legal choices. Opponent hand and unrevealed cards are hidden. Call once to start; duel_action returns nextState, which you can use for the next decision without another state call.',inputSchema:{type:'object',properties:{},additionalProperties:false}},
   {name:'wait_for_duel_turn',description:'Wait for the user’s turn to finish and return the state when Claude can act. Use this while the user is choosing a move.',inputSchema:{type:'object',properties:{timeoutMs:{type:'integer',minimum:1000,maximum:60000,description:'Maximum wait in milliseconds (default 30000).'}},additionalProperties:false}},
   {name:'list_legal_options',description:'List or search the current selection options when get_duel_state reports more than 100 options. Use the returned option IDs with duel_action.',inputSchema:{type:'object',properties:{query:{type:'string',description:'Optional case-insensitive text to search in visible option labels.'},offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:100}},additionalProperties:false}},
-  {name:'duel_action',description:'Submit exactly one legal choice or selection from the current Claude prompt. The game engine validates and applies it.',inputSchema:{type:'object',properties:{choiceId:{type:'string',description:'The id of one item in prompt.choices.'},selectionIds:{type:'array',items:{type:'integer'},description:'Option IDs selected from prompt.selection.options.'},counterCounts:{type:'array',items:{type:'integer',minimum:0},description:'Counter amounts, one for each prompt.selection.options item.'}},additionalProperties:false}}
+  {name:'duel_action',description:'Submit exactly one legal choice or selection from the current Claude prompt. The result includes nextState; use it immediately for the next Claude decision instead of calling get_duel_state again. Continue handling Claude prompts until it is the user’s turn or the duel ends. Optionally include a short commentary message to show in the duel screen.',inputSchema:{type:'object',properties:{choiceId:{type:'string',description:'The id of one item in prompt.choices.'},selectionIds:{type:'array',items:{type:'integer'},description:'Option IDs selected from prompt.selection.options.'},counterCounts:{type:'array',items:{type:'integer',minimum:0},description:'Counter amounts, one for each prompt.selection.options item.'},commentary:{type:'string',maxLength:280,description:'Optional short message (up to 280 characters) shown in the duel screen and log.'}},additionalProperties:false}}
 ];
 
 export function createToolHandlers(bridge) {
@@ -264,9 +273,10 @@ function createRemoteDuelBridge() {
   async function submitAction(args) {
     if(!connected())throw new Error('연결 코드가 적용된 듀얼 화면이 열려 있어야 합니다.');
     const input=validateAction(latestState,args);
+    const commentary=validateCommentary(args.commentary);
     if(pendingAction)throw new Error('앞서 보낸 행동이 아직 처리 중입니다.');
     const id=randomUUID();
-    const action={id,sequence:++actionSequence,revision:latestState.revision,input};
+    const action={id,sequence:++actionSequence,revision:latestState.revision,input,...(commentary?{commentary}:{})};
     latestAction=action;
     const result=new Promise((resolve,reject)=>{pendingAction={id,resolve,reject};});
     let timeout;
