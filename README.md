@@ -165,10 +165,12 @@ GitHub Pages용 Actions 워크플로가 포함되어 있으며 Pages Source는
 
 ## Claude와 MCP 듀얼
 
+### Claude Code / Claude Desktop에서 로컬로 사용
+
 Node.js 22 이상을 설치하고 프로젝트 폴더에서 `npm ci`와 `npm run dev`를 실행한 뒤,
 브라우저에서 `http://localhost:5173`을 엽니다. 저장소에는 Claude Code용 `.mcp.json`이
 포함되어 있습니다. 프로젝트 폴더에서 Claude Code를 열고 MCP 서버 사용을 승인하면
-연결됩니다. `/mcp`에서 `ghost-duel` 상태를 확인할 수 있습니다.
+연결됩니다.
 
 Claude Desktop에서 쓰려면 설정 화면에서 `claude_desktop_config.json`을 열고,
 `mcpServers`에 아래 항목을 추가한 뒤 절대 경로를 실제 프로젝트 경로로 바꿔 주세요.
@@ -182,10 +184,36 @@ Claude Desktop에서 쓰려면 설정 화면에서 `claude_desktop_config.json`�
 }
 ```
 
-Claude Code를 다시 열고 Ghost Duel에서 `Claude 대전`을 선택해 내 덱과 Claude 덱을
-고른 뒤 시작합니다. Claude 대화에서는 `get_duel_state`로 현재 공개 정보와 합법
-선택지를 읽고, `duel_action`으로 한 행동을 제출합니다. 선택 요청이 많을 때는
-`list_legal_options`, 내 차례를 기다릴 때는 `wait_for_duel_turn`을 사용합니다.
-MCP 서버는 로컬에서 듀얼 화면과 통신하며, 카드 효과는 기존 WASM 엔진이 판정합니다.
+Claude를 다시 열고 Ghost Duel에서 `Claude 대전`을 선택해 내 덱과 Claude 덱을 고른 뒤
+시작합니다. Claude 대화에서는 `get_duel_state`로 현재 공개 정보와 합법 선택지를 읽고,
+`duel_action`으로 한 행동을 제출합니다. 선택 요청이 많을 때는 `list_legal_options`,
+내 차례를 기다릴 때는 `wait_for_duel_turn`을 사용합니다. 카드 효과는 기존 WASM 엔진이
+판정합니다.
+
+### Claude 모바일 앱에서 원격 MCP로 사용
+
+Claude 모바일은 사용자 PC의 `localhost`에 접속할 수 없으므로, 원격 MCP 서버를 공개
+HTTPS 주소로 배포해야 합니다. 배포 환경은 Node.js 22 이상과 WebSocket 업그레이드를
+지원해야 합니다. GitHub Pages는 정적 파일 호스팅이므로 이 Node 서버는 별도 Node 호스트에
+배포합니다.
+
+1. 저장소를 Node 호스트에 배포하고 시작 명령으로 `npm run mcp:remote`를 지정합니다.
+   서버는 호스트의 `PORT`를 사용하며 `/health`, `/mcp`, `/relay` 경로를 제공합니다.
+   HTTPS와 WebSocket은 호스트의 TLS 프록시를 통해 공개되어야 합니다.
+2. `YGO_ALLOWED_ORIGINS` 환경 변수에 `https://simsy0924.github.io`를 지정합니다.
+   로컬 테스트도 허용하려면 쉼표로 구분해 `http://localhost:5173`을 추가할 수 있습니다.
+3. Claude 웹 설정의 **Customize → Connectors → Add custom connector**에서
+   `https://<배포 호스트>/mcp`를 등록합니다. Claude 계정에 등록한 원격 커넥터는
+   Claude 모바일 앱에서도 사용할 수 있습니다. 자세한 내용은
+   [Claude 원격 MCP 커넥터 안내](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp)를
+   참고하세요.
+4. 휴대폰 브라우저에서 [Ghost Duel](https://simsy0924.github.io/Yu_gi_oh_auto/)을 열고
+   `Claude 대전`의 원격 MCP 서버 주소에 `https://<배포 호스트>/mcp`를 입력한 뒤
+   연결을 확인합니다. 덱을 고르고 듀얼을 시작하면 화면에 연결 코드가 표시됩니다.
+5. **연결 정보 복사**를 눌러 코드를 Claude 모바일 대화에 붙여넣고 듀얼을 진행합니다.
+
+연결 코드는 해당 듀얼의 접근 권한입니다. 원격 서버는 player 1 시점의 상태만 전달하고,
+대기 중인 행동은 코드별로 격리합니다. 코드는 메모리에만 보관되며 1시간 동안 연결이
+없으면 서버에서 만료됩니다. 별도 Anthropic API 키는 사용하지 않습니다.
 
 AGPL-3.0-or-later. [LICENSE](./LICENSE), [third-party notices](./THIRD_PARTY.md).
