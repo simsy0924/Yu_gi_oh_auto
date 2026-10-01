@@ -33,13 +33,15 @@ test('browser bridge validates and applies a Claude action against the live prom
   const tools=createToolHandlers(bridge);
   assert.deepEqual(tools.get_duel_state().prompt.choices.map(choice=>choice.id),['yes']);
   await assert.rejects(tools.duel_action({choiceId:'not-legal'}),/합법 행동 목록/);
+  await assert.rejects(tools.duel_action({choiceId:'yes',commentary:'x'.repeat(281)}),/280자 이내/);
 
-  const actionResult=tools.duel_action({choiceId:'yes'});
+  const actionResult=tools.duel_action({choiceId:'yes',commentary:'효과를 확인할게.'});
   const actionResponse=await request(`/action?clientId=${clientId}&after=0`);
   assert.equal(actionResponse.status,200);
   const action=await actionResponse.json();
   assert.equal(action.revision,7);
   assert.deepEqual(action.input,{choice:'yes'});
+  assert.equal(action.commentary,'효과를 확인할게.');
 
   const nextState={viewer:1,revision:8,ended:false,logs:['Claude · 효과 발동'],prompt:null};
   assert.equal((await request('/state',{clientId,state:nextState,actionResult:{requestId:action.id,ok:true}})).status,200);
@@ -99,6 +101,10 @@ test('remote Streamable HTTP MCP pairs through an origin-checked WebSocket and a
   assert.equal(initialize.result.protocolVersion,'2025-06-18');
   const listed=await mcp(2,'tools/list');
   assert.ok(listed.result.tools.every(tool=>tool.inputSchema.required.includes('pairingCode')));
+  const actionTool=listed.result.tools.find(tool=>tool.name==='duel_action');
+  assert.equal(actionTool.inputSchema.properties.commentary.maxLength,280);
+  assert.ok(!actionTool.inputSchema.required.includes('commentary'));
+  assert.match(actionTool.description,/nextState/);
 
   const connect=async()=>{
     const socket=new WebSocket(`${base.replace(/^http/,'ws')}/relay`,{headers:{origin:'http://localhost:5173'}});
@@ -132,12 +138,13 @@ test('remote Streamable HTTP MCP pairs through an origin-checked WebSocket and a
   assert.equal(JSON.parse(result.result.content[0].text).revision,7);
 
   await new Promise(resolve=>{socket.once('close',resolve);socket.close(1000,'test queued action');});
-  const actionCall=mcp(6,'tools/call',{name:'duel_action',arguments:{pairingCode:code,choiceId:'yes'}});
+  const actionCall=mcp(6,'tools/call',{name:'duel_action',arguments:{pairingCode:code,choiceId:'yes',commentary:'이 효과는 막아야겠어.'}});
   ({socket,nextMessage}=await connect());
   const action=await nextMessage();
   assert.equal(action.type,'action');
   assert.equal(action.revision,7);
   assert.deepEqual(action.input,{choice:'yes'});
+  assert.equal(action.commentary,'이 효과는 막아야겠어.');
   const nextState={viewer:1,revision:8,ended:false,logs:['Claude · 효과 발동'],prompt:{player:0,choices:[],selection:null}};
   socket.send(JSON.stringify({type:'state',state:nextState,actionResult:{requestId:action.id,ok:true}}));
   result=await actionCall;

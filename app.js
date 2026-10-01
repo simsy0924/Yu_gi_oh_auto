@@ -183,7 +183,7 @@ async function pollClaudeActions(){
     const response=await fetch(`${claudeBridgeBase()}/action?clientId=${encodeURIComponent(claudeBridgeClientId)}&after=${claudeBridgeCursor}`,{cache:'no-store'});
     if(response.status===200){
       const action=await response.json();claudeBridgeCursor=Math.max(claudeBridgeCursor,action.sequence);
-      if(worker&&sessionMode==='claude')worker.postMessage({type:'remote-action',requestId:action.id,revision:action.revision,...action.input});
+      if(worker&&sessionMode==='claude')worker.postMessage({type:'remote-action',requestId:action.id,revision:action.revision,...action.input,...(action.commentary?{commentary:action.commentary}:{})});
       else relayClaudeState(lastClaudeState,{requestId:action.id,ok:false,error:'Claude 대전 탭이 더 이상 활성 상태가 아닙니다.'});
     }else if(!response.ok&&response.status!==204){const body=await response.json().catch(()=>null);throw new Error(body?.error??`MCP 행동 요청 실패 (${response.status})`);}
   }catch(error){claudeBridgeStatus=`MCP 연결이 끊겼습니다: ${error.message}`;}
@@ -197,7 +197,7 @@ function handleRemoteRelayMessage(socket,event){
     return;
   }
   if(message.type==='action'){
-    if(worker&&sessionMode==='claude')worker.postMessage({type:'remote-action',requestId:message.id,revision:message.revision,...message.input});
+    if(worker&&sessionMode==='claude')worker.postMessage({type:'remote-action',requestId:message.id,revision:message.revision,...message.input,...(message.commentary?{commentary:message.commentary}:{})});
     else if(lastClaudeState)socket.send(JSON.stringify({type:'state',state:lastClaudeState,actionResult:{requestId:message.id,ok:false,error:'Claude 대전 탭이 아직 준비되지 않았습니다.'}}));
     return;
   }
@@ -328,7 +328,7 @@ async function launchDuel(mode='duel',scenario=null){
   worker.onmessage=({data:m})=>{
     if(m.type==='state'){
       if(m.undone){clearActionNotice();if(sessionMode==='ghost-create'&&recordedActionFlags.pop())recordedSteps.pop();}
-      if(m.actionNotice&&sessionMode==='duel')showActionNotice(m.actionNotice);
+      if(m.actionNotice&&['duel','claude'].includes(sessionMode))showActionNotice(m.actionNotice);
       root.querySelector('.decision')?.scrollTo(0,0);state=m.state;
       if(sessionMode==='claude'&&m.claudeState)relayClaudeState(m.claudeState,m.actionResult??null);
       if(sessionMode==='ghost-create'&&!scenarioCaptured&&state.zones?.[0]?.[2]?.cards){currentScenario={...currentScenario,startingHand:state.zones[0][2].cards.map(card=>card.code),handNames:state.zones[0][2].cards.map(card=>card.name)};scenarioCaptured=true;}
@@ -449,7 +449,7 @@ function renderDuel(){
   const board=liveDuel?`${field(1)}${sharedExtra()}${field(0)}`:`<div class="solo-note">${sessionMode==='ghost-create'?'고스트 생성 · 내 전개를 기록 중':'전개 연습 · 상대 턴 자동 진행'}</div>${field(1)}${sharedExtra()}${field(0)}`;
   const activeName=state?.active===0?'나':sessionMode==='duel'?'고스트':sessionMode==='claude'?'Claude':sessionMode==='ghost-create'?'상대':'연습 상대';
   const claudePairingBanner=sessionMode==='claude'&&claudePairingCode?`<section class="claude-pairing-banner"><div><strong>Claude 모바일 연결 코드</strong><code>${esc(claudePairingCode)}</code><small>코드를 Claude 대화에 붙여넣으세요. 이 코드는 듀얼 상태를 읽고 행동하는 권한입니다.</small></div><button class="mini" id="copyClaudePairing" type="button">연결 정보 복사</button></section>`:'';
-  root.innerHTML=`<main class="screen live-duel ${claudePairingBanner?'claude-live':''}"><header class="topbar"><strong>Ghost Duel</strong><span>${state?`${state.turn}턴 · ${activeName} · ${phaseName[state.phase]??''}`:'YGOPro Core'}</span><div class="top-right">${themeToggle()}${fullscreenButton()}${state?.confirmation?.cards?.length?'<button class="mini" id="openConfirmation" type="button">확인 카드</button>':''}<button class="mini" id="openDuelLog" type="button" aria-label="듀얼 로그 열기">로그</button><button class="mini" id="undo" ${!state?.undoAvailable||busy||error?'disabled':''}>되돌리기</button>${sessionMode==='claude'?'':`<button class="mini" id="pause" ${!state||busy||error?'disabled':''}>${state?.paused?'자동 진행':'일시정지'}</button>${state?.paused?'<button class="mini" id="step" '+(busy?'disabled':'')+'>한 행동</button>':''}`}<button class="mini" id="exit">종료</button></div></header>${claudePairingBanner}${actionNotice&&sessionMode==='duel'?`<div class="action-toast" role="status" aria-live="polite"><strong>고스트 행동</strong><span>${esc(actionNotice)}</span></div>`:''}<div class="live-layout"><div class="live-board ${liveDuel?'':'solo'}">${board}</div><aside class="decision" aria-live="polite">${panel()}</aside></div><footer class="live-log">${esc(state?.logs.at(-1)??'카드를 눌러 행동을 선택하세요.')}</footer></main><dialog id="duelLog" class="duel-log-dialog" aria-labelledby="duelLogTitle"><header><strong id="duelLogTitle">듀얼 로그</strong><button class="mini" id="closeDuelLog" type="button">닫기</button></header><ol class="duel-log-list">${(state?.logs??[]).map(line=>`<li>${esc(line)}</li>`).join('')||'<li class="duel-log-empty">아직 기록이 없습니다.</li>'}</ol></dialog><dialog id="details"><div id="detailContent"></div><button class="action" id="closeDetail">닫기</button></dialog>`;
+  root.innerHTML=`<main class="screen live-duel ${claudePairingBanner?'claude-live':''}"><header class="topbar"><strong>Ghost Duel</strong><span>${state?`${state.turn}턴 · ${activeName} · ${phaseName[state.phase]??''}`:'YGOPro Core'}</span><div class="top-right">${themeToggle()}${fullscreenButton()}${state?.confirmation?.cards?.length?'<button class="mini" id="openConfirmation" type="button">확인 카드</button>':''}<button class="mini" id="openDuelLog" type="button" aria-label="듀얼 로그 열기">로그</button><button class="mini" id="undo" ${!state?.undoAvailable||busy||error?'disabled':''}>되돌리기</button>${sessionMode==='claude'?'':`<button class="mini" id="pause" ${!state||busy||error?'disabled':''}>${state?.paused?'자동 진행':'일시정지'}</button>${state?.paused?'<button class="mini" id="step" '+(busy?'disabled':'')+'>한 행동</button>':''}`}<button class="mini" id="exit">종료</button></div></header>${claudePairingBanner}${actionNotice&&['duel','claude'].includes(sessionMode)?`<div class="action-toast" role="status" aria-live="polite"><strong>${sessionMode==='claude'?'Claude':'고스트 행동'}</strong><span>${esc(actionNotice)}</span></div>`:''}<div class="live-layout"><div class="live-board ${liveDuel?'':'solo'}">${board}</div><aside class="decision" aria-live="polite">${panel()}</aside></div><footer class="live-log">${esc(state?.logs.at(-1)??'카드를 눌러 행동을 선택하세요.')}</footer></main><dialog id="duelLog" class="duel-log-dialog" aria-labelledby="duelLogTitle"><header><strong id="duelLogTitle">듀얼 로그</strong><button class="mini" id="closeDuelLog" type="button">닫기</button></header><ol class="duel-log-list">${(state?.logs??[]).map(line=>`<li>${esc(line)}</li>`).join('')||'<li class="duel-log-empty">아직 기록이 없습니다.</li>'}</ol></dialog><dialog id="details"><div id="detailContent"></div><button class="action" id="closeDetail">닫기</button></dialog>`;
   const duelLog=document.getElementById('duelLog');
   if(logWasOpen){duelLog.showModal();const list=duelLog.querySelector('.duel-log-list');list.scrollTop=logWasAtBottom?list.scrollHeight:logScroll;}
   root.querySelector('.decision').scrollTop=decisionScroll;
@@ -457,7 +457,7 @@ function renderDuel(){
   root.querySelectorAll('.decision .choices').forEach((list,index)=>{list.scrollTop=choiceScrolls[index]??0;});
   document.getElementById('exit').onclick=stop;
   document.getElementById('copyClaudePairing')?.addEventListener('click',async()=>{
-    const text=`이 Ghost Duel에서 Claude로 듀얼해줘. 내 턴에는 내가 행동하고 네 턴에는 get_duel_state로 공개 정보와 합법 선택지를 확인한 뒤, 합법 선택지 중 하나만 골라 duel_action으로 제출해. 연결 코드: ${claudePairingCode}`;
+    const text=`Ghost Duel에서 Claude로 듀얼해줘. 처음 get_duel_state로 상태를 확인하고, Claude 차례의 합법 선택을 duel_action으로 제출해. duel_action 결과의 nextState를 다음 판단에 바로 사용하고 매번 get_duel_state를 다시 호출하지 마. 네 차례가 이어지면 내 차례 또는 듀얼 종료까지 모든 프롬프트를 계속 처리해. 체인 가능한 우선권도 매번 직접 판단해. 내가 행동 중일 땐 wait_for_duel_turn으로 기다려. 게임 화면에 보여줄 짧은 대사를 매 행동의 commentary에 넣어(최대 280자). 연결 코드: ${claudePairingCode}`;
     try{await navigator.clipboard.writeText(text);const button=document.getElementById('copyClaudePairing');if(button)button.textContent='복사 완료';}
     catch{claudeBridgeStatus='복사할 수 없습니다. 화면의 연결 코드를 길게 눌러 복사하세요.';}
   });

@@ -115,7 +115,7 @@ self.onmessage=async({data:m})=>{
       if(m.revision!==revision||session?.prompt?.player!==1){const claudeState=session?.snapshot(1)??null;if(claudeState)claudeState.revision=revision;post('action-result',{actionResult:{requestId:m.requestId,ok:false,error:'듀얼 상태가 바뀌었습니다. 현재 상태를 다시 확인하세요.'},claudeState});return;}
       const previousLogs=[...session.logs];
       try{
-        const prompt=session.prompt,input=responseInput(m);session.log(`Claude · ${describeDecision(prompt,input,session.cards)}`);session.respond(input);claudeInputs.push(input);publish({actionResult:{requestId:m.requestId,ok:true}});
+        const prompt=session.prompt,input=responseInput(m),commentary=typeof m.commentary==='string'?m.commentary.trim():'';session.log(`Claude · ${commentary?`“${commentary}” · `:''}${describeDecision(prompt,input,session.cards)}`);session.respond(input);claudeInputs.push(input);publish({actionResult:{requestId:m.requestId,ok:true},actionNotice:commentary});
       }catch(e){session.logs=previousLogs;const claudeState=session.snapshot(1);claudeState.revision=revision;post('action-result',{actionResult:{requestId:m.requestId,ok:false,error:e.message},claudeState});}
     } else if(m.type==='undo') {await undoLastPlayerAction();}
     else if(m.type==='pause') {if(undoing)return;clearTimeout(timer);paused=!paused;publish();}
