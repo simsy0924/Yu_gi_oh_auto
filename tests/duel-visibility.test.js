@@ -28,3 +28,21 @@ test('legal choices omit engine responses and hide opponent hand labels',()=>{
   assert.equal(view.selection.options[1].label,'비공개 카드 2');
   assert.equal('card' in view.selection.options[1],false);
 });
+
+test('the acting player can read names selected from their own Deck while opponent Deck cards stay hidden',()=>{
+  const view=promptForViewer({player:1,type:'SELECT_UNSELECT_CARD',choices:[
+    {id:'0',label:'선택 · Jet Synchron · 덱 1',shortLabel:'소재 선택',card:9742784,cardName:'Jet Synchron',kind:'select',source:{controller:1,location:1,sequence:0},response:{secret:true}},
+    {id:'1',label:'선택 · 상대 덱 카드',shortLabel:'소재 선택',card:123,cardName:'비공개 카드',kind:'select',source:{controller:0,location:1,sequence:0},response:{secret:true}}
+  ],selection:{mode:'toggle',selectedCount:0,canFinish:false,options:[
+    {id:'0',label:'선택 · Jet Synchron · 덱 1',card:9742784,cardName:'Jet Synchron',source:{controller:1,location:1,sequence:0}},
+    {id:'1',label:'선택 · 상대 덱 카드',card:123,cardName:'비공개 카드',source:{controller:0,location:1,sequence:0}}
+  ]}},1);
+  assert.equal(view.choices[0].label,'선택 · Jet Synchron · 덱 1');
+  assert.equal(view.choices[0].cardName,'Jet Synchron');
+  assert.equal(view.choices[1].label,'비공개 카드 행동 1');
+  assert.equal('cardName' in view.choices[1],false);
+  assert.equal(view.selection.options[0].label,'선택 · Jet Synchron · 덱 1');
+  assert.equal(view.selection.options[0].cardName,'Jet Synchron');
+  assert.equal(view.selection.options[1].label,'비공개 카드 2');
+  assert.equal('cardName' in view.selection.options[1],false);
+});
