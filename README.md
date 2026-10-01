@@ -144,12 +144,15 @@ GitHub Pages용 Actions 워크플로가 포함되어 있으며 Pages Source는
 
 ## 재현성과 검증
 
-- `npm test`: 실제 WASM 코어로 완주, Lua 효과/체인/드로우, 덱 검증,
-  상대 정보 은닉, 상대 기준 존 마스크 및 선택 검증.
+- `npm test`: prerelease Lua 번들 수집, 실제 WASM 코어의 효과/체인/드로우,
+  덱 검증, 상대 정보 은닉 및 선택 검증.
 - `npm run build`: GitHub Pages 하위 경로에 맞는 상대 경로 빌드.
-- `npm run assets`: 원본 프로젝트를 `.sources/`에 가져와서 고정된 revision에서
-  gzip JSON을 재생성합니다. 이미 다른 revision이 있으면 자동 변경하지 않고
-  중단하므로 `scripts/prepare-assets.py`에 기록된 커밋으로 checkout하세요.
+- `npm run assets`: 원본 프로젝트를 `.sources/`에 고정된 커밋으로 가져오고
+  카드 DB와 효과 스크립트 gzip JSON을 재생성합니다. 카드 데이터에는 prerelease
+  CDB와 `CardScripts/pre-release/` Lua 스크립트가 함께 포함됩니다. Pages 빌드도
+  이 명령을 먼저 실행해 배포 번들에 prerelease 효과를 반영합니다. 이미 다른
+  revision으로 checkout한 소스는 자동 변경하지 않으므로 `scripts/prepare-assets.py`에
+  기록된 커밋으로 checkout하세요.
 - `public/engine/sources.json`: 데이터 출처와 정확한 커밋.
 - `python3 scripts/prepare-ko.py /path/to/yaml-yugi/data/cards`: 고정된 YAML Yugi
   스냅샷에서 공식 한국어 카드명과 효과를 갱신합니다. 소스 커밋이 다르면 중단합니다.
@@ -159,5 +162,30 @@ GitHub Pages용 Actions 워크플로가 포함되어 있으며 Pages Source는
 - `scripts/patch-core.mjs`: 공개 npm 패키지 0.1.2에 필요한 상류 버그 수정 적용.
 - 한국어 스냅샷의 출처 및 재생성 절차, 코어 전체 소스 및 빌드 절차 링크는
   [THIRD_PARTY.md](./THIRD_PARTY.md)에 있습니다.
+
+## Claude와 MCP 듀얼
+
+Node.js 22 이상을 설치하고 프로젝트 폴더에서 `npm ci`와 `npm run dev`를 실행한 뒤,
+브라우저에서 `http://localhost:5173`을 엽니다. 저장소에는 Claude Code용 `.mcp.json`이
+포함되어 있습니다. 프로젝트 폴더에서 Claude Code를 열고 MCP 서버 사용을 승인하면
+연결됩니다. `/mcp`에서 `ghost-duel` 상태를 확인할 수 있습니다.
+
+Claude Desktop에서 쓰려면 설정 화면에서 `claude_desktop_config.json`을 열고,
+`mcpServers`에 아래 항목을 추가한 뒤 절대 경로를 실제 프로젝트 경로로 바꿔 주세요.
+
+```json
+{
+  "ghost-duel": {
+    "command": "node",
+    "args": ["/absolute/path/to/Yu_gi_oh_auto/mcp-server/server.js"]
+  }
+}
+```
+
+Claude Code를 다시 열고 Ghost Duel에서 `Claude 대전`을 선택해 내 덱과 Claude 덱을
+고른 뒤 시작합니다. Claude 대화에서는 `get_duel_state`로 현재 공개 정보와 합법
+선택지를 읽고, `duel_action`으로 한 행동을 제출합니다. 선택 요청이 많을 때는
+`list_legal_options`, 내 차례를 기다릴 때는 `wait_for_duel_turn`을 사용합니다.
+MCP 서버는 로컬에서 듀얼 화면과 통신하며, 카드 효과는 기존 WASM 엔진이 판정합니다.
 
 AGPL-3.0-or-later. [LICENSE](./LICENSE), [third-party notices](./THIRD_PARTY.md).

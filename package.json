@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "test": "node --test tests/*.test.js",
+    "test": "python3 tests/test_prepare_assets.py && node --test tests/*.test.js",
+    "mcp": "node mcp-server/server.js",
     "assets": "python3 scripts/prepare-assets.py",
     "postinstall": "node scripts/patch-core.mjs",
     "audit:translations": "python3 scripts/audit-ko.py"
