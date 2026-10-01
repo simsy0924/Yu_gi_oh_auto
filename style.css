@@ -24,7 +24,7 @@ a{color:var(--accent);font-size:11px}.picker{grid-template-rows:auto 1fr auto}.i
 .context-card{margin-top:8px;border:1px solid var(--line);border-radius:8px;background:#ffffff07;padding:7px 9px;font-size:11px}
 .context-card summary{cursor:pointer;color:#d8ecf6;font-weight:700;min-height:24px}.context-card p{white-space:pre-wrap;line-height:1.5;margin:6px 0}
 .card-shortcut strong{display:block;font-size:12px}.card-shortcut small{display:block;color:#bdd4e1;margin-top:4px;font-size:10px;line-height:1.4}
-.decision .pick{line-height:1.4;white-space:normal;overflow-wrap:anywhere}.decision .pick:focus-visible,.slot:focus-visible{outline:2px solid var(--ok);outline-offset:2px}
+.decision .pick{line-height:1.4;white-space:normal;overflow-wrap:anywhere}.decision .pick:focus-visible,.slot:focus-visible{outline:2px solid var(--ok);outline-offset:2px}.decision .confirm-choice{position:sticky;bottom:0;z-index:2;box-shadow:0 -8px 12px var(--panel)}
 .card-info h3{font-size:16px;margin:0 0 9px}.card-info h4{font-size:12px;margin:12px 0 5px;color:var(--accent)}
 .card-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:0}.card-facts>div{min-width:0;background:#ffffff0b;border:1px solid var(--line);border-radius:7px;padding:6px 8px}
 .card-facts dt{font-size:10px;color:var(--muted)}.card-facts dd{margin:3px 0 0;font-size:12px;overflow-wrap:anywhere}.card-description{margin:0;white-space:pre-wrap;line-height:1.55}
