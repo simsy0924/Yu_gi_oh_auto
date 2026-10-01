@@ -16,7 +16,7 @@ export class DuelSession {
   static async create({cards,scripts,wasmBinary,you,ghost,seed=[1,2,3,4],startingHand=null}) {
     validateDeck(you,cards);validateDeck(ghost.deck,cards);
     const chainScript=coreCompatibleChainScript(scripts);
-    const s=new DuelSession();Object.assign(s,{cards,scripts,lp:[8000,8000],turn:0,phase:0,active:0,logs:[],prompt:null,ended:false,issue:null,confirmation:null,confirmationByPlayer:{0:null,1:null},confirmationSerial:0});
+    const s=new DuelSession();Object.assign(s,{cards,scripts,lp:[8000,8000],turn:0,phase:0,active:0,logs:[],prompt:null,ended:false,issue:null,confirmation:null,confirmationByPlayer:{0:null,1:null},confirmationSerial:0,confirmationSerialByPlayer:{0:0,1:0}});
     s.core=await createCore({sync:true,wasmBinary});
     const team={startingLP:8000,startingDrawCount:5,drawCountPerTurn:1};
     const firstTeam=startingHand?.length?{...team,startingDrawCount:startingHand.length}:team;
@@ -49,6 +49,7 @@ export class DuelSession {
   recordConfirmation(message) {
     if(![0,1].includes(message.player)||!Array.isArray(message.cards))return;
     this.confirmationByPlayer??={0:this.confirmation??null,1:null};
+    this.confirmationSerialByPlayer??={0:this.confirmationSerial??0,1:0};
     const cards=message.cards.map(card=>{
       const db=this.cards?.[card.code]??{};
       return {
@@ -59,9 +60,9 @@ export class DuelSession {
         originalAttack:db.attack,originalDefense:db.defense
       };
     });
-    const confirmation={id:++this.confirmationSerial,type:M[message.type]??String(message.type),cards};
+    const confirmation={id:++this.confirmationSerialByPlayer[message.player],type:M[message.type]??String(message.type),cards};
     this.confirmationByPlayer[message.player]=confirmation;
-    if(message.player===0)this.confirmation=confirmation;
+    if(message.player===0){this.confirmationSerial=this.confirmationSerialByPlayer[0];this.confirmation=confirmation;}
   }
   advance() {
     for(let tick=0;tick<10000;tick++) {
