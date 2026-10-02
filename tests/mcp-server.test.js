@@ -85,13 +85,17 @@ test('duel state sends only changed fields and appends only new logs',async t=>{
   const longDescription='unchanged visible card detail '.repeat(500);
   const graveyard=[
     {code:5,controller:1,location:16,sequence:0,name:'묘지 카드 1',desc:longDescription},
-    {code:6,controller:1,location:16,sequence:1,name:'묘지 카드 2',desc:longDescription}
+    {code:5,controller:1,location:16,sequence:1,name:'묘지 카드 1 복사본',desc:longDescription}
   ];
   const first={viewer:1,revision:11,zones:{1:{4:{cards:[{code:4,name:'테스트 카드',desc:longDescription}]},16:{cards:graveyard}}},lp:[8000,8000],turn:1,phase:4,active:1,logs:['이전 행동'],prompt:{player:1,choices:[],selection:null},ended:false};
   assert.equal((await sendState(first)).status,200);
   const tools=createToolHandlers(bridge);
   const full=tools.get_duel_state();
   assert.equal(full.kind,'full');
+  assert.equal(full.state.cardTexts['4'],longDescription);
+  assert.equal(full.state.cardTexts['5'],longDescription);
+  assert.equal(Object.hasOwn(full.state.zones[1][4].cards[0],'desc'),false);
+  assert.equal(Object.hasOwn(full.state.zones[1][16].cards[1],'desc'),false);
   assert.match(JSON.stringify(full),/unchanged visible card detail/);
 
   const second={...first,revision:12,zones:{1:{...first.zones[1],16:{cards:[...graveyard,{code:7,controller:1,location:16,sequence:2,name:'새 묘지 카드',desc:'새 카드 텍스트'}]}}},lp:[8000,7000],logs:[...first.logs,'새 행동'],prompt:{player:1,choices:[{id:'pass',label:'효과를 발동하지 않는다'}],selection:null}};
@@ -104,13 +108,37 @@ test('duel state sends only changed fields and appends only new logs',async t=>{
   assert.ok(delta.changes.some(change=>change.path==='/prompt/choices/0'));
   assert.ok(delta.changes.some(change=>change.op==='add'&&change.path==='/zones/1/16/cards/2'));
   assert.deepEqual(delta.logs,{append:['새 행동'],drop:0});
+  assert.ok(delta.changes.some(change=>change.op==='add'&&change.path==='/cardTexts/7'&&change.value==='새 카드 텍스트'));
   assert.doesNotMatch(JSON.stringify(delta),/unchanged visible card detail/);
   assert.ok(JSON.stringify(full).length>JSON.stringify(delta).length*20);
   const reconstructed=structuredClone(full.state),previousLogs=reconstructed.logs;
   delete reconstructed.logs;
   applyJsonChanges(reconstructed,delta.changes);
   reconstructed.logs=delta.logs.replace??[...previousLogs.slice(delta.logs.drop??0),...(delta.logs.append??[])];
-  assert.deepEqual(reconstructed,{...second,logs:second.logs.slice(-12)});
+  const normalizedSecond=structuredClone(second);
+  normalizedSecond.cardTexts={'4':longDescription,'5':longDescription,'7':'새 카드 텍스트'};
+  const stripDescriptions=value=>{
+    if(!value||typeof value!=='object')return;
+    if(Array.isArray(value)){for(const item of value)stripDescriptions(item);return;}
+    if(value.code&&typeof value.desc==='string')delete value.desc;
+    for(const child of Object.values(value))stripDescriptions(child);
+  };
+  stripDescriptions(normalizedSecond);
+  assert.deepEqual(reconstructed,{...normalizedSecond,logs:second.logs.slice(-12)});
+
+  const third={...second,revision:13,zones:{1:{16:second.zones[1][16]}}};
+  assert.equal((await sendState(third)).status,200);
+  const thirdDelta=tools.get_duel_state({sinceRevision:12});
+  assert.equal(thirdDelta.kind,'delta');
+  assert.equal(thirdDelta.changes.some(change=>change.path==='/cardTexts/4'),false);
+
+  const fourth={...third,revision:14,zones:{1:{...third.zones[1],4:first.zones[1][4]}}};
+  assert.equal((await sendState(fourth)).status,200);
+  const fourthDelta=tools.get_duel_state({sinceRevision:13});
+  assert.equal(fourthDelta.kind,'delta');
+  assert.ok(fourthDelta.changes.some(change=>change.path==='/zones/1/4'));
+  assert.doesNotMatch(JSON.stringify(fourthDelta),/unchanged visible card detail/);
+  assert.equal(fourthDelta.changes.some(change=>change.path==='/cardTexts/4'),false);
 });
 
 test('duel_action waits for the next Claude prompt and returns one delta across the wait',async t=>{
