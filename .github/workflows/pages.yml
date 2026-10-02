@@ -39,3 +39,22 @@ jobs:
     steps:
       - uses: actions/deploy-pages@v4
         id: deployment
+
+  deploy-mcp:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: mcp-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Request deployment of the tested commit
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          DEPLOY_COMMIT_SHA: ${{ github.sha }}
+        run: node scripts/deploy-mcp.mjs
