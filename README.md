@@ -244,4 +244,34 @@ AI 1은 player 1, AI 2는 player 2를 맡습니다. 코드는 자기 플레이�
 시작시키지 않으므로, 대화 앱이 도구 응답 뒤에 자동으로 계속하지 않으면 그 대화에서
 계속 진행하도록 요청하세요.
 
+### MCP 서버 자동 배포 (기존 Render 서비스)
+
+GitHub Pages와 MCP 서버는 별도 배포입니다. main에 푸시하거나 PR을 병합하면 기존
+Actions의 테스트와 빌드가 성공한 뒤 deploy-mcp 작업이 **검증한 커밋 SHA**를
+Render에 배포 요청합니다. PR 검사에서는 배포하지 않습니다. MCP 배포 요청 실패는
+Pages 배포와 별도로 표시됩니다.
+
+최초 설정은 한 번 필요합니다.
+
+1. 기존 Render 서비스 ygo-claude-mobile-mcp의 Settings에서 연결 저장소가
+   simsy0924/Yu_gi_oh_auto, Branch가 main인지 확인합니다.
+   Build Command는 npm ci, Start Command는 npm run mcp:remote,
+   Health Check Path는 /health로 설정합니다. Node.js 22 이상을 사용하고
+   YGO_ALLOWED_ORIGINS는 https://simsy0924.github.io로 지정합니다.
+2. 같은 서비스의 Deploy Hook URL을 복사하고 GitHub 저장소 Settings →
+   Secrets and variables → Actions에 RENDER_DEPLOY_HOOK_URL 이름의
+   Repository secret으로 저장합니다. URL을 소스나 공개 대화에 넣지 마세요.
+3. 배포를 GitHub Actions에서만 관리하려면 기존 Render 서비스의 Auto-Deploy를
+   Off로 설정합니다. 자동 배포와 훅 배포를 동시에 켜면 중복 배포될 수 있습니다.
+4. 이 변경을 main에 병합합니다. 이미 병합했다면 Actions의 Test and deploy Ghost Duel
+   워크플로를 main에서 Run workflow로 실행합니다.
+
+Actions의 성공 메시지는 Render가 요청을 수락했다는 뜻입니다. 실제 빌드/배포 완료는
+Render Events에서 확인하세요. 설정이 없거나 훅이 잘못되면 deploy-mcp 작업은
+명확한 오류로 실패하며, 정상 배포된 것처럼 표시하지 않습니다.
+배포 후 기존 HTTPS 주소 /health와 새 듀얼 연결 코드를 확인하세요.
+서버의 방/코드는 메모리에 저장되므로 재시작하면 기존 듀얼 연결은 끊어집니다.
+
+Render 문서: https://render.com/docs/deploy-hooks
+
 AGPL-3.0-or-later. [LICENSE](./LICENSE), [third-party notices](./THIRD_PARTY.md).
