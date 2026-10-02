@@ -14,7 +14,7 @@ export function makePrompt(m,cards) {
   const name=c=>cards[c.code]?.name??String(c.code);
   const description=d=>{const n=BigInt(d??0),c=cards[Number(n>>20n)];return c?.koreanStrings?.[Number(n&0xfffffn)]||'';};
   const label=c=>`${name(c)}${c.location?` · ${({'2':'패','4':'몬스터','8':'마법·함정','16':'묘지','32':'제외','64':'엑스트라'})[c.location]??'덱'} ${c.sequence+1}`:''}${c.description?` ${description(c.description)}`:''}`;
-  const source=c=>c&&Number.isInteger(c.controller)&&Number.isInteger(c.location)&&Number.isInteger(c.sequence)?{controller:c.controller,location:c.location,sequence:c.sequence}:null;
+  const source=c=>{if(!c||!Number.isInteger(c.controller)||!Number.isInteger(c.location)||!Number.isInteger(c.sequence))return null;const value={controller:c.controller,location:c.location,sequence:c.sequence};if(Number.isInteger(c.position))value.position=c.position;return value;};
   const add=(label,response,kind='',card=null,from=null,shortLabel=label)=>p.choices.push({id:String(p.choices.length),label,shortLabel,response,kind,card,cardName:card==null?null:name({code:card}),source:source(from)});
   const command=(list,action,kind,verb)=>(list??[]).forEach((c,index)=>add(`${verb} · ${label(c)}`,{type,action,index},kind,c.code,c,`${verb}${c.description&&description(c.description)?` · ${description(c.description)}`:''}`));
   switch(m.type) {
