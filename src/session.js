@@ -2,6 +2,7 @@ import createCore,{OcgDuelMode as D,OcgMessageType as M,OcgProcessResult as P,Oc
 import {validateDeck} from './decks.js';
 import {makePrompt,requestTypes,selectionResponse,counterResponse} from './prompts.js';
 import {isHiddenZoneForViewer,promptForViewer} from './duel-visibility.js';
+import {describeChain} from './duel-log.js';
 
 function coreCompatibleChainScript(scripts){
   const source=scripts['chain.lua'];
@@ -95,7 +96,7 @@ export class DuelSession {
         if(m.type===M.RECOVER)this.lp[m.player]+=m.amount;
         if(m.type===M.LPUPDATE)this.lp[m.player]=m.lp;
         if(m.type===M.WIN){this.ended=true;this.winner=m.player;this.reason=m.reason;this.log(m.player===2?'무승부':`${this.playerNames[m.player]??`플레이어 ${m.player+1}`} 승리`);}
-        if(m.type===M.CHAINING)this.log(`체인 ${m.chain_size} · ${this.cards[m.code]?.name??m.code}`);
+        if(m.type===M.CHAINING)this.log(describeChain(m,this.cards));
       }
       if(this.issue)throw new Error(this.issue);
       if(status===P.END||this.ended){this.ended=true;this.prompt=null;return;}

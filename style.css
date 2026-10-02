@@ -117,3 +117,10 @@ a{color:var(--accent);font-size:11px}.picker{grid-template-rows:auto 1fr auto}.i
   .setup-footer .selection p{margin:3px 0;font-size:8px;line-height:1.3}
   .setup-footer .primary{min-width:128px;height:34px;font-size:10px}
 }
+
+/* Keep the shared Extra Monster Zone row clear when the board is short. */
+.live-board{grid-template-rows:minmax(0,1fr) minmax(28px,auto) minmax(0,1fr)}
+.live-field{grid-template-rows:auto repeat(3,minmax(0,1fr));overflow:hidden}
+.live-field .field-row,.live-field .slot,.live-field .live-hand,.live-field .live-hand .slot,.live-field .opponent-hand{min-height:0}
+.live-field .slot{height:100%}
+.shared-extra{position:relative;z-index:1;min-height:28px}

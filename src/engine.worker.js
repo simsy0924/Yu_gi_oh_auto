@@ -2,7 +2,7 @@ import {DuelSession} from './session.js';
 import {ghostChoice} from './prompts.js';
 import {soloOpponentChoice} from './solo.js';
 import {replayPlayerInputs} from './duel-history.js';
-import {describeDecision} from './duel-log.js';
+import {describeDecision,decisionUsesPrivateCard} from './duel-log.js';
 import wasmUrl from 'ocgcore-wasm/lib/ocgcore.sync.wasm?url';
 let session, assets,engineData,sessionConfig,playerInputs=[],claudeInputs=[],behavior,cursor=0,paused=false,timer=null,revision=0,soloMode=false,claudeMode=false,aiDuelMode=false,undoing=false;
 const post=(type,data={})=>self.postMessage({type,...data});
@@ -127,7 +127,7 @@ self.onmessage=async({data:m})=>{
       }
       const previousLogs=[...session.logs];
       try{
-        const prompt=session.prompt,input=responseInput(m),commentary=typeof m.commentary==='string'?m.commentary.trim():'';session.log(`${aiDuelMode?`AI ${actingPlayer+1}`:'Claude'} · ${commentary?`“${commentary}” · `:''}${describeDecision(prompt,input,session.cards)}`);session.respond(input);if(claudeMode)claudeInputs.push(input);publish({actionResult:{requestId:m.requestId,ok:true,player:actingPlayer},actionNotice:commentary});
+        const prompt=session.prompt,input=responseInput(m),commentary=typeof m.commentary==='string'?m.commentary.trim():'';const publicCommentary=decisionUsesPrivateCard(prompt,input)?'':commentary;session.log(`${aiDuelMode?`AI ${actingPlayer+1}`:'Claude'} · ${publicCommentary?`“${publicCommentary}” · `:''}${describeDecision(prompt,input,session.cards)}`);session.respond(input);if(claudeMode)claudeInputs.push(input);publish({actionResult:{requestId:m.requestId,ok:true,player:actingPlayer},actionNotice:commentary});
       }catch(e){session.logs=previousLogs;const actionResult={requestId:m.requestId,ok:false,error:e.message,player:actingPlayer};if(claudeMode){const claudeState=session.snapshot(1);claudeState.revision=revision;post('action-result',{actionResult,claudeState});}else{const aiStates=[0,1].map(player=>{const aiState=session.snapshot(player);aiState.revision=revision;return aiState;});post('action-result',{actionResult,aiStates});}}
     } else if(m.type==='undo') {await undoLastPlayerAction();}
     else if(m.type==='pause') {if(undoing)return;clearTimeout(timer);paused=!paused;publish();}
