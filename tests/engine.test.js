@@ -32,6 +32,8 @@ test('effect commands use Korean choice strings and show the Korean card context
   assert.match(promptHelp(option),/효과/);
   const fallback=makePrompt({type:M.SELECT_OPTION,player:0,options:[description]},{[code]:{...card,koreanStrings:[]}});
   assert.equal(fallback.choices[0].label,'선택 1');
+  const extraPrompt=makePrompt({type:M.SELECT_IDLECMD,player:0,summons:[],special_summons:[{code,controller:0,location:64,sequence:0,position:1}],pos_changes:[],monster_sets:[],spell_sets:[],activates:[],to_bp:false,to_ep:false},{[code]:card});
+  assert.equal(extraPrompt.choices[0].source.position,1);
 });
 test('card details include the applicable printed stats and selection progress',()=>{
   const monster={code:1,name:'시험 카드',desc:'시험 효과',type:1|0x20|0x1000000|0x4000000,race:'8192',attribute:16,level:3,attack:2000,lscale:2,rscale:7,link_marker:128|2,counters:{257:2}};
@@ -57,17 +59,36 @@ test('duel action descriptions identify selected cards and effects',()=>{
   const effect={type:'SELECT_EFFECTYN',title:'정크 마이스터 · 특수 소환할까요?',choices:[{id:'0',kind:'yes',shortLabel:'예'}]};
   assert.equal(describeDecision(effect,{choice:'0'},cards),'정크 마이스터 · 특수 소환할까요? · 예');
 });
-test('public duel logs do not reveal the identity of cards that remain private',()=>{
-  const hiddenName='비밀 세트 카드',cards={12345:{name:hiddenName}};
-  const setPrompt={title:'행동을 선택하세요',choices:[{id:'0',kind:'set',card:12345,shortLabel:'몬스터 세트',source:{controller:0,location:2,sequence:0}}]};
+test('public duel logs hide private cards and retain information revealed by actions or face-up zones',()=>{
+  const hiddenName='비밀 카드',cards={12345:{name:hiddenName}};
+  const setPrompt={title:'행동을 선택하세요',choices:[{id:'0',kind:'set',card:12345,shortLabel:'몬스터 세트',source:{controller:0,location:2,sequence:0,position:1}}]};
   assert.equal(describeDecision(setPrompt,{choice:'0'},cards),'몬스터 세트');
   assert.equal(decisionUsesPrivateCard(setPrompt,{choice:'0'}),true);
-  const selectPrompt={title:'카드 선택',selection:{options:[{id:0,label:`${hiddenName} · 패 1`,card:12345,source:{controller:0,location:2,sequence:0}}]}};
+
+  const selectPrompt={title:'카드 선택',selection:{options:[{id:0,label:`${hiddenName} · 패 1`,card:12345,source:{controller:0,location:2,sequence:0,position:1}}]}};
   assert.equal(describeDecision(selectPrompt,{indices:[0]},cards),'카드 선택 · 비공개 카드');
   assert.equal(decisionUsesPrivateCard(selectPrompt,{indices:[0]}),true);
-  const hiddenChain=describeChain({chain_size:1,code:12345,position:2},cards);
-  assert.equal(hiddenChain,'체인 1 · 세트 카드 효과');
-  assert.doesNotMatch(hiddenChain,new RegExp(hiddenName));
+
+  const handSummon={title:'행동을 선택하세요',choices:[{id:'0',kind:'special',card:12345,shortLabel:'특수 소환',source:{controller:0,location:2,sequence:0,position:1}}]};
+  assert.equal(describeDecision(handSummon,{choice:'0'},cards),`${hiddenName} · 특수 소환`);
+  assert.equal(decisionUsesPrivateCard(handSummon,{choice:'0'}),false);
+
+  const faceUpExtra={title:'행동을 선택하세요',choices:[{id:'0',kind:'special',card:12345,shortLabel:'특수 소환',source:{controller:1,location:64,sequence:0,position:1}}]};
+  assert.equal(describeDecision(faceUpExtra,{choice:'0'},cards),`${hiddenName} · 특수 소환`);
+  assert.equal(decisionUsesPrivateCard(faceUpExtra,{choice:'0'}),false);
+
+  const faceUpExtraSelection={title:'카드 선택',selection:{options:[{id:0,label:hiddenName,card:12345,source:{controller:1,location:64,sequence:0,position:4}}]}};
+  assert.equal(describeDecision(faceUpExtraSelection,{indices:[0]},cards),`카드 선택 · ${hiddenName}`);
+  const faceDownExtraSelection={title:'카드 선택',selection:{options:[{id:0,label:hiddenName,card:12345,source:{controller:1,location:64,sequence:0,position:8}}]}};
+  assert.equal(describeDecision(faceDownExtraSelection,{indices:[0]},cards),'카드 선택 · 비공개 카드');
+
+  const faceUpBanished={title:'카드 선택',selection:{options:[{id:0,label:hiddenName,card:12345,source:{controller:1,location:32,sequence:0,position:1}}]}};
+  assert.equal(describeDecision(faceUpBanished,{indices:[0]},cards),`카드 선택 · ${hiddenName}`);
+  const faceDownBanished={title:'카드 선택',selection:{options:[{id:0,label:hiddenName,card:12345,source:{controller:1,location:32,sequence:0,position:8}}]}};
+  assert.equal(describeDecision(faceDownBanished,{indices:[0]},cards),'카드 선택 · 비공개 카드');
+
+  assert.equal(describeChain({chain_size:1,code:12345,position:2},cards),'체인 1 · 세트 카드 효과');
+  assert.equal(describeChain({chain_size:1,code:12345},cards),'체인 1 · 세트 카드 효과');
   assert.equal(describeChain({chain_size:1,code:12345,position:1},cards),`체인 1 · ${hiddenName}`);
 });
 test('confirmed hidden cards are exposed only when the local player is allowed to see them',()=>{
