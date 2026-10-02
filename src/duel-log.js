@@ -4,8 +4,23 @@ function optionName(option,cards,index){
   return option?.label??option?.name??(option?.card?cardName(option.card,cards):`선택 ${index+1}`);
 }
 
+function faceDownOrUnknown(position){
+  return !Number.isInteger(position)||position===0||(position&10)!==0||(position&5)===0;
+}
+
 function privateSource(option){
-  return [1,2,64].includes(option?.source?.location);
+  const source=option?.source;
+  if(source?.location===1||source?.location===2)return true;
+  return (source?.location===32||source?.location===64)&&faceDownOrUnknown(source.position);
+}
+
+function actionRevealsCard(option){
+  return ['summon','special','activate'].includes(option?.kind);
+}
+
+function privateChoice(option){
+  if(option?.kind==='set'||option?.kind==='set-spell')return true;
+  return privateSource(option)&&!actionRevealsCard(option);
 }
 
 function publicOptionName(option,cards,index){
@@ -17,12 +32,12 @@ export function decisionUsesPrivateCard(prompt,input){
   if(Array.isArray(input?.counters))return (prompt?.selection?.options??[]).some((option,index)=>input.counters[index]>0&&privateSource(option));
   if(input?.choice!==undefined){
     const choice=prompt?.choices?.find(option=>option.id===String(input.choice));
-    return choice?.kind==='set'||choice?.kind==='set-spell'||privateSource(choice);
+    return privateChoice(choice);
   }
   return false;
 }
 
-export function describeDecision(prompt,input,cards={}) {
+export function describeDecision(prompt,input,cards={}){
   const title=prompt?.title??prompt?.type??'행동';
   if(Array.isArray(input?.indices)){
     const options=prompt?.selection?.options??[];
@@ -41,7 +56,7 @@ export function describeDecision(prompt,input,cards={}) {
     const action=choice.shortLabel?.trim()||choice.label||choice.kind||'행동';
     if(choice.kind==='set')return '몬스터 세트';
     if(choice.kind==='set-spell')return '마법·함정 세트';
-    if(privateSource(choice))return ({summon:'일반 소환',special:'특수 소환',activate:'효과 발동'}[choice.kind]??'비공개 카드 행동');
+    if(privateChoice(choice))return ({summon:'일반 소환',special:'특수 소환',activate:'효과 발동'}[choice.kind]??'비공개 카드 행동');
     if(choice.card)return `${cardName(choice.card,cards)} · ${action}`;
     if(['yes','no'].includes(choice.kind))return `${title} · ${action}`;
     if(prompt?.type==='SELECT_OPTION'&&prompt.context?.name)return `${prompt.context.name} · ${title}: ${action}`;
@@ -51,6 +66,6 @@ export function describeDecision(prompt,input,cards={}) {
 }
 
 export function describeChain(message,cards={}){
-  const name=(message?.position??1)&10?'세트 카드 효과':cardName(message?.code,cards);
+  const name=faceDownOrUnknown(message?.position)?'세트 카드 효과':cardName(message?.code,cards);
   return `체인 ${message?.chain_size??''} · ${name}`;
 }
