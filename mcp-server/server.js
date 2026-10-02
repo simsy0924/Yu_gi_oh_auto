@@ -149,11 +149,11 @@ function readWaitDuration(value,fallback,{minimum=0}={}) {
   return value;
 }
 
-function validateAction(state,args) {
-  if(!state)throw new Error('듀얼 화면에서 Claude 대전을 먼저 시작하세요.');
+function validateAction(state,args,player=1) {
+  if(!state)throw new Error('듀얼 화면에서 AI 대전을 먼저 시작하세요.');
   if(state.ended)throw new Error('듀얼이 이미 끝났습니다.');
   const prompt=state.prompt;
-  if(prompt?.player!==1)throw new Error('지금은 Claude 차례가 아닙니다. wait_for_duel_turn 도구로 차례를 기다리세요.');
+  if(prompt?.player!==player)throw new Error(`지금은 AI ${player+1} 차례가 아닙니다. wait_for_duel_turn 도구로 차례를 기다리세요.`);
   const supplied=[args.choiceId!==undefined,args.selectionIds!==undefined,args.counterCounts!==undefined].filter(Boolean).length;
   if(supplied!==1)throw new Error('choiceId, selectionIds, counterCounts 중 하나만 전달하세요.');
   if(args.choiceId!==undefined) {
@@ -291,17 +291,17 @@ export function createBridgeServer({host=DEFAULT_HOST,port=DEFAULT_PORT}={}) {
 }
 
 const toolDefinitions=[
-  {name:'get_duel_state',description:'Read the current duel from Claude player 1’s perspective. The first call returns Claude’s own hand, visible board cards, the current legal prompt, and legal choices; opponent hand and unrevealed cards are hidden. For later calls, pass the last known revision as sinceRevision to receive only changed fields and new logs. duel_action returns nextState as a compact delta; apply its changes and logs before deciding. If kind=full, replace your stored state; if kind=delta, apply the JSON Patch changes and log update. Do not request another full state after every action.',inputSchema:{type:'object',properties:{sinceRevision:{type:'integer',minimum:0,description:'Last known state revision. Omit only for the initial full state.'}},additionalProperties:false}},
-  {name:'wait_for_duel_turn',description:'Wait for the next Claude action prompt or duel end. Pass sinceRevision to receive only changes since the last state. Use this to keep a duel response active while the user plays; it returns waitingForClaude=true if the wait expires before a Claude prompt appears. For continuous play, call again with the newest revision while waitingForClaude is true.',inputSchema:{type:'object',properties:{timeoutMs:{type:'integer',minimum:1000,maximum:60000,description:'Maximum wait in milliseconds (default 30000).'},sinceRevision:{type:'integer',minimum:0,description:'Last known state revision, so only changes are returned.'}},additionalProperties:false}},
+  {name:'get_duel_state',description:'Read the current duel from the AI seat assigned to this pairing code. The first call returns that AI’s own hand, visible board cards, the current legal prompt, and legal choices; the opponent hand and unrevealed cards are hidden. For later calls, pass the last known revision as sinceRevision to receive only changed fields and new logs. duel_action returns nextState as a compact delta; apply its changes and logs before deciding. If kind=full, replace your stored state; if kind=delta, apply the JSON Patch changes and log update. Do not request another full state after every action.',inputSchema:{type:'object',properties:{sinceRevision:{type:'integer',minimum:0,description:'Last known state revision. Omit only for the initial full state.'}},additionalProperties:false}},
+  {name:'wait_for_duel_turn',description:'Wait for the next action prompt assigned to this pairing code or for the duel to end. Pass sinceRevision to receive only changes since the last state. It returns waitingForAI=true if the wait expires before this AI gets a prompt. For continuous play, call again with the newest revision while waitingForAI is true.',inputSchema:{type:'object',properties:{timeoutMs:{type:'integer',minimum:1000,maximum:60000,description:'Maximum wait in milliseconds (default 30000).'},sinceRevision:{type:'integer',minimum:0,description:'Last known state revision, so only changes are returned.'}},additionalProperties:false}},
   {name:'list_legal_options',description:'List or search the current selection options when get_duel_state reports more than 100 options. Use the returned option IDs with duel_action.',inputSchema:{type:'object',properties:{query:{type:'string',description:'Optional case-insensitive text to search in visible option labels.'},offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:100}},additionalProperties:false}},
-  {name:'duel_action',description:'Submit exactly one legal choice or selection from the current Claude prompt. The result includes nextState as a compact delta from the state used for this action; apply its changes and logs before deciding, and do not call get_duel_state again. If this action hands priority to the user, the tool waits up to waitForTurnMs for the next Claude prompt or duel end, so immediate draw/standby responses can continue without a new user message. If waitingForClaude is still true, keep the response active by calling wait_for_duel_turn with nextState.revision; apply its delta and repeat while waitingForClaude stays true. Optionally include short commentary for the duel screen.',inputSchema:{type:'object',properties:{choiceId:{type:'string',description:'The id of one item in prompt.choices.'},selectionIds:{type:'array',items:{type:'integer'},description:'Option IDs selected from prompt.selection.options.'},counterCounts:{type:'array',items:{type:'integer',minimum:0},description:'Counter amounts, one for each prompt.selection.options item.'},commentary:{type:'string',maxLength:280,description:'Optional short message (up to 280 characters) shown in the duel screen and log.'},waitForTurnMs:{type:'integer',minimum:0,maximum:60000,description:'How long to wait after yielding priority for the next Claude prompt (default 55000; use 0 to return immediately).'}},additionalProperties:false}}
+  {name:'duel_action',description:'Submit exactly one legal choice or selection from the current prompt assigned to this AI. The result includes nextState as a compact delta from the state used for this action; apply its changes and logs before deciding, and do not call get_duel_state again. The tool waits up to waitForTurnMs for the next prompt assigned to this AI or the duel end. If waitingForAI is still true, keep the response active by calling wait_for_duel_turn with nextState.revision; apply its delta and repeat while waitingForAI stays true. Optionally include short commentary for the duel screen.',inputSchema:{type:'object',properties:{choiceId:{type:'string',description:'The id of one item in prompt.choices.'},selectionIds:{type:'array',items:{type:'integer'},description:'Option IDs selected from prompt.selection.options.'},counterCounts:{type:'array',items:{type:'integer',minimum:0},description:'Counter amounts, one for each prompt.selection.options item.'},commentary:{type:'string',maxLength:280,description:'Optional short message (up to 280 characters) shown in the duel screen and log.'},waitForTurnMs:{type:'integer',minimum:0,maximum:60000,description:'How long to wait after yielding priority for the next prompt assigned to this AI (default 55000; use 0 to return immediately).'}},additionalProperties:false}}
 ];
 
-export function createToolHandlers(bridge) {
+export function createToolHandlers(bridge,{player=bridge.player??1}={}) {
   return {
     get_duel_state:({sinceRevision:sinceValue}={})=>{
       const state=bridge.getState();
-      if(!bridge.connected()||!state)throw new Error('듀얼 페이지가 연결되지 않았습니다. Ghost Duel에서 Claude 대전을 시작하세요.');
+      if(!bridge.connected()||!state)throw new Error('듀얼 페이지가 연결되지 않았습니다. Ghost Duel에서 AI 대전을 시작하세요.');
       const sinceRevision=readSinceRevision(sinceValue);
       return stateForTool(state,sinceRevision===null?null:bridge.getKnownState(sinceRevision));
     },
@@ -310,14 +310,14 @@ export function createToolHandlers(bridge) {
       const waitMs=readWaitDuration(timeoutMs,30000,{minimum:1000});
       const baseState=sinceRevision===null?null:bridge.getKnownState(sinceRevision);
       const state=await bridge.waitForTurn(waitMs);
-      if(!state)return {kind:'empty',waitingForClaude:true,message:'아직 듀얼 상태가 없습니다.'};
+      if(!state)return {kind:'empty',waitingForClaude:true,waitingForAI:true,message:'아직 듀얼 상태가 없습니다.'};
       const snapshot=stateForTool(state,baseState);
-      return {...snapshot,waitingForClaude:!state.ended&&state.prompt?.player!==1};
+      return {...snapshot,waitingForClaude:!state.ended&&state.prompt?.player!==player,waitingForAI:!state.ended&&state.prompt?.player!==player};
     },
     list_legal_options:({query='',offset=0,limit=PAGE_SIZE}={})=>{
       const state=bridge.getState();
       if(!bridge.connected()||!state)throw new Error('현재 듀얼 상태가 없습니다.');
-      if(state.prompt?.player!==1||!state.prompt.selection)throw new Error('현재 Claude에게 카드 선택 요청이 없습니다.');
+      if(state.prompt?.player!==player||!state.prompt.selection)throw new Error(`현재 AI ${player+1}에게 카드 선택 요청이 없습니다.`);
       const all=state.prompt.selection.options??[];
       const normalized=String(query).trim().toLocaleLowerCase();
       const matches=normalized?all.filter(option=>String(option.label).toLocaleLowerCase().includes(normalized)):all;
@@ -328,11 +328,12 @@ export function createToolHandlers(bridge) {
       const waitMs=readWaitDuration(args.waitForTurnMs,ACTION_AUTO_WAIT_MS);
       const submitted=await bridge.submitAction(args);
       let state=submitted?.state??null;
-      if(waitMs>0&&state&&!state.ended&&state.prompt?.player!==1)state=await bridge.waitForTurn(waitMs)??state;
+      if(waitMs>0&&state&&!state.ended&&state.prompt?.player!==player)state=await bridge.waitForTurn(waitMs)??state;
       return {
         applied:true,
         nextState:state?stateForTool(state,submitted?.baseState??null):null,
-        waitingForClaude:!!state&&!state.ended&&state.prompt?.player!==1
+        waitingForClaude:!!state&&!state.ended&&state.prompt?.player!==player,
+        waitingForAI:!!state&&!state.ended&&state.prompt?.player!==player
       };
     }
   };
@@ -353,7 +354,7 @@ function remoteToolDefinitions() {
   }));
 }
 
-function createRemoteDuelBridge() {
+function createRemoteDuelBridge(player=1) {
   let activeSocket=null,latestState=null,lastClientSeen=Date.now(),latestAction=null,pendingAction=null,actionSequence=0;
   const turnWaiters=new Set();
   const stateHistory=new Map();
@@ -367,11 +368,11 @@ function createRemoteDuelBridge() {
   const notifyWaiters=()=>{
     if(!latestState)return;
     for(const waiter of [...turnWaiters]) {
-      if(latestState.ended||latestState.prompt?.player===1){turnWaiters.delete(waiter);clearTimeout(waiter.timer);waiter.resolve(latestState);}
+      if(latestState.ended||latestState.prompt?.player===player){turnWaiters.delete(waiter);clearTimeout(waiter.timer);waiter.resolve(latestState);}
     }
   };
   function updateState(message) {
-    if(!message.state||message.state.viewer!==1||!Array.isArray(message.state.logs))throw new Error('player 1 시점의 듀얼 상태가 필요합니다.');
+    if(!message.state||message.state.viewer!==player||!Array.isArray(message.state.logs))throw new Error(`player ${player} 시점의 듀얼 상태가 필요합니다.`);
     latestState=message.state;lastClientSeen=Date.now();rememberState(stateHistory,latestState);notifyWaiters();
     if(message.actionResult&&pendingAction?.id===message.actionResult.requestId){
       const action=pendingAction;pendingAction=null;latestAction=null;
@@ -385,7 +386,7 @@ function createRemoteDuelBridge() {
   }
   function waitForTurn(timeoutMs=30000) {
     if(!connected())return Promise.reject(new Error('연결 코드가 적용된 듀얼 화면이 열려 있어야 합니다.'));
-    if(latestState?.ended||latestState?.prompt?.player===1)return Promise.resolve(latestState);
+    if(latestState?.ended||latestState?.prompt?.player===player)return Promise.resolve(latestState);
     return new Promise((resolve,reject)=>{
       const waiter={resolve,reject,timer:setTimeout(()=>{turnWaiters.delete(waiter);resolve(latestState);},timeoutMs)};
       turnWaiters.add(waiter);
@@ -393,7 +394,7 @@ function createRemoteDuelBridge() {
   }
   async function submitAction(args) {
     if(!connected())throw new Error('연결 코드가 적용된 듀얼 화면이 열려 있어야 합니다.');
-    const input=validateAction(latestState,args);
+    const input=validateAction(latestState,args,player);
     const commentary=validateCommentary(args.commentary);
     if(pendingAction)throw new Error('앞서 보낸 행동이 아직 처리 중입니다.');
     const baseState=toolStateSnapshot(latestState);
@@ -408,7 +409,7 @@ function createRemoteDuelBridge() {
     }finally{clearTimeout(timeout);if(pendingAction?.id===id){pendingAction=null;latestAction=null;}}
   }
   return {
-    connected,getState:()=>latestState,getKnownState:revision=>stateHistory.get(revision),updateState,waitForTurn,submitAction,close,touch:()=>{lastClientSeen=Date.now();},
+    player,connected,getState:()=>latestState,getKnownState:revision=>stateHistory.get(revision),updateState,waitForTurn,submitAction,close,touch:()=>{lastClientSeen=Date.now();},
     attach:nextSocket=>{activeSocket=nextSocket;sendPendingAction();},
     detach:closedSocket=>{if(activeSocket===closedSocket)activeSocket=null;}
   };
@@ -468,7 +469,7 @@ export function createRemoteMcpServer({host='0.0.0.0',port=Number(process.env.PO
         const room=rooms.get(code);
         if(!room||!room.bridge.connected()){jsonRpc(res,id,{content:[{type:'text',text:'연결 코드가 만료되었거나 듀얼 화면이 연결되지 않았습니다.'}],isError:true});return;}
         room.lastSeen=Date.now();room.bridge.touch();
-        const handler=createToolHandlers(room.bridge)[name];
+        const handler=createToolHandlers(room.bridge,{player:room.player})[name];
         if(!handler){jsonRpc(res,id,{content:[{type:'text',text:`Unknown tool: ${String(name)}`}],isError:true});return;}
         const {pairingCode:_pairingCode,...toolArgs}=arguments_;
         try{const value=await handler(toolArgs);jsonRpc(res,id,{content:[{type:'text',text:JSON.stringify(value)}]});}
@@ -501,11 +502,13 @@ export function createRemoteMcpServer({host='0.0.0.0',port=Number(process.env.PO
       let message;
       try{message=JSON.parse(data.toString());}catch{ws.close(1007,'Invalid JSON');return;}
       if(!joined){
-        if(message?.type!=='join'||typeof message.pairingCode!=='string'||!PAIRING_CODE_PATTERN.test(message.pairingCode)){ws.close(1008,'Invalid pairing code');return;}
+        if(message?.type!=='join'||typeof message.pairingCode!=='string'||!PAIRING_CODE_PATTERN.test(message.pairingCode)||![undefined,0,1].includes(message.player)){ws.close(1008,'Invalid pairing code or player');return;}
+        const player=message.player??1;
         cleanExpiredRooms();
         if(rooms.size>=MAX_REMOTE_ROOMS&&!rooms.has(message.pairingCode)){ws.close(1013,'Too many active duels');return;}
         room=rooms.get(message.pairingCode);
-        if(!room){room={socket:null,lastSeen:Date.now()};room.bridge=createRemoteDuelBridge();rooms.set(message.pairingCode,room);}
+        if(!room){room={socket:null,lastSeen:Date.now(),player};room.bridge=createRemoteDuelBridge(player);rooms.set(message.pairingCode,room);}
+        if(room.player!==player){ws.close(1008,'Pairing code already belongs to another player');return;}
         const previous=room.socket;
         pairedCode=message.pairingCode;
         room.socket=ws;room.lastSeen=Date.now();

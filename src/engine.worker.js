@@ -4,7 +4,7 @@ import {soloOpponentChoice} from './solo.js';
 import {replayPlayerInputs} from './duel-history.js';
 import {describeDecision} from './duel-log.js';
 import wasmUrl from 'ocgcore-wasm/lib/ocgcore.sync.wasm?url';
-let session, assets,engineData,sessionConfig,playerInputs=[],claudeInputs=[],behavior,cursor=0,paused=false,timer=null,revision=0,soloMode=false,claudeMode=false,undoing=false;
+let session, assets,engineData,sessionConfig,playerInputs=[],claudeInputs=[],behavior,cursor=0,paused=false,timer=null,revision=0,soloMode=false,claudeMode=false,aiDuelMode=false,undoing=false;
 const post=(type,data={})=>self.postMessage({type,...data});
 function opponentDecision(target=session,context={cursor,behavior,soloMode}){
   const p=target?.prompt;
@@ -16,11 +16,15 @@ async function bundle(url){
   return new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).json();
 }
 function publish({undone=false,undoError='',actionNotice='',actionResult=null}={}){
-  const state=session.snapshot();state.paused=paused;state.solo=soloMode;state.revision=++revision;
-  state.undoAvailable=playerInputs.length>0;
+  const state=session.snapshot(aiDuelMode?2:0);state.paused=paused;state.solo=soloMode;state.revision=++revision;
+  state.undoAvailable=!aiDuelMode&&playerInputs.length>0;
   let claudeState=null;
   if(claudeMode){claudeState=session.snapshot(1);claudeState.revision=revision;}
-  if(state.prompt?.player===1) {
+  const aiStates=aiDuelMode?[0,1].map(player=>{const aiState=session.snapshot(player);aiState.revision=revision;return aiState;}):null;
+  if(aiDuelMode&&state.prompt?.player!==undefined){
+    state.ghostBlocked=`AI ${state.prompt.player+1} 차례 · 해당 AI의 MCP에서 행동을 선택합니다.`;
+    state.prompt={player:state.prompt.player,title:`AI ${state.prompt.player+1} 차례 · MCP에서 행동을 선택하세요`,type:state.prompt.type,choices:[]};
+  }else if(state.prompt?.player===1) {
     if(claudeMode){
       state.ghostBlocked='Claude MCP에서 get_duel_state를 확인하고 행동을 선택하세요.';
       state.prompt={player:1,title:'Claude 차례 · MCP에서 행동을 선택하세요',type:state.prompt.type,choices:[]};
@@ -32,7 +36,7 @@ function publish({undone=false,undoError='',actionNotice='',actionResult=null}={
       if(!decision.blocked&&!paused&&!state.ended)timer=setTimeout(()=>actGhost(),soloMode?40:450+Math.floor(Math.random()*450));
     }
   }
-  post('state',{state,...(claudeState?{claudeState}:{}),undone,undoError,...(actionNotice?{actionNotice}:{}),...(actionResult?{actionResult}:{})});
+  post('state',{state,...(claudeState?{claudeState}:{}),...(aiStates?{aiStates}:{}),undone,undoError,...(actionNotice?{actionNotice}:{}),...(actionResult?{actionResult}:{})});
 }
 function performOpponentAction(target,currentCursor,context){
   const decision=opponentDecision(target,{...context,cursor:currentCursor});
@@ -88,7 +92,7 @@ async function undoLastPlayerAction(){
 self.onmessage=async({data:m})=>{
   try {
     if(m.type==='start') {
-      clearTimeout(timer);session?.destroy();session=null;cursor=0;paused=false;soloMode=m.mode==='practice'||m.mode==='ghost-create';claudeMode=m.mode==='claude';behavior=m.ghost?.behavior??{};playerInputs=[];claudeInputs=[];sessionConfig=null;undoing=false;
+      clearTimeout(timer);session?.destroy();session=null;cursor=0;paused=false;soloMode=m.mode==='practice'||m.mode==='ghost-create';claudeMode=m.mode==='claude';aiDuelMode=m.mode==='ai-duel';behavior=m.ghost?.behavior??{};playerInputs=[];claudeInputs=[];sessionConfig=null;undoing=false;
       post('loading',{message:'듀얼 엔진과 카드 데이터를 불러오는 중...'});
       assets??=Promise.all([bundle(new URL('engine/cards.json.gz',m.base)),bundle(new URL('engine/scripts.json.gz',m.base)),bundle(new URL('engine/ko-strings.json.gz',m.base)),fetch(wasmUrl).then(r=>{if(!r.ok)throw new Error('WASM 로드 실패');return r.arrayBuffer();})]);
       const [cards,scripts,koStrings,wasmBinary]=await assets;
@@ -105,18 +109,26 @@ self.onmessage=async({data:m})=>{
       }
       for(const [code,strings] of Object.entries(koStrings))if(cards[code])cards[code].koreanStrings=strings;
       const ghost=m.ghost??{deck:m.you,behavior:{type:'scripted',mode:'priority',script:[],fallback:'basic'}};
-      engineData={cards,scripts,wasmBinary};sessionConfig={you:m.you,ghost,seed:Array.isArray(m.seed)?[...m.seed]:[1,2,3,4],startingHand:Array.isArray(m.startingHand)?[...m.startingHand]:null,firstPlayer:m.firstPlayer===1?1:0};
+      const playerNames=aiDuelMode?['AI 1','AI 2']:claudeMode?['나','Claude']:['나','고스트'];
+      engineData={cards,scripts,wasmBinary};sessionConfig={you:m.you,ghost,seed:Array.isArray(m.seed)?[...m.seed]:[1,2,3,4],startingHand:Array.isArray(m.startingHand)?[...m.startingHand]:null,firstPlayer:m.firstPlayer===1?1:0,playerNames};
       session=await DuelSession.create({...engineData,...sessionConfig});publish();
     } else if(m.type==='respond') {
       if(undoing||m.revision!==revision||session?.prompt?.player!==0)return;
       clearTimeout(timer);const previousLogs=[...session.logs];try{const prompt=session.prompt,input=responseInput(m);session.log(`나 · ${describeDecision(prompt,input,session.cards)}`);session.respond(input);playerInputs.push(input);publish();}catch(e){session.logs=previousLogs;post(session.prompt?'input-error':'error',{message:e.message});}
     } else if(m.type==='remote-action') {
-      if(!claudeMode){post('action-result',{actionResult:{requestId:m.requestId,ok:false,error:'Claude 대전 중이 아닙니다.'}});return;}
-      if(m.revision!==revision||session?.prompt?.player!==1){const claudeState=session?.snapshot(1)??null;if(claudeState)claudeState.revision=revision;post('action-result',{actionResult:{requestId:m.requestId,ok:false,error:'듀얼 상태가 바뀌었습니다. 현재 상태를 다시 확인하세요.'},claudeState});return;}
+      if(!claudeMode&&!aiDuelMode){post('action-result',{actionResult:{requestId:m.requestId,ok:false,error:'AI 대전 중이 아닙니다.'}});return;}
+      const actingPlayer=aiDuelMode?m.player:1;
+      if(![0,1].includes(actingPlayer)){post('action-result',{actionResult:{requestId:m.requestId,ok:false,error:'AI 플레이어가 올바르지 않습니다.'}});return;}
+      if(m.revision!==revision||session?.prompt?.player!==actingPlayer){
+        const actionResult={requestId:m.requestId,ok:false,error:'듀얼 상태가 바뀌었습니다. 현재 상태를 다시 확인하세요.',player:actingPlayer};
+        if(claudeMode){const claudeState=session?.snapshot(1)??null;if(claudeState)claudeState.revision=revision;post('action-result',{actionResult,claudeState});}
+        else {const aiStates=[0,1].map(player=>{const aiState=session?.snapshot(player)??null;if(aiState)aiState.revision=revision;return aiState;});post('action-result',{actionResult,aiStates});}
+        return;
+      }
       const previousLogs=[...session.logs];
       try{
-        const prompt=session.prompt,input=responseInput(m),commentary=typeof m.commentary==='string'?m.commentary.trim():'';session.log(`Claude · ${commentary?`“${commentary}” · `:''}${describeDecision(prompt,input,session.cards)}`);session.respond(input);claudeInputs.push(input);publish({actionResult:{requestId:m.requestId,ok:true},actionNotice:commentary});
-      }catch(e){session.logs=previousLogs;const claudeState=session.snapshot(1);claudeState.revision=revision;post('action-result',{actionResult:{requestId:m.requestId,ok:false,error:e.message},claudeState});}
+        const prompt=session.prompt,input=responseInput(m),commentary=typeof m.commentary==='string'?m.commentary.trim():'';session.log(`${aiDuelMode?`AI ${actingPlayer+1}`:'Claude'} · ${commentary?`“${commentary}” · `:''}${describeDecision(prompt,input,session.cards)}`);session.respond(input);if(claudeMode)claudeInputs.push(input);publish({actionResult:{requestId:m.requestId,ok:true,player:actingPlayer},actionNotice:commentary});
+      }catch(e){session.logs=previousLogs;const actionResult={requestId:m.requestId,ok:false,error:e.message,player:actingPlayer};if(claudeMode){const claudeState=session.snapshot(1);claudeState.revision=revision;post('action-result',{actionResult,claudeState});}else{const aiStates=[0,1].map(player=>{const aiState=session.snapshot(player);aiState.revision=revision;return aiState;});post('action-result',{actionResult,aiStates});}}
     } else if(m.type==='undo') {await undoLastPlayerAction();}
     else if(m.type==='pause') {if(undoing)return;clearTimeout(timer);paused=!paused;publish();}
     else if(m.type==='step') {if(!undoing&&paused)actGhost();}

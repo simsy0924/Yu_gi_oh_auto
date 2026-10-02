@@ -173,6 +173,11 @@ test('core first-player assignment remaps zones while keeping both decks on thei
       assert.equal(s.prompt.player,firstPlayer);
       assert.deepEqual(s.snapshot(0).zones[0][2].cards.map(card=>card.code),[you.main[0]]);
       assert.deepEqual(s.snapshot(1).zones[1][2].cards.map(card=>card.code),[ghostCard]);
+      const spectator=s.snapshot(2);
+      assert.equal(spectator.zones[0][2].cards,undefined);
+      assert.equal(spectator.zones[1][2].cards,undefined);
+      assert.equal(spectator.zones[0][2].count,1);
+      assert.equal(spectator.zones[1][2].count,1);
       assert.equal(s.snapshot(0).zones[1][2].count,1);
       if(firstPlayer===1){
         assert.equal(s.snapshot(0).prompt.type,'WAITING_FOR_PLAYER');
