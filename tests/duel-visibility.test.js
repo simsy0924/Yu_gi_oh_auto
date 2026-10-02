@@ -10,6 +10,15 @@ test('viewer can see their hand while opposing hand and both decks stay hidden',
   assert.equal(isHiddenZoneForViewer(0,64,1),true);
 });
 
+test('spectator view hides both hands and Extra Decks',()=>{
+  for(const player of [0,1]){
+    assert.equal(isHiddenZoneForViewer(player,1,2),true);
+    assert.equal(isHiddenZoneForViewer(player,2,2),true);
+    assert.equal(isHiddenZoneForViewer(player,64,2),true);
+    assert.equal(isHiddenZoneForViewer(player,4,2),false);
+  }
+});
+
 test('prompt for the other player contains no actions or card identities',()=>{
   const view=promptForViewer({player:0,type:'SELECT_CARD',title:'카드 선택',choices:[{id:'0',label:'사용자 패 카드',card:123,response:{secret:true}}],selection:{options:[{id:0,label:'기밀',card:123,source:{controller:0,location:2,sequence:0}}]}},1);
   assert.deepEqual(view,{player:0,type:'WAITING_FOR_PLAYER',title:'사용자 선택 대기 중',choices:[],selection:null});

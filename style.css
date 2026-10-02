@@ -90,6 +90,8 @@ a{color:var(--accent);font-size:11px}.picker{grid-template-rows:auto 1fr auto}.i
 @media(max-height:450px){.action-toast{top:calc(env(safe-area-inset-top,0px) + 35px);padding:7px 10px}.duel-log-list{max-height:min(calc(82dvh - 52px),660px);padding-block:8px;gap:5px}}
 .claude-picker{grid-template-rows:auto auto minmax(50px,1fr) auto auto auto auto;gap:7px}.claude-picker .scenario-hint{margin:0}.claude-picker .list{min-height:50px}.claude-server-settings{display:grid;gap:5px;padding:9px;border:1px solid var(--line);border-radius:10px;background:#ffffff06}.claude-server-settings label{font-size:10px;color:var(--muted)}.claude-server-settings input{width:100%;min-height:36px;padding:7px 9px;border:1px solid #ffffff35;border-radius:7px;background:#182231;color:var(--text);font:inherit;font-size:11px}.claude-server-settings input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}.claude-server-settings small{font-size:9px;line-height:1.4;color:var(--muted)}.claude-live{grid-template-rows:36px auto minmax(0,1fr) 18px}.claude-pairing-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 10px;border:1px solid #6ed7ff55;border-radius:9px;background:#6ed7ff0d}.claude-pairing-banner>div{display:grid;grid-template-columns:auto auto;align-items:center;gap:2px 8px;min-width:0}.claude-pairing-banner strong{font-size:10px}.claude-pairing-banner code{font-size:10px;color:var(--accent);overflow-wrap:anywhere}.claude-pairing-banner small{grid-column:1/-1;font-size:9px;color:var(--muted)}.claude-pairing-banner button{flex-shrink:0}
 
+.ai-duel-picker{grid-template-rows:auto auto minmax(50px,1fr) auto auto auto;gap:7px}.ai-duel-picker .scenario-hint{margin:0}.ai-duel-picker .list{min-height:50px}.ai-duel-live{grid-template-rows:36px auto minmax(0,1fr) 18px}.ai-pairing-banner{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:6px 8px;border:1px solid #6ed7ff55;border-radius:9px;background:#6ed7ff0d}.ai-seat-code{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;padding:5px 7px;border:1px solid var(--line);border-radius:7px;background:#ffffff06}.ai-seat-code>div{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:2px 6px;min-width:0}.ai-seat-code strong{font-size:9px}.ai-seat-code code{overflow-wrap:anywhere;font-size:9px;color:var(--accent)}.ai-seat-code small{grid-column:1/-1;font-size:8px;line-height:1.3;color:var(--muted)}.ai-seat-code button{flex-shrink:0;min-width:68px;min-height:28px;padding:4px;font-size:8px}
+
 /* Compact landscape setup: keep controls reachable on short mobile viewports. */
 .setup .list{min-height:0;overscroll-behavior:contain}
 .claude-picker{overflow-y:auto;overscroll-behavior:contain}
@@ -115,3 +117,10 @@ a{color:var(--accent);font-size:11px}.picker{grid-template-rows:auto 1fr auto}.i
   .setup-footer .selection p{margin:3px 0;font-size:8px;line-height:1.3}
   .setup-footer .primary{min-width:128px;height:34px;font-size:10px}
 }
+
+/* Keep the shared Extra Monster Zone row clear when the board is short. */
+.live-board{grid-template-rows:minmax(0,1fr) minmax(28px,auto) minmax(0,1fr)}
+.live-field{grid-template-rows:auto repeat(3,minmax(0,1fr));overflow:hidden}
+.live-field .field-row,.live-field .slot,.live-field .live-hand,.live-field .live-hand .slot,.live-field .opponent-hand{min-height:0}
+.live-field .slot{height:100%}
+.shared-extra{position:relative;z-index:1;min-height:28px}

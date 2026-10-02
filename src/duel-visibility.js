@@ -1,5 +1,5 @@
 export function isHiddenZoneForViewer(controller,location,viewer) {
-  return location===1||(controller!==viewer&&(location===2||location===64));
+  return location===1||((location===2||location===64)&&(viewer===2||controller!==viewer));
 }
 
 function visibleOption(option,viewer,index) {

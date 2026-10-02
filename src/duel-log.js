@@ -4,27 +4,53 @@ function optionName(option,cards,index){
   return option?.label??option?.name??(option?.card?cardName(option.card,cards):`선택 ${index+1}`);
 }
 
+function privateSource(option){
+  return [1,2,64].includes(option?.source?.location);
+}
+
+function publicOptionName(option,cards,index){
+  return privateSource(option)?'비공개 카드':optionName(option,cards,index);
+}
+
+export function decisionUsesPrivateCard(prompt,input){
+  if(Array.isArray(input?.indices))return input.indices.some(id=>privateSource(prompt?.selection?.options?.find(option=>String(option.id)===String(id))));
+  if(Array.isArray(input?.counters))return (prompt?.selection?.options??[]).some((option,index)=>input.counters[index]>0&&privateSource(option));
+  if(input?.choice!==undefined){
+    const choice=prompt?.choices?.find(option=>option.id===String(input.choice));
+    return choice?.kind==='set'||choice?.kind==='set-spell'||privateSource(choice);
+  }
+  return false;
+}
+
 export function describeDecision(prompt,input,cards={}) {
   const title=prompt?.title??prompt?.type??'행동';
   if(Array.isArray(input?.indices)){
     const options=prompt?.selection?.options??[];
     const selected=input.indices.map(id=>options.find(option=>String(option.id)===String(id))).filter(Boolean);
-    const names=selected.map((option,index)=>optionName(option,cards,index));
+    const names=selected.map((option,index)=>publicOptionName(option,cards,index));
     return `${title} · ${names.join(', ')||'선택 없음'}`;
   }
   if(Array.isArray(input?.counters)){
     const options=prompt?.selection?.options??[];
-    const amounts=options.map((option,index)=>input.counters[index]?`${optionName(option,cards,index)} ${input.counters[index]}개`:null).filter(Boolean);
+    const amounts=options.map((option,index)=>input.counters[index]?`${publicOptionName(option,cards,index)} ${input.counters[index]}개`:null).filter(Boolean);
     return `${title} · ${amounts.join(', ')||'분배 완료'}`;
   }
   if(input?.choice!==undefined){
     const choice=prompt?.choices?.find(option=>option.id===String(input.choice));
     if(!choice)return title;
     const action=choice.shortLabel?.trim()||choice.label||choice.kind||'행동';
+    if(choice.kind==='set')return '몬스터 세트';
+    if(choice.kind==='set-spell')return '마법·함정 세트';
+    if(privateSource(choice))return ({summon:'일반 소환',special:'특수 소환',activate:'효과 발동'}[choice.kind]??'비공개 카드 행동');
     if(choice.card)return `${cardName(choice.card,cards)} · ${action}`;
     if(['yes','no'].includes(choice.kind))return `${title} · ${action}`;
     if(prompt?.type==='SELECT_OPTION'&&prompt.context?.name)return `${prompt.context.name} · ${title}: ${action}`;
     return action;
   }
   return title;
+}
+
+export function describeChain(message,cards={}){
+  const name=(message?.position??1)&10?'세트 카드 효과':cardName(message?.code,cards);
+  return `체인 ${message?.chain_size??''} · ${name}`;
 }

@@ -263,3 +263,46 @@ test('remote browser relay rejects origins outside the configured allowlist',asy
   const status=await new Promise(resolve=>socket.once('unexpected-response',(_request,result)=>resolve(result.statusCode)));
   assert.equal(status,403);
 });
+
+test('remote MCP pairing codes can bind an AI to player 0 and reject the other seat',async t=>{
+  const remote=createRemoteMcpServer({host:'127.0.0.1',port:0,allowedOrigins:'http://localhost:5173'});
+  await remote.listen();
+  t.after(()=>remote.close());
+  const address=remote.server.address(),base=`http://127.0.0.1:${address.port}`,code='ac0c168e-8252-4dd4-9db5-4e3c8b85c3ef';
+  const mcp=async(id,method,params={})=>{
+    const response=await fetch(`${base}/mcp`,{method:'POST',headers:{'content-type':'application/json','accept':'application/json, text/event-stream'},body:JSON.stringify({jsonrpc:'2.0',id,method,params})});
+    assert.equal(response.status,200);
+    return response.json();
+  };
+  const socket=new WebSocket(`${base.replace(/^http/,'ws')}/relay`,{headers:{origin:'http://localhost:5173'}});
+  const messages=[],waiters=[];
+  socket.on('message',data=>{
+    const message=JSON.parse(data.toString()),waiter=waiters.shift();
+    if(waiter){clearTimeout(waiter.timer);waiter.resolve(message);}else messages.push(message);
+  });
+  const nextMessage=()=>new Promise((resolve,reject)=>{
+    if(messages.length){resolve(messages.shift());return;}
+    const waiter={resolve,reject,timer:setTimeout(()=>{waiters.splice(waiters.indexOf(waiter),1);reject(new Error('WebSocket relay response timeout'));},3000)};
+    waiters.push(waiter);
+  });
+  await new Promise((resolve,reject)=>{socket.once('open',resolve);socket.once('error',reject);});
+  const joined=nextMessage();socket.send(JSON.stringify({type:'join',pairingCode:code,player:0}));
+  assert.deepEqual(await joined,{type:'joined'});
+  const state={viewer:0,revision:1,ended:false,logs:[],prompt:{player:0,choices:[{id:'pass',label:'턴 종료'}],selection:null}};
+  socket.send(JSON.stringify({type:'state',state}));
+  await new Promise(resolve=>setTimeout(resolve,20));
+  let result=await mcp(1,'tools/call',{name:'get_duel_state',arguments:{pairingCode:code}});
+  const initial=JSON.parse(result.result.content[0].text);
+  assert.equal(initial.state.viewer,0);
+  const pending=mcp(2,'tools/call',{name:'duel_action',arguments:{pairingCode:code,choiceId:'pass',waitForTurnMs:0}});
+  const action=await nextMessage();
+  assert.equal(action.player,undefined);
+  assert.deepEqual(action.input,{choice:'pass'});
+  socket.send(JSON.stringify({type:'state',state:{...state,revision:2,prompt:{player:1,choices:[],selection:null}},actionResult:{requestId:action.id,ok:true}}));
+  result=await pending;
+  assert.equal(JSON.parse(result.result.content[0].text).waitingForAI,true);
+  result=await mcp(3,'tools/call',{name:'duel_action',arguments:{pairingCode:code,choiceId:'pass',waitForTurnMs:0}});
+  assert.equal(result.result.isError,true);
+  assert.match(result.result.content[0].text,/AI 1 차례가 아닙니다/);
+  socket.close();
+});

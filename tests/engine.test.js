@@ -11,7 +11,7 @@ import {promptHelp,selectionProgress,promptCardName} from '../src/duel-guidance.
 import {deckWithStartingHand} from '../src/practice.js';
 import {soloOpponentChoice} from '../src/solo.js';
 import {replayPlayerInputs} from '../src/duel-history.js';
-import {describeDecision} from '../src/duel-log.js';
+import {describeDecision,describeChain,decisionUsesPrivateCard} from '../src/duel-log.js';
 const cards=JSON.parse(gunzipSync(readFileSync('public/engine/cards.json.gz')));
 const koreanStrings=JSON.parse(gunzipSync(readFileSync('public/engine/ko-strings.json.gz')));
 const scripts=JSON.parse(gunzipSync(readFileSync('public/engine/scripts.json.gz')));
@@ -56,6 +56,19 @@ test('duel action descriptions identify selected cards and effects',()=>{
   assert.equal(describeDecision(selection,{indices:[0]},cards),'카드 선택 · 정크 싱크론 · 묘지 1');
   const effect={type:'SELECT_EFFECTYN',title:'정크 마이스터 · 특수 소환할까요?',choices:[{id:'0',kind:'yes',shortLabel:'예'}]};
   assert.equal(describeDecision(effect,{choice:'0'},cards),'정크 마이스터 · 특수 소환할까요? · 예');
+});
+test('public duel logs do not reveal the identity of cards that remain private',()=>{
+  const hiddenName='비밀 세트 카드',cards={12345:{name:hiddenName}};
+  const setPrompt={title:'행동을 선택하세요',choices:[{id:'0',kind:'set',card:12345,shortLabel:'몬스터 세트',source:{controller:0,location:2,sequence:0}}]};
+  assert.equal(describeDecision(setPrompt,{choice:'0'},cards),'몬스터 세트');
+  assert.equal(decisionUsesPrivateCard(setPrompt,{choice:'0'}),true);
+  const selectPrompt={title:'카드 선택',selection:{options:[{id:0,label:`${hiddenName} · 패 1`,card:12345,source:{controller:0,location:2,sequence:0}}]}};
+  assert.equal(describeDecision(selectPrompt,{indices:[0]},cards),'카드 선택 · 비공개 카드');
+  assert.equal(decisionUsesPrivateCard(selectPrompt,{indices:[0]}),true);
+  const hiddenChain=describeChain({chain_size:1,code:12345,position:2},cards);
+  assert.equal(hiddenChain,'체인 1 · 세트 카드 효과');
+  assert.doesNotMatch(hiddenChain,new RegExp(hiddenName));
+  assert.equal(describeChain({chain_size:1,code:12345,position:1},cards),`체인 1 · ${hiddenName}`);
 });
 test('confirmed hidden cards are exposed only when the local player is allowed to see them',()=>{
   const session=new DuelSession();
@@ -173,6 +186,11 @@ test('core first-player assignment remaps zones while keeping both decks on thei
       assert.equal(s.prompt.player,firstPlayer);
       assert.deepEqual(s.snapshot(0).zones[0][2].cards.map(card=>card.code),[you.main[0]]);
       assert.deepEqual(s.snapshot(1).zones[1][2].cards.map(card=>card.code),[ghostCard]);
+      const spectator=s.snapshot(2);
+      assert.equal(spectator.zones[0][2].cards,undefined);
+      assert.equal(spectator.zones[1][2].cards,undefined);
+      assert.equal(spectator.zones[0][2].count,1);
+      assert.equal(spectator.zones[1][2].count,1);
       assert.equal(s.snapshot(0).zones[1][2].count,1);
       if(firstPlayer===1){
         assert.equal(s.snapshot(0).prompt.type,'WAITING_FOR_PLAYER');

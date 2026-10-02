@@ -2,6 +2,7 @@ import createCore,{OcgDuelMode as D,OcgMessageType as M,OcgProcessResult as P,Oc
 import {validateDeck} from './decks.js';
 import {makePrompt,requestTypes,selectionResponse,counterResponse} from './prompts.js';
 import {isHiddenZoneForViewer,promptForViewer} from './duel-visibility.js';
+import {describeChain} from './duel-log.js';
 
 function coreCompatibleChainScript(scripts){
   const source=scripts['chain.lua'];
@@ -25,12 +26,12 @@ function viewerMessage(value,userCorePlayer,key=''){
 }
 
 export class DuelSession {
-  static async create({cards,scripts,wasmBinary,you,ghost,seed=[1,2,3,4],startingHand=null,firstPlayer=0}) {
+  static async create({cards,scripts,wasmBinary,you,ghost,seed=[1,2,3,4],startingHand=null,firstPlayer=0,playerNames=['나','고스트']}) {
     validateDeck(you,cards);validateDeck(ghost.deck,cards);
     if(firstPlayer!==0&&firstPlayer!==1)throw new Error('선공 플레이어 설정이 올바르지 않습니다.');
     const chainScript=coreCompatibleChainScript(scripts);
     // ocgcore starts core player 0; assign that seat to the requested first player and remap public views.
-    const s=new DuelSession();Object.assign(s,{cards,scripts,userCorePlayer:firstPlayer,lp:[8000,8000],turn:0,phase:0,active:0,logs:[],prompt:null,ended:false,issue:null,confirmation:null,confirmationByPlayer:{0:null,1:null},confirmationSerial:0,confirmationSerialByPlayer:{0:0,1:0}});
+    const s=new DuelSession();Object.assign(s,{cards,scripts,userCorePlayer:firstPlayer,playerNames,lp:[8000,8000],turn:0,phase:0,active:0,logs:[],prompt:null,ended:false,issue:null,confirmation:null,confirmationByPlayer:{0:null,1:null},confirmationSerial:0,confirmationSerialByPlayer:{0:0,1:0}});
     s.core=await createCore({sync:true,wasmBinary});
     const team={startingLP:8000,startingDrawCount:5,drawCountPerTurn:1};
     const userTeam=startingHand?.length?{...team,startingDrawCount:startingHand.length}:team;
@@ -89,13 +90,13 @@ export class DuelSession {
         if(m.type===M.RETRY)throw new Error('코어가 선택을 거부했습니다. 듀얼을 다시 시작하세요.');
         if(requestTypes.has(m.type))this.prompt=makePrompt(m,this.cards);
         if(m.type===M.CONFIRM_CARDS)this.recordConfirmation(m);
-        if(m.type===M.NEW_TURN){this.turn++;this.active=m.player;this.log(`${this.turn}턴 · ${m.player===0?'나':'고스트'}`);}
+        if(m.type===M.NEW_TURN){this.turn++;this.active=m.player;this.log(`${this.turn}턴 · ${this.playerNames[m.player]??`플레이어 ${m.player+1}`}`);}
         if(m.type===M.NEW_PHASE)this.phase=m.phase;
         if(m.type===M.DAMAGE||m.type===M.PAY_LPCOST)this.lp[m.player]=Math.max(0,this.lp[m.player]-m.amount);
         if(m.type===M.RECOVER)this.lp[m.player]+=m.amount;
         if(m.type===M.LPUPDATE)this.lp[m.player]=m.lp;
-        if(m.type===M.WIN){this.ended=true;this.winner=m.player;this.reason=m.reason;this.log(m.player===2?'무승부':`${m.player===0?'나':'고스트'} 승리`);}
-        if(m.type===M.CHAINING)this.log(`체인 ${m.chain_size} · ${this.cards[m.code]?.name??m.code}`);
+        if(m.type===M.WIN){this.ended=true;this.winner=m.player;this.reason=m.reason;this.log(m.player===2?'무승부':`${this.playerNames[m.player]??`플레이어 ${m.player+1}`} 승리`);}
+        if(m.type===M.CHAINING)this.log(describeChain(m,this.cards));
       }
       if(this.issue)throw new Error(this.issue);
       if(status===P.END||this.ended){this.ended=true;this.prompt=null;return;}
@@ -117,14 +118,14 @@ export class DuelSession {
     const zones={};
     for(const controller of [0,1]) {
       zones[controller]={};
-      const coreController=this.corePlayer(controller),coreViewer=this.corePlayer(viewer);
+      const coreController=this.corePlayer(controller),coreViewer=viewer===2?null:this.corePlayer(viewer);
       for(const location of [1,2,4,8,16,32,64]) {
         const hidden=isHiddenZoneForViewer(controller,location,viewer);
         if(hidden){zones[controller][location]={count:this.core.duelQueryCount(this.handle,coreController,location)};continue;}
         const list=this.core.duelQueryLocation(this.handle,{controller:coreController,location,flags:Q.CODE|Q.POSITION|Q.ATTACK|Q.DEFENSE|Q.LINK|Q.OVERLAY_CARD|Q.COUNTERS});
         zones[controller][location]={cards:list.map((c,sequence)=>{
           if(!c)return null;
-          if(coreController!==coreViewer&&(c.position&10))return {sequence,position:c.position,hidden:true};
+          if(viewer===2?(c.position&10):coreController!==coreViewer&&(c.position&10))return {sequence,position:c.position,hidden:true};
           const db=this.cards[c.code]??{};
           return {...c,controller,sequence,name:db.name??String(c.code),desc:db.desc??'',type:db.type??0,
             race:db.race??'0',attribute:db.attribute??0,level:db.level??0,
