@@ -160,6 +160,18 @@ test('confirmed hidden cards are exposed only when the local player is allowed t
   assert.equal(session.confirmation.cards[0].location,2);
   assert.equal(session.confirmation.cards[0].attack,1700);
 });
+test('CONFIRM_CARDS keeps a revealed opponent card private to the addressed viewer',()=>{
+  const session=new DuelSession();
+  session.cards={12345:{code:12345,name:'확인 카드'}};
+  session.confirmationByPlayer={0:null,1:null};session.confirmationSerialByPlayer={0:0,1:0};session.knownCardsByViewer={0:[],1:[]};session.publicCards=[];
+  session.recordConfirmation({type:M.CONFIRM_CARDS,player:0,cards:[{code:12345,controller:1,location:2,sequence:0}]});
+  assert.equal(session.confirmationByPlayer[0].cards[0].name,'확인 카드');
+  assert.equal(session.confirmationByPlayer[1],null);
+  assert.deepEqual(session.knownCardsByViewer[0],[{code:12345,controller:1,location:2,sequence:0}]);
+  assert.deepEqual(session.knownCardsByViewer[1],[]);
+  assert.deepEqual(session.publicCards,[]);
+  assert.equal(session.logs.at(-1),'내가 카드 1장 확인');
+});
 test('duel logs retain actions from the beginning of a long match',()=>{
   const session=new DuelSession();session.logs=[];
   for(let i=0;i<60;i++)session.log(`고스트 · 행동 ${i+1}`);

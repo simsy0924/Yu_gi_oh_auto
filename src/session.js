@@ -121,9 +121,8 @@ export class DuelSession {
       };
     });
     const deckReveal=message.type===M.CONFIRM_DECKTOP||message.type===M.CONFIRM_EXTRATOP;
-    const publicCards=deckReveal?cards:cards.filter(card=>card.controller!==message.player);
     for(const card of cards){
-      if(deckReveal||card.controller!==message.player)this.rememberPublicCard(card);
+      if(deckReveal)this.rememberPublicCard(card);
       else this.rememberKnownCard(message.player,card);
     }
     const recipients=deckReveal?[0,1]:[message.player];
@@ -132,8 +131,8 @@ export class DuelSession {
       this.confirmationByPlayer[viewer]=confirmation;
       if(viewer===0){this.confirmationSerial=this.confirmationSerialByPlayer[0];this.confirmation=confirmation;}
     }
-    if(deckReveal&&publicCards.length)this.log(`${message.type===M.CONFIRM_DECKTOP?'덱 위 공개':'엑스트라 덱 위 공개'} · ${publicCards.map(card=>card.name).join(', ')}`);
-    else if(publicCards.length)this.log(`카드 공개 · ${publicCards.map(card=>card.name).join(', ')}`);
+    if(deckReveal&&cards.length)this.log(`${message.type===M.CONFIRM_DECKTOP?'덱 위 공개':'엑스트라 덱 위 공개'} · ${cards.map(card=>card.name).join(', ')}`);
+    else if(cards.length)this.log(`${message.player===0?'내가':'상대가'} 카드 ${cards.length}장 확인`);
   }
   advance() {
     for(let tick=0;tick<10000;tick++) {
