@@ -83,23 +83,23 @@ export class DuelSession {
     if(!from||!to||!Number.isInteger(code))return false;
     const matches=item=>item.code===code&&item.controller===from.controller&&item.location===from.location&&item.sequence===from.sequence;
     const wasPublic=(this.publicCards??[]).some(matches);
-    const knownTo=[0,1].filter(viewer=>(this.knownCardsByViewer?.[viewer]??[]).some(matches));
+    for(const source of this.pendingDeckSelection??[]){
+      const isMoving=source.code===code&&source.controller===from.controller&&source.location===from.location&&source.sequence===from.sequence;
+      if(isMoving){Object.assign(source,to);continue;}
+      if(from.location===1&&source.location===1&&source.controller===from.controller&&source.sequence>from.sequence)source.sequence--;
+      if(to.location===1&&source.location===1&&source.controller===to.controller&&source.sequence>=to.sequence)source.sequence++;
+    }
     const move=list=>{
-      const index=list.findIndex(matches);if(index<0)return;
-      if(!Number.isInteger(to.location)){list.splice(index,1);return;}
-      list[index]={...list[index],...to,code};
+      const index=list.findIndex(matches),moving=index<0?null:list[index];
+      if(from.location===1)for(const item of list)if(item!==moving&&item.controller===from.controller&&item.location===1&&item.sequence>from.sequence)item.sequence--;
+      if(to.location===1)for(const item of list)if(item!==moving&&item.controller===to.controller&&item.location===1&&item.sequence>=to.sequence)item.sequence++;
+      if(!moving)return;
+      if(!Number.isInteger(to.location)||to.location===0){list.splice(index,1);return;}
+      Object.assign(moving,to,{code});
     };
     this.knownCardsByViewer??={0:[],1:[]};
-    if(from.location===1||to.location===1){
-      this.clearKnownCards(from.controller,1);this.clearKnownCards(to.controller,1);
-      if(Number.isInteger(to.location)&&to.location!==0&&to.location!==1){
-        for(const viewer of knownTo)this.rememberKnownCard(viewer,{code,...to});
-        if(wasPublic)this.rememberPublicCard({code,...to});
-      }
-    }else{
-      for(const viewer of [0,1]){this.knownCardsByViewer[viewer]??=[];move(this.knownCardsByViewer[viewer]);}
-      move(this.publicCards??=[]);
-    }
+    for(const viewer of [0,1]){this.knownCardsByViewer[viewer]??=[];move(this.knownCardsByViewer[viewer]);}
+    this.publicCards??=[];move(this.publicCards);
     return wasPublic;
   }
   clearKnownCards(controller,location){
@@ -145,8 +145,8 @@ export class DuelSession {
         if(requestTypes.has(m.type))this.prompt=makePrompt(m,this.cards);
         if([M.CONFIRM_CARDS,M.CONFIRM_DECKTOP,M.CONFIRM_EXTRATOP].includes(m.type))this.recordConfirmation(m);
         if(m.type===M.MOVE){
+          const selectedFromDeck=(this.pendingDeckSelection??[]).some(source=>source.code===Number(m.card)&&source.location===1&&source.controller===m.from?.controller&&source.sequence===m.from?.sequence);
           const wasPublic=this.recordMovement(m);
-          const selectedFromDeck=(this.pendingDeckSelection??[]).some(source=>source.code===Number(m.card)&&source.controller===m.from?.controller&&source.sequence===m.from?.sequence);
           if(m.from?.location===1&&m.to?.location===2&&(wasPublic||selectedFromDeck))this.log(`덱 → 패 · ${wasPublic?this.cards[m.card]?.name??'공개된 카드':'카드 1장'}`);
         }
         if(m.type===M.SHUFFLE_DECK)this.clearKnownCards(m.player,1);
