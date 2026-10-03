@@ -31,11 +31,65 @@ export function cardFacts(c){
 }
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 
+function normalizeEffectText(value){
+  return String(value??'').replace(/\r\n?/g,'\n').replace(/<br\s*\/?>/gi,'\n').trim();
+}
+function parseEffectSections(value){
+  const text=normalizeEffectText(value), parsed={structured:false,raw:text,pendulum:'',monster:''};
+  const heading=/(?:【|\[)\s*(Pendulum|Monster|펜듈럼|몬스터)(?:\s*(?:Effect|효과))?\s*(?:】|\])/giu;
+  let current='',firstSection='',prefix='',cursor=0,match;
+  const append=(section,part)=>{
+    const clean=part.trim();
+    if(clean)parsed[section]=[parsed[section],clean].filter(Boolean).join('\n');
+  };
+  while((match=heading.exec(text))){
+    if(current)append(current,text.slice(cursor,match.index));
+    else prefix=text.slice(0,match.index).trim();
+    current=/^(?:pendulum|펜듈럼)$/i.test(match[1])?'pendulum':'monster';
+    if(!firstSection)firstSection=current;
+    parsed.structured=true;
+    cursor=heading.lastIndex;
+  }
+  if(!parsed.structured)return parsed;
+  append(current,text.slice(cursor));
+  if(prefix&&firstSection)parsed[firstSection]=[prefix,parsed[firstSection]].filter(Boolean).join('\n');
+  return parsed;
+}
+function cardEffectSections(c){
+  const descriptionTitle=(c.type&0x10)&&!(c.type&0x20)?'카드 설명':'카드 효과';
+  if(!(c.type&0x1000000))return [{title:descriptionTitle,text:normalizeEffectText(c.desc)||'효과 텍스트가 없습니다.'}];
+
+  const translated=parseEffectSections(c.desc),original=parseEffectSections(c.englishDesc);
+  const sections=[];
+  const pendulum=translated.pendulum||original.pendulum;
+  sections.push({
+    title:translated.pendulum?'펜듈럼 효과':original.pendulum?'펜듈럼 효과 (영문 원문)':'펜듈럼 효과',
+    text:pendulum||'펜듈럼 효과 텍스트를 찾을 수 없습니다.'
+  });
+
+  let monster=translated.monster||original.monster;
+  let monsterTitle=translated.monster?'몬스터 효과':original.monster?'몬스터 효과 (영문 원문)':'몬스터 효과';
+  if(!monster&&!translated.structured&&translated.raw&&original.pendulum){
+    monster=translated.raw;
+  }else if(!monster&&!translated.structured&&translated.raw&&!original.structured&&!original.raw){
+    monster=translated.raw;
+    monsterTitle='카드 효과 (구분 정보 없음)';
+  }else if(!monster&&!translated.raw&&original.raw&&!original.structured){
+    monster=original.raw;
+    monsterTitle='카드 효과 (영문 원문, 구분 정보 없음)';
+  }
+  if(!monster&&(translated.structured||original.structured))monster='몬스터 효과 텍스트를 찾을 수 없습니다.';
+  if(monster)sections.push({title:monsterTitle,text:monster});
+  else sections.push({title:'카드 효과 (구분 정보 없음)',text:'효과 텍스트가 없습니다.'});
+  return sections;
+}
+
 function cardInfoText(c,copies=1){
   const descriptionTitle=(c.type&0x10)&&!(c.type&0x20)?'카드 설명':'카드 효과';
   const lines=[c.name??c.code];
   if(copies>1)lines.push(`매수: ${copies}장`);
-  lines.push(...cardFacts(c).map(([key,value])=>`${key}: ${value}`),`${descriptionTitle}:`,c.desc||'효과 텍스트가 없습니다.');
+  lines.push(...cardFacts(c).map(([key,value])=>`${key}: ${value}`));
+  for(const section of cardEffectSections(c))lines.push(`${section.title}:`,section.text);
   return lines.join('\n');
 }
 export function deckCardInfoText(deck,cards){
@@ -56,6 +110,7 @@ export function deckCardInfoText(deck,cards){
 
 export function cardInfoHtml(c){
   if(!c||c.hidden)return '<p>공개된 카드 정보가 없습니다.</p>';
-  const descriptionTitle=(c.type&0x10)&&!(c.type&0x20)?'카드 설명':'카드 효과';
-  return `<article class="card-info"><h3>${esc(c.name??c.code)}</h3><dl class="card-facts">${cardFacts(c).map(([key,value])=>`<div><dt>${esc(key)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl><h4>${descriptionTitle}</h4><p class="card-description">${esc(c.desc||'효과 텍스트가 없습니다.')}</p></article>`;
+  const facts=cardFacts(c).map(([key,value])=>'<div><dt>'+esc(key)+'</dt><dd>'+esc(value)+'</dd></div>').join('');
+  const effects=cardEffectSections(c).map(section=>'<h4>'+esc(section.title)+'</h4><p class="card-description">'+esc(section.text)+'</p>').join('');
+  return '<article class="card-info"><h3>'+esc(c.name??c.code)+'</h3><dl class="card-facts">'+facts+'</dl>'+effects+'</article>';
 }
