@@ -60,25 +60,33 @@ function cardEffectSections(c){
   if(!(c.type&0x1000000))return [{title:descriptionTitle,text:normalizeEffectText(c.desc)||'효과 텍스트가 없습니다.'}];
 
   const translated=parseEffectSections(c.desc),original=parseEffectSections(c.englishDesc);
+  const hasEnglishSource=!!normalizeEffectText(c.englishDesc);
+  const descriptionIsEnglish=hasEnglishSource&&normalizeEffectText(c.desc)===normalizeEffectText(c.englishDesc);
   const sections=[];
-  const pendulum=translated.pendulum||original.pendulum;
+  const translatedPendulum=descriptionIsEnglish?'':translated.pendulum;
+  const pendulum=translatedPendulum||original.pendulum;
   sections.push({
-    title:translated.pendulum?'펜듈럼 효과':original.pendulum?'펜듈럼 효과 (영문 원문)':'펜듈럼 효과',
+    title:translatedPendulum?'펜듈럼 효과':original.pendulum?'펜듈럼 효과 (영문 원문)':'펜듈럼 효과',
     text:pendulum||'펜듈럼 효과 텍스트를 찾을 수 없습니다.'
   });
 
-  let monster=translated.monster||original.monster;
-  let monsterTitle=translated.monster?'몬스터 효과':original.monster?'몬스터 효과 (영문 원문)':'몬스터 효과';
-  if(!monster&&!translated.structured&&translated.raw&&original.pendulum){
+  let monster='',monsterTitle='몬스터 효과';
+  if(!descriptionIsEnglish&&translated.monster){
+    monster=translated.monster;
+  }else if(!descriptionIsEnglish&&!translated.structured&&translated.raw&&original.pendulum){
     monster=translated.raw;
-  }else if(!monster&&!translated.structured&&translated.raw&&!original.structured&&!original.raw){
+  }else if(original.monster){
+    monster=original.monster;
+    monsterTitle='몬스터 효과 (영문 원문)';
+  }else if(!descriptionIsEnglish&&!translated.structured&&translated.raw){
     monster=translated.raw;
     monsterTitle='카드 효과 (구분 정보 없음)';
-  }else if(!monster&&!translated.raw&&original.raw&&!original.structured){
+  }else if(original.raw&&!original.structured){
     monster=original.raw;
     monsterTitle='카드 효과 (영문 원문, 구분 정보 없음)';
+  }else if(translated.structured||original.structured){
+    monster='몬스터 효과 텍스트를 찾을 수 없습니다.';
   }
-  if(!monster&&(translated.structured||original.structured))monster='몬스터 효과 텍스트를 찾을 수 없습니다.';
   if(monster)sections.push({title:monsterTitle,text:monster});
   else sections.push({title:'카드 효과 (구분 정보 없음)',text:'효과 텍스트가 없습니다.'});
   return sections;
