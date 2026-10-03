@@ -124,3 +124,11 @@ a{color:var(--accent);font-size:11px}.picker{grid-template-rows:auto 1fr auto}.i
 .live-field .field-row,.live-field .slot,.live-field .live-hand,.live-field .live-hand .slot,.live-field .opponent-hand{min-height:0}
 .live-field .slot{height:100%}
 .shared-extra{position:relative;z-index:1;min-height:28px}
+
+/* Show both hand rows, keeping unknown cards face down and revealed cards readable. */
+.hand-area{display:flex;align-items:center;gap:6px;min-width:0;min-height:32px;overflow:hidden}
+.hand-count{flex:0 0 auto;color:var(--muted);font-size:9px;white-space:nowrap}
+.hand-area .live-hand{flex:1;min-width:0;min-height:32px;overflow-x:auto;scrollbar-width:thin}
+.hand-area .live-hand .slot{flex:0 0 78px;min-width:72px;max-width:110px}
+.hidden-hand-card{cursor:default}
+@media(max-height:450px){.hand-area,.hand-area .live-hand{min-height:22px}.hand-area .live-hand .slot{min-height:22px}}

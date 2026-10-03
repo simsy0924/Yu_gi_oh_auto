@@ -23,31 +23,38 @@ function privateChoice(option){
   return privateSource(option)&&!actionRevealsCard(option);
 }
 
-function publicOptionName(option,cards,index){
-  return privateSource(option)?'비공개 카드':optionName(option,cards,index);
+function knownCard(option,knownCards=[]){
+  const source=option?.source;
+  if(!source)return false;
+  return knownCards.some(card=>Number(card.code)===Number(option.card)&&card.controller===source.controller&&card.location===source.location&&card.sequence===source.sequence);
 }
 
-export function decisionUsesPrivateCard(prompt,input){
-  if(Array.isArray(input?.indices))return input.indices.some(id=>privateSource(prompt?.selection?.options?.find(option=>String(option.id)===String(id))));
-  if(Array.isArray(input?.counters))return (prompt?.selection?.options??[]).some((option,index)=>input.counters[index]>0&&privateSource(option));
+function publicOptionName(option,cards,index,knownCards=[]){
+  if(privateSource(option)&&!knownCard(option,knownCards))return option?.source?.location===1?'덱에서 카드':'비공개 카드';
+  return optionName(option,cards,index);
+}
+
+export function decisionUsesPrivateCard(prompt,input,knownCards=[]){
+  if(Array.isArray(input?.indices))return input.indices.some(id=>{const option=prompt?.selection?.options?.find(option=>String(option.id)===String(id));return privateSource(option)&&!knownCard(option,knownCards);});
+  if(Array.isArray(input?.counters))return (prompt?.selection?.options??[]).some((option,index)=>input.counters[index]>0&&privateSource(option)&&!knownCard(option,knownCards));
   if(input?.choice!==undefined){
     const choice=prompt?.choices?.find(option=>option.id===String(input.choice));
-    return privateChoice(choice);
+    return privateChoice(choice)&&!knownCard(choice,knownCards);
   }
   return false;
 }
 
-export function describeDecision(prompt,input,cards={}){
+export function describeDecision(prompt,input,cards={},knownCards=[]){
   const title=prompt?.title??prompt?.type??'행동';
   if(Array.isArray(input?.indices)){
     const options=prompt?.selection?.options??[];
     const selected=input.indices.map(id=>options.find(option=>String(option.id)===String(id))).filter(Boolean);
-    const names=selected.map((option,index)=>publicOptionName(option,cards,index));
+    const names=selected.map((option,index)=>publicOptionName(option,cards,index,knownCards));
     return `${title} · ${names.join(', ')||'선택 없음'}`;
   }
   if(Array.isArray(input?.counters)){
     const options=prompt?.selection?.options??[];
-    const amounts=options.map((option,index)=>input.counters[index]?`${publicOptionName(option,cards,index)} ${input.counters[index]}개`:null).filter(Boolean);
+    const amounts=options.map((option,index)=>input.counters[index]?`${publicOptionName(option,cards,index,knownCards)} ${input.counters[index]}개`:null).filter(Boolean);
     return `${title} · ${amounts.join(', ')||'분배 완료'}`;
   }
   if(input?.choice!==undefined){
@@ -56,7 +63,7 @@ export function describeDecision(prompt,input,cards={}){
     const action=choice.shortLabel?.trim()||choice.label||choice.kind||'행동';
     if(choice.kind==='set')return '몬스터 세트';
     if(choice.kind==='set-spell')return '마법·함정 세트';
-    if(privateChoice(choice))return ({summon:'일반 소환',special:'특수 소환',activate:'효과 발동'}[choice.kind]??'비공개 카드 행동');
+    if(privateChoice(choice)&&!knownCard(choice,knownCards))return ({summon:'일반 소환',special:'특수 소환',activate:'효과 발동'}[choice.kind]??'비공개 카드 행동');
     if(choice.card)return `${cardName(choice.card,cards)} · ${action}`;
     if(['yes','no'].includes(choice.kind))return `${title} · ${action}`;
     if(prompt?.type==='SELECT_OPTION'&&prompt.context?.name)return `${prompt.context.name} · ${title}: ${action}`;
@@ -66,6 +73,6 @@ export function describeDecision(prompt,input,cards={}){
 }
 
 export function describeChain(message,cards={}){
-  const name=faceDownOrUnknown(message?.position)?'세트 카드 효과':cardName(message?.code,cards);
+  const name=message?.location===2?cardName(message?.code,cards):faceDownOrUnknown(message?.position)?'세트 카드 효과':cardName(message?.code,cards);
   return `체인 ${message?.chain_size??''} · ${name}`;
 }

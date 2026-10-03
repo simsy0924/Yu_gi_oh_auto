@@ -55,3 +55,17 @@ test('the acting player can read names selected from their own Deck while oppone
   assert.equal(view.selection.options[1].label,'비공개 카드 2');
   assert.equal('cardName' in view.selection.options[1],false);
 });
+
+test('a card already revealed to the viewer stays named in choices from the opposing hand',()=>{
+  const prompt={player:0,type:'SELECT_CARD',title:'카드 선택',choices:[
+    {id:'0',label:'선택 · 공개 카드 · 패 1',card:456,cardName:'공개 카드',source:{controller:1,location:2,sequence:0},response:{secret:true}}
+  ],selection:{mode:'card',options:[
+    {id:0,label:'공개 카드 · 패 1',card:456,cardName:'공개 카드',source:{controller:1,location:2,sequence:0}}
+  ]}};
+  const knownCards=[{code:456,controller:1,location:2,sequence:0}];
+  const view=promptForViewer(prompt,0,knownCards);
+  assert.equal(view.choices[0].label,'선택 · 공개 카드 · 패 1');
+  assert.equal(view.selection.options[0].label,'공개 카드 · 패 1');
+  assert.equal('response' in view.choices[0],false);
+  assert.equal('card' in view.choices[0],false);
+});

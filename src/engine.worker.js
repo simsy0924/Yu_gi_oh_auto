@@ -41,7 +41,7 @@ function publish({undone=false,undoError='',actionNotice='',actionResult=null}={
 function performOpponentAction(target,currentCursor,context){
   const decision=opponentDecision(target,{...context,cursor:currentCursor});
   if(decision.blocked)throw new Error(decision.blocked);
-  const description=describeDecision(target.prompt,decision,target.cards);
+  const description=describeDecision(target.prompt,decision,target.cards,target.publicCards);
   target.log(`${context.soloMode?'연습 상대':'고스트'} · ${description}`);
   target.respond(decision);
   return {cursor:decision.cursor??currentCursor,description};
@@ -59,7 +59,7 @@ function resolveClaudeHistoryPrompts(target,currentCursor,history){
     if(actions>=10000)throw new Error('Claude 행동 기록 재생 횟수를 초과했습니다.');
     const input=history.inputs[history.index++];
     if(!input)throw new Error('Claude 행동 기록이 부족해 이전 상태를 복원할 수 없습니다.');
-    target.log(`Claude · ${describeDecision(target.prompt,input,target.cards)}`);
+    target.log(`Claude · ${describeDecision(target.prompt,input,target.cards,target.publicCards)}`);
     target.respond(input);
   }
   return currentCursor;
@@ -82,7 +82,7 @@ async function undoLastPlayerAction(){
       createSession:()=>DuelSession.create({...engineData,...sessionConfig}),
       playerInputs:playerInputs.slice(0,-1),
       resolveOpponent:(target,nextCursor)=>claudeMode?resolveClaudeHistoryPrompts(target,nextCursor,claudeHistory):resolveOpponentPrompts(target,nextCursor,{behavior,soloMode}),
-      logPlayerAction:(target,prompt,input)=>target.log(`나 · ${describeDecision(prompt,input,target.cards)}`)
+      logPlayerAction:(target,prompt,input)=>target.log(`나 · ${describeDecision(prompt,input,target.cards,target.publicCards)}`)
     });
     session=restored.session;cursor=restored.cursor;playerInputs.pop();if(claudeMode)claudeInputs=claudeInputs.slice(0,claudeHistory.index);previousSession.destroy();publish({undone:true});
   }catch(error){
@@ -114,7 +114,7 @@ self.onmessage=async({data:m})=>{
       session=await DuelSession.create({...engineData,...sessionConfig});publish();
     } else if(m.type==='respond') {
       if(undoing||m.revision!==revision||session?.prompt?.player!==0)return;
-      clearTimeout(timer);const previousLogs=[...session.logs];try{const prompt=session.prompt,input=responseInput(m);session.log(`나 · ${describeDecision(prompt,input,session.cards)}`);session.respond(input);playerInputs.push(input);publish();}catch(e){session.logs=previousLogs;post(session.prompt?'input-error':'error',{message:e.message});}
+      clearTimeout(timer);const previousLogs=[...session.logs];try{const prompt=session.prompt,input=responseInput(m);session.log(`나 · ${describeDecision(prompt,input,session.cards,session.publicCards)}`);session.respond(input);playerInputs.push(input);publish();}catch(e){session.logs=previousLogs;post(session.prompt?'input-error':'error',{message:e.message});}
     } else if(m.type==='remote-action') {
       if(!claudeMode&&!aiDuelMode){post('action-result',{actionResult:{requestId:m.requestId,ok:false,error:'AI 대전 중이 아닙니다.'}});return;}
       const actingPlayer=aiDuelMode?m.player:1;
@@ -127,7 +127,7 @@ self.onmessage=async({data:m})=>{
       }
       const previousLogs=[...session.logs];
       try{
-        const prompt=session.prompt,input=responseInput(m),commentary=typeof m.commentary==='string'?m.commentary.trim():'';const publicCommentary=decisionUsesPrivateCard(prompt,input)?'':commentary;session.log(`${aiDuelMode?`AI ${actingPlayer+1}`:'Claude'} · ${publicCommentary?`“${publicCommentary}” · `:''}${describeDecision(prompt,input,session.cards)}`);session.respond(input);if(claudeMode)claudeInputs.push(input);publish({actionResult:{requestId:m.requestId,ok:true,player:actingPlayer},actionNotice:commentary});
+        const prompt=session.prompt,input=responseInput(m),commentary=typeof m.commentary==='string'?m.commentary.trim():'';const publicCommentary=decisionUsesPrivateCard(prompt,input,session.publicCards)?'':commentary;session.log(`${aiDuelMode?`AI ${actingPlayer+1}`:'Claude'} · ${publicCommentary?`“${publicCommentary}” · `:''}${describeDecision(prompt,input,session.cards,session.publicCards)}`);session.respond(input);if(claudeMode)claudeInputs.push(input);publish({actionResult:{requestId:m.requestId,ok:true,player:actingPlayer},actionNotice:commentary});
       }catch(e){session.logs=previousLogs;const actionResult={requestId:m.requestId,ok:false,error:e.message,player:actingPlayer};if(claudeMode){const claudeState=session.snapshot(1);claudeState.revision=revision;post('action-result',{actionResult,claudeState});}else{const aiStates=[0,1].map(player=>{const aiState=session.snapshot(player);aiState.revision=revision;return aiState;});post('action-result',{actionResult,aiStates});}}
     } else if(m.type==='undo') {await undoLastPlayerAction();}
     else if(m.type==='pause') {if(undoing)return;clearTimeout(timer);paused=!paused;publish();}
