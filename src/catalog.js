@@ -10,7 +10,7 @@ async function readJson(path) {
   if(!response.ok)throw new Error('카드 번역을 불러오지 못했습니다. 다시 시도해 주세요.');
   return response.json();
 }
-export function applyCatalogTranslations(cards,ko,overrides={}) {
+export function applyCatalogTranslations(cards,ko,overrides={},pendulumEffects={}) {
   for(const [id,translation] of Object.entries(overrides)) {
     ko[id]={...ko[id],...translation};
   }
@@ -27,13 +27,15 @@ export function applyCatalogTranslations(cards,ko,overrides={}) {
     }:undefined;
     const translation={...(aliasTranslation??{}),...(ko[id]??{})};
     if(Object.keys(translation).length)Object.assign(c,translation);
+    const pendulumEffect=pendulumEffects[id]??(c.alias&&cards[c.alias]?.englishDesc===c.englishDesc?pendulumEffects[c.alias]:undefined);
+    if(pendulumEffect)c.pendulumEffect=pendulumEffect;
     c.searchName=normalize(c.name+' '+c.englishName+' '+c.code);
-    c.searchEffect=normalize(c.desc+' '+c.englishDesc);
+    c.searchEffect=normalize(c.desc+' '+c.englishDesc+' '+(c.pendulumEffect??''));
   }
   return cards;
 }
 export function loadCatalog() {
-  pending??=Promise.all([readBundle('./engine/cards.json.gz'),readBundle('./engine/ko.json.gz'),readJson('./engine/ko-overrides.json')]).then(([cards,ko,overrides])=>applyCatalogTranslations(cards,ko,overrides)).catch(error=>{pending=null;throw error;});
+  pending??=Promise.all([readBundle('./engine/cards.json.gz'),readBundle('./engine/ko.json.gz'),readJson('./engine/ko-overrides.json'),readJson('./engine/ko-pendulum.json')]).then(([cards,ko,overrides,pendulumEffects])=>applyCatalogTranslations(cards,ko,overrides,pendulumEffects)).catch(error=>{pending=null;throw error;});
   return pending;
 }
 export const normalize=text=>String(text).normalize('NFKC').toLocaleLowerCase().replace(/\s+/g,'');

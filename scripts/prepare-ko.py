@@ -49,7 +49,8 @@ def main():
     engine = ROOT / 'public/engine'
     cards = json.loads(gzip.decompress((engine / 'cards.json.gz').read_bytes()))
     translations = {}
-    counts = {'name': 0, 'desc': 0, 'records': 0}
+    pendulum_effects = {}
+    counts = {'name': 0, 'desc': 0, 'pendulum_effect': 0, 'records': 0}
 
     for path in sorted(source.glob('*.json')):
         card = json.loads(path.read_text(encoding='utf-8'))
@@ -62,7 +63,8 @@ def main():
 
         name = normalize_name((card.get('name') or {}).get('ko'))
         desc = normalize_text((card.get('text') or {}).get('ko'))
-        if not name and not desc:
+        pendulum_effect = normalize_text((card.get('pendulum_effect') or {}).get('ko'))
+        if not name and not desc and not pendulum_effect:
             continue
 
         translation = translations.setdefault(code, {})
@@ -72,6 +74,9 @@ def main():
         if desc and translation.get('desc') != desc:
             counts['desc'] += not translation.get('desc')
             translation['desc'] = desc
+        if pendulum_effect:
+            pendulum_effects[code] = pendulum_effect
+            counts['pendulum_effect'] += 1
         counts['records'] += 1
 
     if not counts['records']:
@@ -79,9 +84,12 @@ def main():
 
     data = json.dumps(translations, ensure_ascii=False, separators=(',', ':')).encode()
     (engine / 'ko.json.gz').write_bytes(gzip.compress(data, mtime=0))
+    pendulum_data = json.dumps(pendulum_effects, ensure_ascii=False, separators=(',', ':'))
+    (engine / 'ko-pendulum.json').write_text(pendulum_data + '\n', encoding='utf-8')
     print(
         f"Updated {counts['records']} matching Korean records from {expected}; "
-        f"added {counts['name']} names and {counts['desc']} effect texts."
+        f"added {counts['name']} names, {counts['desc']} effect texts, "
+        f"and {counts['pendulum_effect']} Pendulum effects."
     )
 
 
