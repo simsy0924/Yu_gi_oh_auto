@@ -85,7 +85,6 @@ function cardEffectSections(c){
 }
 
 function cardInfoText(c,copies=1){
-  const descriptionTitle=(c.type&0x10)&&!(c.type&0x20)?'카드 설명':'카드 효과';
   const lines=[c.name??c.code];
   if(copies>1)lines.push(`매수: ${copies}장`);
   lines.push(...cardFacts(c).map(([key,value])=>`${key}: ${value}`));
