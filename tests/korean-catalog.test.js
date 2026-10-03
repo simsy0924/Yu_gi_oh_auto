@@ -3,11 +3,13 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {gunzipSync} from 'node:zlib';
 import {applyCatalogTranslations,deckable} from '../src/catalog.js';
+import {cardInfoHtml} from '../src/card-info.js';
 
 const cards=JSON.parse(gunzipSync(readFileSync('public/engine/cards.json.gz')));
 const translations=JSON.parse(gunzipSync(readFileSync('public/engine/ko.json.gz')));
 const overrides=JSON.parse(readFileSync('public/engine/ko-overrides.json'));
 const sources=JSON.parse(readFileSync('public/engine/sources.json'));
+const pendulumEffects=JSON.parse(readFileSync('public/engine/ko-pendulum.json'));
 
 test('the pinned Korean catalog adds newly localized Korean cards',()=>{
   const code='89875646';
@@ -28,6 +30,23 @@ test('the bundled Korean catalog records its exact upstream revision',()=>{
     sources.sources.KoreanCardCatalog.commit,
     'eb6042f1a33661ca570c29939f7aa70807119857'
   );
+});
+
+test('the Korean Pendulum effect catalog includes Wisdom-Eye Magician',()=>{
+  const code='72714461';
+  assert.ok(cards[code]);
+  assert.match(pendulumEffects[code],/다른 한쪽 자신의 펜듈럼 존/);
+  const catalog=applyCatalogTranslations(
+    {[code]:{...cards[code]}},
+    {...translations},
+    {...overrides},
+    {[code]:pendulumEffects[code]}
+  );
+  const html=cardInfoHtml(catalog[code]);
+  assert.match(html,/펜듈럼 효과/);
+  assert.match(html,/몬스터 효과/);
+  assert.match(html,/이 카드를 파괴하고/);
+  assert.match(html,/이 카드를 패에서 버리고/);
 });
 
 test('every bundled card with source text has a Korean name and effect text',()=>{
