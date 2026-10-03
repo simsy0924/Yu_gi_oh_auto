@@ -432,6 +432,7 @@ const actionsFor=key=>(myPrompt()?.choices??[]).filter(c=>sourceKey(c.source)===
 const targetFor=key=>(myPrompt()?.selection?.options??[]).find(o=>sourceKey(o.source)===key);
 function card(c,player,location,sequence){
   if(!c)return `<div class="slot empty">${location===4?'M':'S'}${sequence+1}</div>`;
+  if(c.hidden&&location===2)return `<div class="slot ${player===1?'rot':''} hidden-hand-card" aria-label="숨겨진 카드"><span class="back">GD</span></div>`;
   const key=`${player},${location},${sequence}`;
   const available=actionsFor(key).length||targetFor(key);
   const counterText=Object.entries(c.counters??{}).filter(([,n])=>n>0).map(([type,n])=>`${type}: ${n}`).join(' · ');
@@ -443,7 +444,9 @@ function field(player){
   const row=(l,n)=>`<div class="field-row">${Array.from({length:n},(_,i)=>card(z[l]?.cards?.[i],player,l,i)).join('')}</div>`;
   const piles=`<div class="pilebar">${[[1,'덱'],[64,'엑스트라'],[16,'묘지'],[32,'제외']].map(([l,t])=>`<button class="mini" data-pile="${player},${l}">${t} ${count(l)}</button>`).join('')}</div>`;
   const opponentName=sessionMode==='duel'?'고스트':sessionMode==='claude'?'Claude':sessionMode==='ai-duel'?'AI 2':sessionMode==='ghost-create'?'상대':'연습 상대';
-  const h=player===0&&sessionMode!=='ai-duel'?`<div class="live-hand" aria-label="내 패">${(z[2]?.cards??[]).map((c,i)=>card(c,player,2,i)).join('')}</div>`:`<div class="opponent-hand">${sessionMode==='ai-duel'?`AI ${player+1}`:'상대'} 패 ${count(2)}장</div>`;
+  const handCards=z[2]?.cards??Array.from({length:count(2)},(_,sequence)=>({sequence,hidden:true}));
+  const handName=sessionMode==='ai-duel'?`AI ${player+1}`:player===0?'내':'상대';
+  const h=`<div class="hand-area" aria-label="${handName} 패 ${count(2)}장"><span class="hand-count">패 ${count(2)}장</span><div class="live-hand">${handCards.map((c,i)=>card(c,player,2,i)).join('')}</div></div>`;
   const extra=`<div class="field-spell"><span>필드</span>${card(z[8]?.cards?.[5],player,8,5)}</div>`;
   const seatName=sessionMode==='ai-duel'?`AI ${player+1}`:player===1?opponentName:'나';
   return `<section class="live-field ${player===1?'opponent':''}"><div class="field-caption"><b>${seatName} · ${state?.lp[player]??8000} LP</b>${piles}${extra}</div>${player===1?h+row(8,5)+row(4,5):row(4,5)+row(8,5)+h}</section>`;

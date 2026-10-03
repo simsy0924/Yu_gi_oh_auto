@@ -69,6 +69,13 @@ test('public duel logs hide private cards and retain information revealed by act
   assert.equal(describeDecision(selectPrompt,{indices:[0]},cards),'카드 선택 · 비공개 카드');
   assert.equal(decisionUsesPrivateCard(selectPrompt,{indices:[0]}),true);
 
+  const deckPrompt={title:'카드 선택',selection:{options:[{id:0,label:`${hiddenName} · 덱 1`,card:12345,source:{controller:1,location:1,sequence:0}}]}};
+  assert.equal(describeDecision(deckPrompt,{indices:[0]},cards),'카드 선택 · 덱에서 카드');
+  assert.equal(decisionUsesPrivateCard(deckPrompt,{indices:[0]}),true);
+  const revealedDeckCard=[{code:12345,controller:1,location:1,sequence:0}];
+  assert.equal(describeDecision(deckPrompt,{indices:[0]},cards,revealedDeckCard),`카드 선택 · ${hiddenName} · 덱 1`);
+  assert.equal(decisionUsesPrivateCard(deckPrompt,{indices:[0]},revealedDeckCard),false);
+
   const handSummon={title:'행동을 선택하세요',choices:[{id:'0',kind:'special',card:12345,shortLabel:'특수 소환',source:{controller:0,location:2,sequence:0,position:1}}]};
   assert.equal(describeDecision(handSummon,{choice:'0'},cards),`${hiddenName} · 특수 소환`);
   assert.equal(decisionUsesPrivateCard(handSummon,{choice:'0'}),false);
@@ -90,6 +97,27 @@ test('public duel logs hide private cards and retain information revealed by act
   assert.equal(describeChain({chain_size:1,code:12345,position:2},cards),'체인 1 · 세트 카드 효과');
   assert.equal(describeChain({chain_size:1,code:12345},cards),'체인 1 · 세트 카드 효과');
   assert.equal(describeChain({chain_size:1,code:12345,position:1},cards),`체인 1 · ${hiddenName}`);
+  assert.equal(describeChain({chain_size:1,code:12345,location:2,position:8},cards),`체인 1 · ${hiddenName}`);
+});
+test('public deck reveals appear in both hand rows and stay visible when moved into a hand',()=>{
+  const session=new DuelSession();
+  session.cards={12345:{code:12345,name:'공개된 카드',desc:'테스트 효과',type:1,race:'1',attribute:1,level:4,attack:1700,defense:1200}};
+  session.userCorePlayer=0;session.lp=[8000,8000];session.turn=1;session.phase=4;session.active=0;session.ended=false;session.winner=undefined;session.prompt=null;
+  session.confirmation=null;session.confirmationByPlayer={0:null,1:null};session.confirmationSerial=0;session.confirmationSerialByPlayer={0:0,1:0};session.knownCardsByViewer={0:[],1:[]};session.publicCards=[];
+  session.recordConfirmation({type:M.CONFIRM_DECKTOP,player:1,cards:[{code:12345,controller:1,location:1,sequence:0}]});
+  assert.equal(session.confirmation.type,'CONFIRM_DECKTOP');
+  assert.equal(session.confirmationByPlayer[1].cards[0].name,'공개된 카드');
+  assert.match(session.logs.at(-1),/덱 위 공개 · 공개된 카드/);
+  const prompt={title:'카드 선택',selection:{options:[{id:0,label:'공개된 카드 · 덱 1',card:12345,source:{controller:1,location:1,sequence:0}}]}};
+  assert.equal(describeDecision(prompt,{indices:[0]},session.cards,session.publicCards),'카드 선택 · 공개된 카드 · 덱 1');
+  assert.equal(session.recordMovement({card:12345,from:{controller:1,location:1,sequence:0},to:{controller:1,location:2,sequence:0}}),true);
+  session.core={duelQueryCount:()=>2,duelQueryLocation:(_handle,place)=>place.controller===1&&place.location===2?[{code:12345,position:8},{code:67890,position:8}]:[]};
+  const state=session.snapshot(0);
+  assert.equal(state.zones[1][2].count,2);
+  assert.equal(state.zones[1][2].cards[0].name,'공개된 카드');
+  assert.equal(state.zones[1][2].cards[0].sequence,0);
+  assert.equal(state.zones[1][2].cards[1].hidden,true);
+  assert.equal('code' in state.zones[1][2].cards[1],false);
 });
 test('confirmed hidden cards are exposed only when the local player is allowed to see them',()=>{
   const session=new DuelSession();
