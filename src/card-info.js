@@ -35,8 +35,8 @@ function normalizeEffectText(value){
   return String(value??'').replace(/\r\n?/g,'\n').replace(/<br\s*\/?>/gi,'\n').trim();
 }
 function parseEffectSections(value){
-  const text=normalizeEffectText(value), parsed={structured:false,raw:text,pendulum:'',monster:''};
-  const heading=/(?:【|\[)\s*(Pendulum|Monster|펜듈럼|몬스터)(?:\s*(?:Effect|효과))?\s*(?:】|\])/giu;
+  const text=normalizeEffectText(value), parsed={structured:false,raw:text,pendulum:'',monster:'',flavor:''};
+  const heading=/(?:【|\[)\s*(Pendulum|Monster|Flavor(?:\s+Text)?|펜듈럼|몬스터|플레이버(?:\s*텍스트)?|ペンデュラム|モンスター|フレーバーテキスト)(?:\s*(?:Effect|효과))?\s*(?:】|\])/giu;
   let current='',firstSection='',prefix='',cursor=0,match;
   const append=(section,part)=>{
     const clean=part.trim();
@@ -45,7 +45,12 @@ function parseEffectSections(value){
   while((match=heading.exec(text))){
     if(current)append(current,text.slice(cursor,match.index));
     else prefix=text.slice(0,match.index).trim();
-    current=/^(?:pendulum|펜듈럼)$/i.test(match[1])?'pendulum':'monster';
+    const label=match[1].toLowerCase().replace(/\s+/g,' ').trim();
+    current=/^(?:pendulum|펜듈럼|ペンデュラム)$/i.test(label)
+      ?'pendulum'
+      :/^(?:flavor|플레이버|フレーバー)/i.test(label)
+        ?'flavor'
+        :'monster';
     if(!firstSection)firstSection=current;
     parsed.structured=true;
     cursor=heading.lastIndex;
@@ -56,39 +61,51 @@ function parseEffectSections(value){
   return parsed;
 }
 function cardEffectSections(c){
-  const descriptionTitle=(c.type&0x10)&&!(c.type&0x20)?'카드 설명':'카드 효과';
+  const isNormal=!!((c.type&0x10)&&!(c.type&0x20));
+  const descriptionTitle=isNormal?'카드 설명':'카드 효과';
   if(!(c.type&0x1000000))return [{title:descriptionTitle,text:normalizeEffectText(c.desc)||'효과 텍스트가 없습니다.'}];
 
   const translated=parseEffectSections(c.desc),original=parseEffectSections(c.englishDesc);
   const hasEnglishSource=!!normalizeEffectText(c.englishDesc);
   const descriptionIsEnglish=hasEnglishSource&&normalizeEffectText(c.desc)===normalizeEffectText(c.englishDesc);
   const sections=[];
-  const translatedPendulum=descriptionIsEnglish?'':translated.pendulum;
-  const pendulum=translatedPendulum||original.pendulum;
+  const localizedPendulum=normalizeEffectText(c.pendulumEffect)||(!descriptionIsEnglish?translated.pendulum:'');
+  const pendulum=localizedPendulum||original.pendulum;
   sections.push({
-    title:translatedPendulum?'펜듈럼 효과':original.pendulum?'펜듈럼 효과 (영문 원문)':'펜듈럼 효과',
+    title:localizedPendulum?'펜듈럼 효과':original.pendulum?'펜듈럼 효과 (영문 원문)':'펜듈럼 효과',
     text:pendulum||'펜듈럼 효과 텍스트를 찾을 수 없습니다.'
   });
 
-  let monster='',monsterTitle='몬스터 효과';
+  let body='',bodyTitle=isNormal?'카드 설명':'몬스터 효과';
   if(!descriptionIsEnglish&&translated.monster){
-    monster=translated.monster;
-  }else if(!descriptionIsEnglish&&!translated.structured&&translated.raw&&original.pendulum){
-    monster=translated.raw;
-  }else if(original.monster){
-    monster=original.monster;
-    monsterTitle='몬스터 효과 (영문 원문)';
+    body=translated.monster;
+  }else if(!descriptionIsEnglish&&translated.flavor){
+    body=translated.flavor;
+    bodyTitle='카드 설명';
   }else if(!descriptionIsEnglish&&!translated.structured&&translated.raw){
-    monster=translated.raw;
-    monsterTitle='카드 효과 (구분 정보 없음)';
+    body=translated.raw;
+  }else if(original.monster){
+    body=original.monster;
+    bodyTitle='몬스터 효과 (영문 원문)';
+  }else if(original.flavor){
+    body=original.flavor;
+    bodyTitle='카드 설명 (영문 원문)';
+  }else if(!descriptionIsEnglish&&!translated.structured&&translated.raw){
+    body=translated.raw;
   }else if(original.raw&&!original.structured){
-    monster=original.raw;
-    monsterTitle='카드 효과 (영문 원문, 구분 정보 없음)';
-  }else if(translated.structured||original.structured){
-    monster='몬스터 효과 텍스트를 찾을 수 없습니다.';
+    body=original.raw;
+    bodyTitle=isNormal?'카드 설명 (영문 원문)':'카드 효과 (영문 원문, 구분 정보 없음)';
   }
-  if(monster)sections.push({title:monsterTitle,text:monster});
-  else sections.push({title:'카드 효과 (구분 정보 없음)',text:'효과 텍스트가 없습니다.'});
+
+  if(body)sections.push({title:bodyTitle,text:body});
+  else if(translated.structured||original.structured){
+    sections.push({
+      title:isNormal?'카드 설명':'몬스터 효과',
+      text:isNormal?'카드 설명 텍스트를 찾을 수 없습니다.':'몬스터 효과 텍스트를 찾을 수 없습니다.'
+    });
+  }else{
+    sections.push({title:descriptionTitle,text:'효과 텍스트가 없습니다.'});
+  }
   return sections;
 }
 
