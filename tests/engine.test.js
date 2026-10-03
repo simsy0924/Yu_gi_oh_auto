@@ -84,10 +84,11 @@ test('Pendulum card details always show Pendulum and monster effects',()=>{
   assert.match(unmarkedHtml,/한국어로 번역된 몬스터 효과/);
   assert.doesNotMatch(unmarkedHtml,/English Monster Effect/);
 
-  const unstructuredBoth={...card,desc:'구분 표기가 없는 한국어 몬스터 효과',englishDesc:'Unstructured English source'};
+  const unstructuredBoth={...card,desc:'구분 표기가 없는 한국어 몬스터 효과',englishDesc:'Unstructured English source',pendulumEffect:'한국어 펜듈럼 효과'};
   const unstructuredHtml=cardInfoHtml(unstructuredBoth);
+  assert.match(unstructuredHtml,/한국어 펜듈럼 효과/);
   assert.match(unstructuredHtml,/구분 표기가 없는 한국어 몬스터 효과/);
-  assert.doesNotMatch(unstructuredHtml,/효과 텍스트를 찾을 수 없습니다/);
+  assert.doesNotMatch(unstructuredHtml,/몬스터 효과 텍스트를 찾을 수 없습니다/);
 
   const normalPendulum={
     ...card,type:1|0x10|0x1000000,
