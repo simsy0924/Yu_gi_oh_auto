@@ -85,7 +85,7 @@ def main():
     data = json.dumps(translations, ensure_ascii=False, separators=(',', ':')).encode()
     (engine / 'ko.json.gz').write_bytes(gzip.compress(data, mtime=0))
     pendulum_data = json.dumps(pendulum_effects, ensure_ascii=False, separators=(',', ':'))
-    (engine / 'ko-pendulum.json').write_text(pendulum_data + '\\n', encoding='utf-8')
+    (engine / 'ko-pendulum.json').write_text(pendulum_data + '\n', encoding='utf-8')
     print(
         f"Updated {counts['records']} matching Korean records from {expected}; "
         f"added {counts['name']} names, {counts['desc']} effect texts, "
