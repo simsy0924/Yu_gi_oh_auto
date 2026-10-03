@@ -83,6 +83,22 @@ test('Pendulum card details always show Pendulum and monster effects',()=>{
   assert.match(unmarkedHtml,/몬스터 효과/);
   assert.match(unmarkedHtml,/한국어로 번역된 몬스터 효과/);
   assert.doesNotMatch(unmarkedHtml,/English Monster Effect/);
+
+  const unstructuredBoth={...card,desc:'구분 표기가 없는 한국어 몬스터 효과',englishDesc:'Unstructured English source'};
+  const unstructuredHtml=cardInfoHtml(unstructuredBoth);
+  assert.match(unstructuredHtml,/구분 표기가 없는 한국어 몬스터 효과/);
+  assert.doesNotMatch(unstructuredHtml,/효과 텍스트를 찾을 수 없습니다/);
+
+  const normalPendulum={
+    ...card,type:1|0x10|0x1000000,
+    desc:'한국어 펜듈럼 일반 몬스터 설명',
+    englishDesc:'[ Pendulum Effect ]\\nEnglish Pendulum effect\\n[ Flavor Text ]\\nEnglish flavor text',
+    pendulumEffect:'한국어 펜듈럼 효과'
+  };
+  const normalPendulumHtml=cardInfoHtml(normalPendulum);
+  assert.ok(normalPendulumHtml.indexOf('한국어 펜듈럼 효과')<normalPendulumHtml.indexOf('한국어 펜듈럼 일반 몬스터 설명'));
+  assert.match(normalPendulumHtml,/카드 설명/);
+  assert.doesNotMatch(normalPendulumHtml,/English flavor text/);
 });
 test('duel action descriptions identify selected cards and effects',()=>{
   const cards={73218792:{name:'정크 마이스터'}};
