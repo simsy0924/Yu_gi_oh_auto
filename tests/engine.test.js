@@ -6,7 +6,7 @@ import {DuelSession} from '../src/session.js';
 import {ghostChoice,fieldPlaces,makePrompt,selectionResponse,counterResponse,requestTypes} from '../src/prompts.js';
 import {parseDeck} from '../src/decks.js';
 import {OcgMessageType as M,OcgResponseType as R,OcgQueryFlags as Q,OcgOpCode} from 'ocgcore-wasm';
-import {cardFacts,cardInfoHtml} from '../src/card-info.js';
+import {cardFacts,cardInfoHtml,deckCardInfoText} from '../src/card-info.js';
 import {promptHelp,selectionProgress,promptCardName} from '../src/duel-guidance.js';
 import {deckWithStartingHand} from '../src/practice.js';
 import {soloOpponentChoice} from '../src/solo.js';
@@ -49,6 +49,40 @@ test('card details include the applicable printed stats and selection progress',
   assert.ok(cardFacts(normal).some(([label,value])=>label==='레벨'&&value===4));
   assert.match(cardInfoHtml(normal),/카드 설명/);
   assert.equal(selectionProgress({mode:'sort',options:[1,2,3]},[0,1]),'2/3장 순서 지정');
+});
+test('Pendulum card details always show Pendulum and monster effects',()=>{
+  const card={
+    code:99001,name:'펜듈럼 시험 카드',type:1|0x20|0x1000000,
+    desc:'【펜듈럼 효과】\n한국어 펜듈럼 효과\n【몬스터 효과】\n한국어 몬스터 효과',
+    englishDesc:'[ Pendulum Effect ]\nEnglish Pendulum Effect\n[ Monster Effect ]\nEnglish Monster Effect'
+  };
+  const html=cardInfoHtml(card);
+  assert.ok(html.indexOf('한국어 펜듈럼 효과')<html.indexOf('한국어 몬스터 효과'));
+  assert.match(html,/펜듈럼 효과/);
+  assert.match(html,/몬스터 효과/);
+  const copied=deckCardInfoText({name:'펜듈럼 테스트 덱',main:[99001],extra:[],side:[]},{99001:card});
+  assert.match(copied,/펜듈럼 효과:\n한국어 펜듈럼 효과/);
+  assert.match(copied,/몬스터 효과:\n한국어 몬스터 효과/);
+
+  const missingTranslation={...card,desc:'【몬스터 효과】\n한국어 몬스터 효과'};
+  const fallbackHtml=cardInfoHtml(missingTranslation);
+  assert.match(fallbackHtml,/펜듈럼 효과 \(영문 원문\)/);
+  assert.match(fallbackHtml,/English Pendulum Effect/);
+  assert.match(fallbackHtml,/한국어 몬스터 효과/);
+  const fallbackCopy=deckCardInfoText({main:[99001],extra:[],side:[]},{99001:missingTranslation});
+  assert.match(fallbackCopy,/펜듈럼 효과 \(영문 원문\):\nEnglish Pendulum Effect/);
+
+  const untranslated={...card,desc:card.englishDesc};
+  const untranslatedHtml=cardInfoHtml(untranslated);
+  assert.match(untranslatedHtml,/펜듈럼 효과 \(영문 원문\)/);
+  assert.match(untranslatedHtml,/몬스터 효과 \(영문 원문\)/);
+
+  const unmarkedTranslation={...card,desc:'한국어로 번역된 몬스터 효과'};
+  const unmarkedHtml=cardInfoHtml(unmarkedTranslation);
+  assert.match(unmarkedHtml,/펜듈럼 효과 \(영문 원문\)/);
+  assert.match(unmarkedHtml,/몬스터 효과/);
+  assert.match(unmarkedHtml,/한국어로 번역된 몬스터 효과/);
+  assert.doesNotMatch(unmarkedHtml,/English Monster Effect/);
 });
 test('duel action descriptions identify selected cards and effects',()=>{
   const cards={73218792:{name:'정크 마이스터'}};
