@@ -92,7 +92,7 @@ test('Pendulum card details always show Pendulum and monster effects',()=>{
   const normalPendulum={
     ...card,type:1|0x10|0x1000000,
     desc:'한국어 펜듈럼 일반 몬스터 설명',
-    englishDesc:'[ Pendulum Effect ]\\nEnglish Pendulum effect\\n[ Flavor Text ]\\nEnglish flavor text',
+    englishDesc:'[ Pendulum Effect ]\nEnglish Pendulum effect\n[ Flavor Text ]\nEnglish flavor text',
     pendulumEffect:'한국어 펜듈럼 효과'
   };
   const normalPendulumHtml=cardInfoHtml(normalPendulum);
