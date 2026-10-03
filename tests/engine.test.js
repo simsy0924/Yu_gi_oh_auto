@@ -1,4 +1,266 @@
-YªçŠx-®éÜj×¢ëiºÚ+Š§j[h‘éÜ¢éí×nµİ:-jZ.¶›­–)Ş³V–×÷'B·FW7GÒg&öÒvæöFS§FW7Bs°¦–×÷'B76W'Bg&öÒvæöFS¦76W'B÷7G&–7Bs°¦–×÷'B·&VDf–ÆU7–æ7Òg&öÒvæöFS¦g2s°¦–×÷'B¶wVç¦—7–æ7Òg&öÒvæöFS§¦Æ–"s°¦–×÷'B´GVVÅ6W76–öçÒg&öÒrââ÷7&2÷6W76–öâæ§2s°¦–×÷'B¶v†÷7D6†ö–6RÆf–VÆEÆ6W2ÆÖ¶U&ö×BÇ6VÆV7F–öå&W7öç6RÆ6÷VçFW%&W7öç6RÇ&WVW7EG—W7Òg&öÒrââ÷7&2÷&ö×G2æ§2s°¦–×÷'B·'6TFV6·Òg&öÒrââ÷7&2öFV6·2æ§2s°¦–×÷'B´ö6tÖW76vUG—R2ÒÄö6u&W7öç6UG—R2"Äö6uVW'”fÆw22Äö6t÷6öFWÒg&öÒvö6v6÷&R×v6Òs°¦–×÷'B¶6&Df7G2Æ6&D–æfô‡FÖÇÒg&öÒrââ÷7&2ö6&BÖ–æfòæ§2s°¦–×÷'B·&ö×D†VÇÇ6VÆV7F–öå&öw&W72Ç&ö×D6&DæÖWÒg&öÒrââ÷7&2öGVVÂÖwV–Fæ6Ræ§2s°¦–×÷'B¶FV6µv—F…7F'F–æt†æGÒg&öÒrââ÷7&2÷&7F–6Ræ§2s°¦–×÷'B·6öÆô÷öæVçD6†ö–6WÒg&öÒrââ÷7&2÷6öÆòæ§2s°¦–×÷'B·&WÆ•Æ–W$–çWG7Òg&öÒrââ÷7&2öGVVÂÖ†—7F÷'’æ§2s°¦–×÷'B¶FW67&–&TFV6—6–öâÆFW67&–&T6†–âÆFV6—6–öåW6W5&—fFT6&GÒg&öÒrââ÷7&2öGVVÂÖÆöræ§2s°¦6öç7B6&G3Ô¥4ôâç'6R†wVç¦—7–æ2‡&VDf–ÆU7–æ2‚wV&Æ–2öVæv–æRö6&G2æ§6öâæw¢r’’“°¦6öç7B¶÷&Vå7G&–æw3Ô¥4ôâç'6R†wVç¦—7–æ2‡&VDf–ÆU7–æ2‚wV&Æ–2öVæv–æRö¶ò×7G&–æw2æ§6öâæw¢r’’“°¦6öç7B67&—G3Ô¥4ôâç'6R†wVç¦—7–æ2‡&VDf–ÆU7–æ2‚wV&Æ–2öVæv–æR÷67&—G2æ§6öâæw¢r’’“°¦6öç7B'Vc×&VDf–ÆU7–æ2‚væöFUöÖöGVÆW2öö6v6÷&R×v6ÒöÆ–"öö6v6÷&Rç7–æ2çv6Òr“°¦6öç7Bv6Ô&–æ'“Ö'Vbæ'VffW"ç6Æ–6R†'Vbæ'—FTöfg6WBÆ'Vbæ'—FTöfg6WB¶'Vbæ'—FTÆVæwF‚“°¦6öç7B–÷SÔ¥4ôâç'6R‡&VDf–ÆU7–æ2‚wV&Æ–2öFV6·2÷7F'FW"æ§6öâr’“°¦6öç7Bv†÷7CÔ¥4ôâç'6R‡&VDf–ÆU7–æ2‚wV&Æ–2öv†÷7G2÷6×ÆRæ§6öâr’“°§FW7B‚vVffV7B6öÖÖæG2W6R¶÷&Vâ6†ö–6R7G&–æw2æB6†÷rF†R¶÷&Vâ6&B6öçFW‡BrÂ‚“Óç°¢6öç7B6öFSÓcC“cCsSÆ6&C×²ââæ6&G5¶6öFUÒÆæÖS¢~»	Î«ˆº’rÆFW63¢~Ë›N¹9Îº¨^ÉØB«	ÂÈJÉkÙY«:»	Î¸ùÙZÈ‰‚Éè¸ºBârÆVævÆ—6„FW63¦6&G5¶6öFUÒæFW62Æ¶÷&Vå7G&–æw3¦¶÷&Vå7G&–æw5¶6öFU×Ó°¢6öç7BFW67&—F–öãÒ„&–t–çB†6öFR“ÃÃ#â—Ãã°¢6öç7BÖÖ¶U&ö×B‡·G—S¤Òå4TÄT5Eô”DÄT4ÔBÇÆ–W#£Ç7VÖÖöç3¥µÒÇ7V6–Å÷7VÖÖöç3¥µÒÇ÷5ö6†ævW3¥µÒÆÖöç7FW%÷6WG3¥µÒÇ7VÆÅ÷6WG3¥µÒÆ7F—fFW3¥·¶6öFRÆ6öçG&öÆÆW#£ÆÆö6F–öã£"Ç6WVVæ6S£ÆFW67&—F–öçÕÒÇFõö'¦fÇ6RÇFõöW¦fÇ6WÒÇµ¶6öFUÓ¦6&GÒ“°¢76W'BæÖF6‚‡æ6†ö–6W5³ÒæÆ&VÂÂşË›N¹9Îº¨^ÉØB«	ÂÈJÉkÙY«:ò“°¢76W'BæFöW4æ÷DÖF6‚‡æ6†ö–6W5³ÒæÆ&VÂÂôFV6Æ&Rò“°¢76W'BæÖF6‚‡æ6†ö–6W5³Òç6†÷'DÆ&VÂÂşË›N¹9Îº¨^ÉØB«	ÂÈJÉkÙY«:ò“°¢6öç7B÷F–öãÖÖ¶U&ö×B‡·G—S¤Òå4TÄT5EôõD”ôâÇÆ–W#£Æ÷F–öç3¥¶FW67&—F–öå×ÒÇµ¶6öFUÓ¦6&GÒ“°¢76W'BæWVÂ†÷F–öâæ6öçFW‡BææÖRÂ~»	Î«ˆº’r“°¢76W'BæÖF6‚†÷F–öâæ6†ö–6W5³ÒæÆ&VÂÂşË›N¹9Îº¨^ÉØB«	ÂÈJÉkÙY«:ò“°¢76W'BæÖF6‚‡&ö×D†VÇ†÷F–öâ’ÂşÙª«;Âò“°¢6öç7BfÆÆ&6³ÖÖ¶U&ö×B‡·G—S¤Òå4TÄT5EôõD”ôâÇÆ–W#£Æ÷F–öç3¥¶FW67&—F–öå×ÒÇµ¶6öFUÓ§²ââæ6&BÆ¶÷&Vå7G&–æw3¥µ××Ò“°¢76W'BæWVÂ†fÆÆ&6²æ6†ö–6W5³ÒæÆ&VÂÂ~ÈJØ9Òr“°¢6öç7BW‡G&&ö×CÖÖ¶U&ö×B‡·G—S¤Òå4TÄT5Eô”DÄT4ÔBÇÆ–W#£Ç7VÖÖöç3¥µÒÇ7V6–Å÷7VÖÖöç3¥·¶6öFRÆ6öçG&öÆÆW#£ÆÆö6F–öã£cBÇ6WVVæ6S£Ç÷6—F–öã£ÕÒÇ÷5ö6†ævW3¥µÒÆÖöç7FW%÷6WG3¥µÒÇ7VÆÅ÷6WG3¥µÒÆ7F—fFW3¥µÒÇFõö'¦fÇ6RÇFõöW¦fÇ6WÒÇµ¶6öFUÓ¦6&GÒ“°¢76W'BæWVÂ†W‡G&&ö×Bæ6†ö–6W5³Òç6÷W&6Rç÷6—F–öâÃ“°§Ò“°§FW7B‚v6&BFWF–Ç2–æ6ÇVFRF†RÆ–6&ÆR&–çFVB7FG2æB6VÆV7F–öâ&öw&W72rÂ‚“Óç°¢6öç7BÖöç7FW#×¶6öFS£ÆæÖS¢~È¹ÎÙy‚Ë›N¹9ÂrÆFW63¢~È¹ÎÙy‚Ùª«;ÂrÇG—S£Ãƒ#ÃƒÃƒCÇ&6S¢sƒ“"rÆGG&–'WFS£bÆÆWfVÃ£2ÆGF6³£#ÆÇ66ÆS£"Ç'66ÆS£rÆÆ–æµöÖ&¶W#£#‡Ã"Æ6÷VçFW'3§³#Ss£'×Ó°¢6öç7BFWF–Ç3Ö6&Df7G2†Ööç7FW"“°¢76W'BæFVWWVÂ†FWF–Ç2æf–æB‚…¶Æ&VÅÒ“ÓæÆ&VÃÓÓÒ~Ê(^ºY‚r•³ÒÂ~ºªÎÈªNØK+rÙª«;Â+rØéÎ¹8¹ûÂ+rºxØÂr“°¢76W'Bæö²†FWF–Ç2ç6öÖR‚…¶Æ&VÂÇfÇVUÒ“ÓæÆ&VÃÓÓÒ~Ê(^ÊrbgfÇVSÓÓÒ~¹9Î¹é«:NÊr’“°¢76W'Bæö²†FWF–Ç2ç6öÖR‚…¶Æ&VÂÇfÇVUÒ“ÓæÆ&VÃÓÓÒ~ÈhŞÈKrbgfÇVSÓÓÒ~»™²r’“°¢76W'Bæö²†FWF–Ç2ç6öÖR‚…¶Æ&VÂÇfÇVUÒ“ÓæÆ&VÃÓÓÒ~ºxØÂºxËºBrbgfÇVSÓÓÒ~(i(i2r’“°¢76W'Bæö²†FWF–Ç2ç6öÖR‚…¶Æ&VÂÇfÇVUÒ“ÓæÆ&VÃÓÓÒ~ØéÎ¹8¹ûÂÈªNËÈÉÛÂrbgfÇVSÓÓÒs"òrr’“°¢76W'Bæö²†FWF–Ç2ç6öÖR‚…¶Æ&VÅÒ“ÓæÆ&VÃÓÓÒ~Ë›NÉ«NØK#Srr’“°¢76W'BæÖF6‚†6&D–æfô‡FÖÂ‡²ââæÖöç7FW"ÆæÖS¢sÇ67&—CâwÒ’ÂòfÇC·67&—BfwC²ò“°¢6öç7Bæ÷&ÖÃ×²ââæ6&G5³Csƒ“CS3uÒÆæÖS¢~Ê(^«ˆ«ZÎÉ«ÉÙ‚Ù™ÈŠÈ*ÂrÆÆ–æ³§·&F–æs£ÆÖ&¶W#£×Ó°¢76W'Bæö²†6&Df7G2†æ÷&ÖÂ’ç6öÖR‚…¶Æ&VÂÇfÇVUÒ“ÓæÆ&VÃÓÓÒ~º»*‚rbgfÇVSÓÓÓB’“°¢76W'BæÖF6‚†6&D–æfô‡FÖÂ†æ÷&ÖÂ’ÂşË›N¹9ÂÈJNº¨Rò“°¢76W'BæWVÂ‡6VÆV7F–öå&öw&W72‡¶ÖöFS¢w6÷'BrÆ÷F–öç3¥³Ã"Ã5×ÒÅ³ÃÒ’Âs"ó>ÉêRÈ‰ÎÈIÂÊxÊ	Rr“°§Ò“°§FW7B‚vGVVÂ7F–öâFW67&—F–öç2–FVçF–g’6VÆV7FVB6&G2æBVffV7G2rÂ‚“Óç°¢6öç7B6&G3×³s3#ƒs“#§¶æÖS¢~Ê	^ØÂºxÉÛNÈªNØKw×Ó°¢6öç7B7F–öã×·G—S¢u4TÄT5Eô”DÄT4ÔBrÇF—FÆS¢~Ùh¸ùÉØBÈJØ9ŞÙYÈKÉ©BrÆ6†ö–6W3¥·¶–C¢srÆ6&C£s3#ƒs“"Ç6†÷'DÆ&VÃ¢~Ø«È‰‚ÈhÎÙ™‚wÕ×Ó°¢76W'BæWVÂ†FW67&–&TFV6—6–öâ†7F–öâÇ¶6†ö–6S¢swÒÆ6&G2’Â~Ê	^ØÂºxÉÛNÈªNØK+rØ«È‰‚ÈhÎÙ™‚r“°¢6öç7B6VÆV7F–öã×·G—S¢u4TÄT5Eô4$BrÇF—FÆS¢~Ë›N¹9ÂÈJØ9ÒrÇ6VÆV7F–öã§¶÷F–öç3¥·¶–C£ÆÆ&VÃ¢~Ê	^ØÂÈ»ØÎº+rºÉÊxwÕ××Ó°¢76W'BæWVÂ†FW67&–&TFV6—6–öâ‡6VÆV7F–öâÇ¶–æF–6W3¥³×ÒÆ6&G2’Â~Ë›N¹9ÂÈJØ9Ò+rÊ	^ØÂÈ»ØÎº+rºÉÊxr“°¢6öç7BVffV7C×·G—S¢u4TÄT5EôTddT5E”ârÇF—FÆS¢~Ê	^ØÂºxÉÛNÈªNØK+rØ«È‰‚ÈhÎÙ™ÙZ«˜ÎÉ©CòrÆ6†ö–6W3¥·¶–C¢srÆ¶–æC¢w–W2rÇ6†÷'DÆ&VÃ¢~Éˆ‚wÕ×Ó°¢76W'BæWVÂ†FW67&–&TFV6—6–öâ†VffV7BÇ¶6†ö–6S¢swÒÆ6&G2’Â~Ê	^ØÂºxÉÛNÈªNØK+rØ«È‰‚ÈhÎÙ™ÙZ«˜ÎÉ©Cò+rÉˆ‚r“°§Ò“°§FW7B‚wV&Æ–2GVVÂÆöw2†–FR&—fFR6&G2æB&WF–â–æf÷&ÖF–öâ&WfVÆVB'’7F–öç2÷"f6R×W¦öæW2rÂ‚“Óç°¢6öç7B†–FFVäæÖSÒ~»˜N»Ë›N¹9ÂrÆ6&G3×³#3CS§¶æÖS¦†–FFVäæÖW×Ó°¢6öç7B6WE&ö×C×·F—FÆS¢~Ùh¸ùÉØBÈJØ9ŞÙYÈKÉ©BrÆ6†ö–6W3¥·¶–C¢srÆ¶–æC¢w6WBrÆ6&C£#3CRÇ6†÷'DÆ&VÃ¢~ºªÎÈªNØKÈKØ«‚rÇ6÷W&6S§¶6öçG&öÆÆW#£ÆÆö6F–öã£"Ç6WVVæ6S£Ç÷6—F–öã£×Õ×Ó°¢76W'BæWVÂ†FW67&–&TFV6—6–öâ‡6WE&ö×BÇ¶6†ö–6S¢swÒÆ6&G2’Â~ºªÎÈªNØKÈKØ«‚r“°¢76W'BæWVÂ†FV6—6–öåW6W5&—fFT6&B‡6WE&ö×BÇ¶6†ö–6S¢swÒ’ÇG'VR“° ¢6öç7B6VÆV7E&ö×C×·F—FÆS¢~Ë›N¹9ÂÈJØ9ÒrÇ6VÆV7F–öã§¶÷F–öç3¥·¶–C£ÆÆ&VÃ¦G¶†–FFVäæÖWÒ+rØÊ‚Æ6&C£#3CRÇ6÷W&6S§¶6öçG&öÆÆW#£ÆÆö6F–öã£"Ç6WVVæ6S£Ç÷6—F–öã£×Õ××Ó°¢76W'BæWVÂ†FW67&–&TFV6—6–öâ‡6VÆV7E&ö×BÇ¶–æF–6W3¥³×ÒÆ6&G2’Â~Ë›N¹9ÂÈJØ9Ò+r»˜N«;^«	ÂË›N¹9Âr“°¢76W'BæWVÂ†FV6—6–öåW6W5&—fFT6&B‡6VÆV7E&ö×BÇ¶–æF–6W3¥³×Ò’ÇG'VR“° ¢6öç7BFV6µ&ö×C×·F—FÆS¢~Ë›N¹9ÂÈJØ9ÒrÇ6VÆV7F–öã§¶÷F–öç3¥·¶–C£ÆÆ&VÃ¦G¶†–FFVäæÖWÒ+r¸ÛÆ6&C£#3CRÇ6÷W&6S§¶6öçG&öÆÆW#£ÆÆö6F–öã£Ç6WVVæ6S£×Õ××Ó°¢76W'BæWVÂ†FW67&–&TFV6—6–öâ†FV6µ&ö×BÇ¶–æF–6W3¥³×ÒÆ6&G2’Â~Ë›N¹9ÂÈJØ9Ò+r¸ÛÉyÈIÂË›N¹9Âr“°¢76W'BæWVÂ†FV6—6–öåW6W5&—fFT6&B†FV6µ&ö×BÇ¶–æF–6W3¥³×Ò’ÇG'VR“°¢6öç7B&WfVÆVDFV6´6&CÕ·¶6öFS£#3CRÆ6öçG&öÆÆW#£ÆÆö6F–öã£Ç6WVVæ6S£ÕÓ°¢76W'BæWVÂ†FW67&–&TFV6—6–öâ†FV6µ&ö×BÇ¶–æF–6W3¥³×ÒÆ6&G2Ç&WfVÆVDFV6´6&B’ÆË›N¹9ÂÈJØ9Ò+rG¶†–FFVäæÖWÒ+r¸Û“°¢76W'BæWVÂ†FV6—6–öåW6W5&—fFT6&B†FV6µ&ö×BÇ¶–æF–6W3¥³×ÒÇ&WfVÆVDFV6´6&B’ÆfÇ6R“° ¢6öç7B†æE7VÖÖöã×·F—FÆS¢~Ùh¸ùÉØBÈJØ9ŞÙYÈKÉ©BrÆ6†ö–6W3¥·¶–C¢srÆ¶–æC¢w7V6–ÂrÆ6&C£#3CRÇ6†÷'DÆ&VÃ¢~Ø«È‰‚ÈhÎÙ™‚rÇ6÷W&6S§¶6öçG&öÆÆW#£ÆÆö6F–öã£"Ç6WVVæ6S£Ç÷6—F–öã£×Õ×Ó°¢76W'BæWVÂ†FW67&–&TFV6—6–öâ††æE7VÖÖöâÇ¶6†ö–6S¢swÒÆ6&G2’ÆG¶†–FFVäæÖWÒ+rØ«È‰‚ÈhÎÙ™†“°¢76W'BæWVÂ†FV6—6–öåW6W5&—fFT6&B††æE7VÖÖöâÇ¶6†ö–6S¢swÒ’ÆfÇ6R“° ¢6öç7Bf6UWW‡G&×·F—FÆS¢~Ùh¸ùÉØBÈJØ9ŞÙYÈKÉ©BrÆ6†ö–6W3¥·¶–C¢srÆ¶–æC¢w7V6–ÂrÆ6&C£#3CRÇ6†÷'DÆ&VÃ¢~Ø«È‰‚ÈhÎÙ™‚rÇ6÷W&6S§¶6öçG&öÆÆW#£ÆÆö6F–öã£cBÇ6WVVæ6S£Ç÷6—F–öã£×Õ×Ó°¢76W'BæWVÂ†FW67&–&TFV6—6–öâ†f6UWW‡G&Ç¶6†ö–6S¢swÒÆ6&G2’ÆG¶†–FFVäæÖWÒ+rØ«È‰‚ÈhÎÙ™†“°¢76W'BæWVÂ†FV6—6–öåW6W5&—fFT6&B†f6UWW‡G&Ç¶6†ö–6S¢swÒ’ÆfÇ6R“° ¢6öç7Bf6UWW‡G&6VÆV7F–öã×·F—FÆS¢~Ë›N¹9ÂÈJØ9ÒrÇ6VÆV7F–öã§¶÷F–öç3¥·¶–C£ÆÆ&VÃ¦†–FFVäæÖRÆ6&C£#3CRÇ6÷W&6S§¶6öçG&öÆÆW#£ÆÆö6F–öã£cBÇ6WVVæ6S£Ç÷6—F–öã£G×Õ××Ó°¢76W'BæWVÂ†FW67&–&TFV6—6–öâ†f6UWW‡G&6VÆV7F–öâÇ¶–æF–6W3¥³×ÒÆ6&G2’ÆË›N¹9ÂÈJØ9Ò+rG¶†–FFVäæÖWÖ“°¢6öç7Bf6TF÷väW‡G&6VÆV7F–öã×·F—FÆS¢~Ë›N¹9ÂÈJØ9ÒrÇ6VÆV7F–öã§¶÷F–öç3¥·¶–C£ÆÆ&VÃ¦†–FFVäæÖRÆ6&C£#3CRÇ6÷W&6S§¶6öçG&öÆÆW#£ÆÆö6F–öã£cBÇ6WVVæ6S£Ç÷6—F–öã£‡×Õ××Ó°¢76W'BæWVÂ†FW67&–&TFV6—6–öâ†f6TF÷väW‡G&6VÆV7F–öâÇ¶–æF–6W3¥³×ÒÆ6&G2’Â~Ë›N¹9ÂÈJØ9Ò+r»˜N«;^«	ÂË›N¹9Âr“° ¢6öç7Bf6UW&æ—6†VC×·F—FÆS¢~Ë›N¹9ÂÈJØ9ÒrÇ6VÆV7F–öã§¶÷F–öç3¥·¶–C£ÆÆ&VÃ¦†–FFVäæÖRÆ6&C£#3CRÇ6÷W&6S§¶6öçG&öÆÆW#£ÆÆö6F–öã£3"Ç6WVVæ6S£Ç÷6—F–öã£×Õ××Ó°¢76W'BæWVÂ†FW67&–&TFV6—6–öâ†f6UW&æ—6†VBÇ¶–æF–6W3¥³×ÒÆ6&G2’ÆË›N¹9ÂÈJØ9Ò+rG¶†–FFVäæÖWÖ“°¢6öç7Bf6TF÷vä&æ—6†VC×·F—FÆS¢~Ë›N¹9ÂÈJØ9ÒrÇ6VÆV7F–öã§¶÷F–öç3¥·¶–C£ÆÆ&VÃ¦†–FFVäæÖRÆ6&C£#3CRÇ6÷W&6S§¶6öçG&öÆÆW#£ÆÆö6F–öã£3"Ç6WVVæ6S£Ç÷6—F–öã£‡×Õ××Ó°¢76W'BæWVÂ†FW67&–&TFV6—6–öâ†f6TF÷vä&æ—6†VBÇ¶–æF–6W3¥³×ÒÆ6&G2’Â~Ë›N¹9ÂÈJØ9Ò+r»˜N«;^«	ÂË›N¹9Âr“° ¢76W'BæWVÂ†FW67&–&T6†–â‡¶6†–å÷6—¦S£Æ6öFS£#3CRÇ÷6—F–öã£'ÒÆ6&G2’Â~Ë+NÉÛ‚+rÈKØ«‚Ë›N¹9ÂÙª«;Âr“°¢76W'BæWVÂ†FW67&–&T6†–â‡¶6†–å÷6—¦S£Æ6öFS£#3CWÒÆ6&G2’Â~Ë+NÉÛ‚+rÈKØ«‚Ë›N¹9ÂÙª«;Âr“°¢76W'BæWVÂ†FW67&–&T6†–â‡¶6†–å÷6—¦S£Æ6öFS£#3CRÇ÷6—F–öã£ÒÆ6&G2’ÆË+NÉÛ‚+rG¶†–FFVäæÖWÖ“°¢76W'BæWVÂ†FW67&–&T6†–â‡¶6†–å÷6—¦S£Æ6öFS£#3CRÆÆö6F–öã£"Ç÷6—F–öã£‡ÒÆ6&G2’ÆË+NÉÛ‚+rG¶†–FFVäæÖWÖ“°§Ò“°§FW7B‚wV&Æ–2FV6²&WfVÇ2V"–â&÷F‚†æB&÷w2æB7F’f—6–&ÆRv†VâÖ÷fVB–çFò†æBrÂ‚“Óç°¢6öç7B6W76–öãÖæWrGVVÅ6W76–öâ‚“°¢6W76–öâæ6&G3×³#3CS§¶6öFS£#3CRÆæÖS¢~«;^«	Î¹	ÂË›N¹9ÂrÆFW63¢~ØXÎÈªNØ«‚Ùª«;ÂrÇG—S£Ç&6S¢srÆGG&–'WFS£ÆÆWfVÃ£BÆGF6³£sÆFVfVç6S£#×Ó°¢6W76–öâçW6W$6÷&UÆ–W#Ó·6W76–öâæÇÕ³ƒÃƒÓ·6W76–öâçGW&ãÓ·6W76–öâç†6SÓC·6W76–öâæ7F—fSÓ·6W76–öâæVæFVCÖfÇ6S·6W76–öâçv–ææW#×VæFVf–æVC·6W76–öâç&ö×CÖçVÆÃ°¢6W76–öâæ6öæf—&ÖF–öãÖçVÆÃ·6W76–öâæ6öæf—&ÖF–öä'•Æ–W#×³¦çVÆÂÃ¦çVÆÇÓ·6W76–öâæ6öæf—&ÖF–öå6W&–ÃÓ·6W76–öâæ6öæf—&ÖF–öå6W&–Ä'•Æ–W#×³£Ã£Ó·6W76–öâæ¶æ÷vä6&G4'•f–WvW#×³¥µÒÃ¥µ×Ó·6W76–öâçV&Æ–46&G3ÕµÓ°¢6W76–öâç&V6÷&D6öæf—&ÖF–öâ‡·G—S¤Òä4ôäd•$ÕôDT4µDõÇÆ–W#£Æ6&G3¥·¶6öFS£#3CRÆ6öçG&öÆÆW#£ÆÆö6F–öã£Ç6WVVæ6S£Õ×Ò“°¢76W'BæWVÂ‡6W76–öâæ6öæf—&ÖF–öâçG—RÂt4ôäd•$ÕôDT4µDõr“°¢76W'BæWVÂ‡6W76–öâæ6öæf—&ÖF–öä'•Æ–W%³Òæ6&G5³ÒææÖRÂ~«;^«	Î¹	ÂË›N¹9Âr“°¢76W'BæÖF6‚‡6W76–öâæÆöw2æB‚Ó’Âş¸ÛÉÈB«;^«	Â+r«;^«	Î¹	ÂË›N¹9Âò“°¢6öç7B&ö×C×·F—FÆS¢~Ë›N¹9ÂÈJØ9ÒrÇ6VÆV7F–öã§¶÷F–öç3¥·¶–C£ÆÆ&VÃ¢~«;^«	Î¹	ÂË›N¹9Â+r¸ÛrÆ6&C£#3CRÇ6÷W&6S§¶6öçG&öÆÆW#£ÆÆö6F–öã£Ç6WVVæ6S£×Õ××Ó°¢76W'BæWVÂ†FW67&–&TFV6—6–öâ‡&ö×BÇ¶–æF–6W3¥³×ÒÇ6W76–öâæ6&G2Ç6W76–öâçV&Æ–46&G2’Â~Ë›N¹9ÂÈJØ9Ò+r«;^«	Î¹	ÂË›N¹9Â+r¸Ûr“°¢76W'BæWVÂ‡6W76–öâç&V6÷&DÖ÷fVÖVçB‡¶6&C£#3CRÆg&öÓ§¶6öçG&öÆÆW#£ÆÆö6F–öã£Ç6WVVæ6S£ÒÇFó§¶6öçG&öÆÆW#£ÆÆö6F–öã£"Ç6WVVæ6S£×Ò’ÇG'VR“°¢6W76–öâæ6÷&S×¶GVVÅVW'”6÷VçC¢‚“Óã"ÆGVVÅVW'”Æö6F–öã¢…ö†æFÆRÇÆ6R“ÓçÆ6Ræ6öçG&öÆÆW#ÓÓÓbgÆ6RæÆö6F–öãÓÓÓ#õ·¶6öFS£#3CRÇ÷6—F–öã£‡ÒÇ¶6öFS£csƒ“Ç÷6—F–öã£‡ÕÓ¥µ×Ó°¢6öç7B7FFS×6W76–öâç6æ6†÷Bƒ“°¢76W'BæWVÂ‡7FFRç¦öæW5³Õ³%Òæ6÷VçBÃ"“°¢76W'BæWVÂ‡7FFRç¦öæW5³Õ³%Òæ6&G5³ÒææÖRÂ~«;^«	Î¹	ÂË›N¹9Âr“°¢76W'BæWVÂ‡7FFRç¦öæW5³Õ³%Òæ6&G5³Òç6WVVæ6RÃ“°¢76W'BæWVÂ‡7FFRç¦öæW5³Õ³%Òæ6&G5³Òæ†–FFVâÇG'VR“°¢76W'BæWVÂ‚v6öFRr–â7FFRç¦öæW5³Õ³%Òæ6&G5³ÒÆfÇ6R“°§Ò“°§FW7B‚wV&Æ–2FV6²¶æ÷vÆVFvRföÆÆ÷w26&G2v†VâFV6²÷&FW"6†ævW2rÂ‚“Óç°¢6öç7B6W76–öãÖæWrGVVÅ6W76–öâ‚“·6W76–öâçW6W$6÷&UÆ–W#Ó°¢6W76–öâæ6&G3×°¢#3CS§¶6öFS£#3CRÆæÖS¢~Ë*²«;^«	ÂË›N¹9ÂwÒÀ¢csƒ“§¶6öFS£csƒ“ÆæÖS¢~¹Ê{‚«;^«	ÂË›N¹9ÂwĞ¢Ó°¢6W76–öâæ6öæf—&ÖF–öä'•Æ–W#×³¦çVÆÂÃ¦çVÆÇÓ·6W76–öâæ6öæf—&ÖF–öå6W&–Ä'•Æ–W#×³£Ã£Ó·6W76–öâæ¶æ÷vä6&G4'•f–WvW#×³¥µÒÃ¥µ×Ó·6W76–öâçV&Æ–46&G3ÕµÓ°¢6W76–öâç&V6÷&D6öæf—&ÖF–öâ‡·G—S¤Òä4ôäd•$ÕôDT4µDõÇÆ–W#£Æ6&G3¥°¢¶6öFS£#3CRÆ6öçG&öÆÆW#£ÆÆö6F–öã£Ç6WVVæ6S£ÒÀ¢¶6öFS£csƒ“Æ6öçG&öÆÆW#£ÆÆö6F–öã£Ç6WVVæ6S£Ğ¢×Ò“°¢76W'BæWVÂ‡6W76–öâç&V6÷&DÖ÷fVÖVçB‡¶6&C£#3CRÆg&öÓ§¶6öçG&öÆÆW#£ÆÆö6F–öã£Ç6WVVæ6S£ÒÇFó§¶6öçG&öÆÆW#£ÆÆö6F–öã£Ç6WVVæ6S£'×Ò’ÇG'VR“°¢76W'BæFVWWVÂ‡6W76–öâçV&Æ–46&G2æÖ‚‡¶6öFRÆÆö6F–öâÇ6WVVæ6WÒ“Óâ‡¶6öFRÆÆö6F–öâÇ6WVVæ6WÒ’’Å°¢¶6öFS£#3CRÆÆö6F–öã£Ç6WVVæ6S£'ÒÀ¢¶6öFS£csƒ“ÆÆö6F–öã£Ç6WVVæ6S£Ğ¢Ò“°¢6öç7B&ö×C×·F—FÆS¢~Ë›N¹9ÂÈJØ9ÒrÇ6VÆV7F–öã§¶÷F–öç3¥·¶–C£ÆÆ&VÃ¢~¹Ê{‚«;^«	ÂË›N¹9Â+r¸ÛrÆ6&C£csƒ“Ç6÷W&6S§¶6öçG&öÆÆW#£ÆÆö6F–öã£Ç6WVVæ6S£×Õ××Ó°¢76W'BæWVÂ†FW67&–&TFV6—6–öâ‡&ö×BÇ¶–æF–6W3¥³×ÒÇ6W76–öâæ6&G2Ç6W76–öâçV&Æ–46&G2’Â~Ë›N¹9ÂÈJØ9Ò+r¹Ê{‚«;^«	ÂË›N¹9Â+r¸Ûr“°¢76W'BæWVÂ‡6W76–öâç&V6÷&DÖ÷fVÖVçB‡¶6&C£csƒ“Æg&öÓ§¶6öçG&öÆÆW#£ÆÆö6F–öã£Ç6WVVæ6S£ÒÇFó§¶6öçG&öÆÆW#£ÆÆö6F–öã£"Ç6WVVæ6S£×Ò’ÇG'VR“°¢6W76–öâæ6÷&S×¶GVVÅVW'”6÷VçC¢‚“Óã"ÆGVVÅVW'”Æö6F–öã¢…ö†æFÆRÇÆ6R“ÓçÆ6Ræ6öçG&öÆÆW#ÓÓÓbgÆ6RæÆö6F–öãÓÓÓ#õ·¶6öFS£csƒ“Ç÷6—F–öã£‡ÒÇ¶6öFS£““““’Ç÷6—F–öã£‡ÕÓ¥µ×Ó°¢6öç7B7FFS×6W76–öâç6æ6†÷Bƒ“°¢76W'BæWVÂ‡7FFRç¦öæW5³Õ³%Òæ6&G5³ÒææÖRÂ~¹Ê{‚«;^«	ÂË›N¹9Âr“°¢76W'BæWVÂ‡7FFRç¦öæW5³Õ³%Òæ6&G5³Òæ†–FFVâÇG'VR“°¢76W'BæWVÂ‚v6öFRr–â7FFRç¦öæW5³Õ³%Òæ6&G5³ÒÆfÇ6R“°§Ò“°§FW7B‚v6öæf—&ÖVB†–FFVâ6&G2&RW‡÷6VBöæÇ’v†VâF†RÆö6ÂÆ–W"—2ÆÆ÷vVBFò6VRF†VÒrÂ‚“Óç°¢6öç7B6W76–öãÖæWrGVVÅ6W76–öâ‚“°¢6W76–öâæ6&G3×°¢#3CS§¶6öFS£#3CRÆæÖS¢~Ù™^ÉÛ‚Ë›N¹9ÂrÆFW63¢~ØXÎÈªNØ«‚Ùª«;ÂrÇG—S£Ãƒ#Ç&6S¢srÆGG&–'WFS£ÆÆWfVÃ£BÆGF6³£sÆFVfVç6S£#Ğ¢Ó°¢6W76–öâæ6öæf—&ÖF–öãÖçVÆÃ·6W76–öâæ6öæf—&ÖF–öå6W&–ÃÓ°¢6öç7B6&C×¶6öFS£#3CRÆ6öçG&öÆÆW#£ÆÆö6F–öã£"Ç6WVVæ6S£Ó°¢6W76–öâç&V6÷&D6öæf—&ÖF–öâ‡·G—S¤Òä4ôäd•$Õô4$E2ÇÆ–W#£Æ6&G3¥¶6&E×Ò“°¢76W'BæWVÂ‡6W76–öâæ6öæf—&ÖF–öâÆçVÆÂÂ~È8¸ÈºxÂÙ™^ÉÛÙYÂ»˜N«;^«	ÂÊ	^»;N¸©B¸[ËiÎÙYÊxÉX®¸©N¸ºBr“°¢6W76–öâç&V6÷&D6öæf—&ÖF–öâ‡·G—S¤Òä4ôäd•$Õô4$E2ÇÆ–W#£Æ6&G3¥¶6&E×Ò“°¢76W'BæWVÂ‡6W76–öâæ6öæf—&ÖF–öâæ–BÃ“°¢76W'BæWVÂ‡6W76–öâæ6öæf—&ÖF–öâçG—RÂt4ôäd•$Õô4$E2r“°¢76W'BæWVÂ‡6W76–öâæ6öæf—&ÖF–öâæ6&G5³ÒææÖRÂ~Ù™^ÉÛ‚Ë›N¹9Âr“°¢76W'BæWVÂ‡6W76–öâæ6öæf—&ÖF–öâæ6&G5³ÒæÆö6F–öâÃ"“°¢76W'BæWVÂ‡6W76–öâæ6öæf—&ÖF–öâæ6&G5³ÒæGF6²Ãs“°§Ò“°§FW7B‚vGVVÂÆöw2&WF–â7F–öç2g&öÒF†R&Vv–ææ–æröbÆöærÖF6‚rÂ‚“Óç°¢6öç7B6W76–öãÖæWrGVVÅ6W76–öâ‚“·6W76–öâæÆöw3ÕµÓ°¢f÷"†ÆWB“Ó¶“Ãc¶’²²—6W76–öâæÆör†«:ÈªNØ«‚+rÙh¸ù’G¶’³Ö“°¢76W'BæWVÂ‡6W76–öâæÆöw2æÆVæwF‚Ãc“°¢76W'BæWVÂ‡6W76–öâæÆöw5³ÒÂ~«:ÈªNØ«‚+rÙh¸ù’r“°¢76W'BæWVÂ‡6W76–öâæÆöw2æB‚Ó’Â~«:ÈªNØ«‚+rÙh¸ù’cr“°§Ò“°§FW7B‚w&VÂt4Ò6÷&S¢G&rÂ7VÖÖöâÂ&GFÆRÂFÖvRæBv–ârÆ7–æ2‚“Óç°¢6öç7B3Öv—BGVVÅ6W76–öâæ7&VFR‡¶6&G2Ç67&—G2Çv6Ô&–æ'’Ç–÷RÆv†÷7GÒ“°¢G'’°¢ÆWB7VÖÖöç3ÓÆGF6·3ÓÆFÖvSÖfÇ6S°¢f÷"†ÆWB“Ó¶“Ãbb2æVæFVC¶’²²’°¢6öç7B6æ×2ç6æ6†÷B‚’Æ÷öæVçD†æC×6æç¦öæW5³Õ³%Ó°¢76W'BæWVÂ†÷öæVçD†æBæ6&G2æÆVæwF‚Æ÷öæVçD†æBæ6÷VçB“°¢76W'Bæö²†÷öæVçD†æBæ6&G2æWfW'’†6&CÓæ6&Bæ†–FFVâbb‚v6öFRr–â6&B’’“°¢76W'Bæö²‡2ç&ö×BÂv×W7Bv—Bf÷"â7F–öæ&ÆR&ö×Br“°¢6öç7BCÖv†÷7D6†ö–6R‡2ç&ö×BÇ·ÒÃ“¶76W'Bæö²‚Bæ&Æö6¶VBÆBæ&Æö6¶VB“°¢6öç7B3×2ç&ö×Bæ6†ö–6W2æf–æB†3Óæ2æ–CÓÓÖBæ6†ö–6R“°¢–b†3òæ¶–æCÓÓÒw7VÖÖöâr—7VÖÖöç2²³¶–b†3òæ¶–æCÓÓÒvGF6²r–GF6·2²³°¢2ç&W7öæB†B“¶FÖvRÇÃÒ2æÇç6öÖR‡ƒÓçƒÃƒ“°¢Ğ¢76W'Bæö²‡2æVæFVBÂvGVVÂ6ö×ÆWFW2r“¶76W'Bæö²‡7VÖÖöç3ã“¶76W'Bæö²†GF6·3ã“¶76W'Bæö²†FÖvR“°¢6öç6öÆRæÆör‡·GW&ç3§2çGW&âÇv–ææW#§2çv–ææW"Ç7VÖÖöç2ÆGF6·2ÆÇ§2æÇÒ“°¢Öf–æÆÇ—·2æFW7G&÷’‚“·Ğ§Ò“°§FW7B‚vGVVÂ†—7F÷'’&WÆ’&W7F÷&W2F†R6ÖR7FFR&Vf÷&RF†RÆFW7BÆ–W"7F–öârÆ7–æ2‚“Óç°¢6öç7B7&VFU6W76–öãÒ‚“ÓäGVVÅ6W76–öâæ7&VFR‡¶6&G2Ç67&—G2Çv6Ô&–æ'’Ç–÷RÆv†÷7BÇ6VVC¥³3C2Ã"Ã2ÃE×Ò“°¢6öç7B÷&–v–æÃÖv—B7&VFU6W76–öâ‚“¶ÆWB&W7F÷&VC°¢G'—°¢6öç7B7F–öãÖ÷&–v–æÂç&ö×Bæ6†ö–6W2æf–æB†6†ö–6SÓæ6†ö–6Ræ¶–æCÓÓÒvVæBr“°¢76W'Bæö²†7F–öâÂwF†R÷Væ–ær†æB6†÷VÆBÆÆ÷rVæF–ærF†RGW&âr“°¢6öç7B–çWC×¶6†ö–6S¦7F–öâæ–GÒÇ&ö×CÖ÷&–v–æÂç&ö×C°¢÷&–v–æÂæÆör†¸)‚+rG¶FW67&–&TFV6—6–öâ‡&ö×BÆ–çWBÆ÷&–v–æÂæ6&G2—Ö“¶÷&–v–æÂç&W7öæB†–çWB“°¢ÆWB7W'6÷#Ó°¢f÷"†ÆWB7F–öç3Ó¶÷&–v–æÂç&ö×CòçÆ–W#ÓÓÓbb÷&–v–æÂæVæFVBbf7F–öç3Ã¶7F–öç2²²—°¢6öç7BFV6—6–öãÖv†÷7D6†ö–6R†÷&–v–æÂç&ö×BÆv†÷7Bæ&V†f–÷"Æ7W'6÷"“¶76W'Bæö²‚FV6—6–öâæ&Æö6¶VBÆFV6—6–öâæ&Æö6¶VB“°¢7W'6÷#ÖFV6—6–öâæ7W'6÷#óö7W'6÷#¶÷&–v–æÂç&W7öæB†FV6—6–öâ“°¢Ğ¢76W'BæWVÂ†÷&–v–æÂç&ö×CòçÆ–W"ÃÂwF†RæW‡BÆ–W"FV6—6–öâ—2f–Æ&ÆRr“°¢6öç7B&Vf÷&SÔ¥4ôâç7G&–æv–g’†÷&–v–æÂç6æ6†÷B‚’“°¢6öç7B&WÆ–VCÖv—B&WÆ•Æ–W$–çWG2‡°¢7&VFU6W76–öâÀ¢Æ–W$–çWG3¥¶–çWEÒÀ¢ÆöuÆ–W$7F–öã¢‡6W76–öâÆ7F–öå&ö×BÆ7F–öä–çWB“Óç6W76–öâæÆör†¸)‚+rG¶FW67&–&TFV6—6–öâ†7F–öå&ö×BÆ7F–öä–çWBÇ6W76–öâæ6&G2—Ö’À¢&W6öÇfT÷öæVçC¢‡6W76–öâÆæW‡D7W'6÷"“Óç°¢ÆWB&WÆ”7W'6÷#ÖæW‡D7W'6÷#°¢f÷"†ÆWB7F–öç3Ó·6W76–öâç&ö×CòçÆ–W#ÓÓÓbb6W76–öâæVæFVBbf7F–öç3Ã¶7F–öç2²²—°¢6öç7BFV6—6–öãÖv†÷7D6†ö–6R‡6W76–öâç&ö×BÆv†÷7Bæ&V†f–÷"Ç&WÆ”7W'6÷"“¶76W'Bæö²‚FV6—6–öâæ&Æö6¶VBÆFV6—6–öâæ&Æö6¶VB“°¢&WÆ”7W'6÷#ÖFV6—6–öâæ7W'6÷#ó÷&WÆ”7W'6÷#·6W76–öâç&W7öæB†FV6—6–öâ“°¢Ğ¢–b‡6W76–öâç&ö×CòçÆ–W#ÓÓÓbb6W76–öâæVæFVB—F‡&÷ræWrW'&÷"‚v÷öæVçB&WÆ’F–Bæ÷Bf–æ—6‚r“°¢&WGW&â&WÆ”7W'6÷#°¢Ğ¢Ò“°¢&W7F÷&VC×&WÆ–VBç6W76–öã°¢76W'BæWVÂ„¥4ôâç7G&–æv–g’‡&W7F÷&VBç6æ6†÷B‚’’Æ&Vf÷&R“°¢Öf–æÆÇ—¶÷&–v–æÂæFW7G&÷’‚“·&W7F÷&VCòæFW7G&÷’‚“·Ğ§Ò“°§FW7B‚wÆ6RÖ6²—2&VÆF—fRFòÆ–W"Â–æ6ÇVF–ær÷öæVçB¦öæW2rÂ‚“Óç°¢76W'BæFVWWVÂ†f–VÆEÆ6W2‚‡â‚ƒÃÃ"—ÂƒÃÃ#R’’“ãããÃ’Å··Æ–W#£ÆÆö6F–öã£BÇ6WVVæ6S£'ÒÇ·Æ–W#£ÆÆö6F–öã£‚Ç6WVVæ6S£ÕÒ“°§Ò“°§FW7B‚u”D²–×÷'BÂW‡G&÷6–FR6V7F–öç2ÂÆ–Ö—G2ÂVçG'W7FVB–çWBrÂ‚“Óç°¢6öç7BC×'6TFV6²‚r67&VFVB'’FW7EÆâ6Ö–åÆâr·–÷RæÖ–âæ¦ö–â‚uÆâr’²uÆâ6W‡G&Æâ6–FUÆâr“¶76W'BæFVWWVÂ†BæÖ–âÇ–÷RæÖ–â“°¢76W'BçF‡&÷w2‚‚“Óç'6TFV6²‚r6Ö–åÆãr’“°¢76W'BçF‡&÷w2‚‚“Óç'6TFV6²„¥4ôâç7G&–æv–g’‡²ââç–÷RÆÖ–ã¤'&’ƒC’æf–ÆÂƒ—Ò’’“°§Ò“°§FW7B‚w6VÆV7F–öâfÆ–FFW2&÷VæG2æBGWÆ–6FW3²f÷&6VB6†–â6ææ÷B72rÂ‚“Óç°¢6öç7BÖÖ¶U&ö×B‡·G—S¤Òå4TÄT5Eô4$BÇÆ–W#£ÆÖ–ã£ÆÖƒ£Æ6åö6æ6VÃ¦fÇ6RÇ6VÆV7G3¥·¶6öFS§–÷RæÖ–å³×Õ×ÒÆ6&G2“°¢76W'BçF‡&÷w2‚‚“Óç6VÆV7F–öå&W7öç6R‡ÅµÒ’“¶76W'BçF‡&÷w2‚‚“Óç6VÆV7F–öå&W7öç6R‡Å³ÃÒ’“¶76W'BæFVWWVÂ‡6VÆV7F–öå&W7öç6R‡Å³Ò’æ–æF–6–W2Å³Ò“°¢6öç7B6†–ãÖÖ¶U&ö×B‡·G—S¤Òå4TÄT5Eô4„”âÇÆ–W#£Æf÷&6VC§G'VRÇ6VÆV7G3¥·¶6öFS§–÷RæÖ–å³×Õ×ÒÆ6&G2“¶76W'BæWVÂ†6†–âæ6†ö–6W2æÆVæwF‚Ã“°§Ò“°§FW7B‚t§Væ²7VVFW"7G–ÆRFövvÆR6VÆV7F–öâ¶VW2FV6²6&BæÖW2æB6ö×ÆWF–öâ&öw&W72rÂ‚“Óç°¢6öç7BÖÖ¶U&ö×B‡·G—S¤Òå4TÄT5EõTå4TÄT5Eô4$BÇÆ–W#£ÆÖ–ã£"ÆÖƒ£"Æ6åöf–æ—6ƒ¦fÇ6RÆ6åö6æ6VÃ¦fÇ6RÀ¢6VÆV7Eö6&G3¥·¶6öFS£c3“ss‚Æ6öçG&öÆÆW#£ÆÆö6F–öã£Ç6WVVæ6S£ÕÒÀ¢Vç6VÆV7Eö6&G3¥·¶6öFS£“cC#ssBÆ6öçG&öÆÆW#£ÆÆö6F–öã£Ç6WVVæ6S£Õ×ÒÆ6&G2“¾µŞÚ$z{-®éÜj×.deepEqual(s.snapshot(0).zones[0][2].cards.map(card=>card.code),[you.main[0]]);
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {gunzipSync} from 'node:zlib';
+import {DuelSession} from '../src/session.js';
+import {ghostChoice,fieldPlaces,makePrompt,selectionResponse,counterResponse,requestTypes} from '../src/prompts.js';
+import {parseDeck} from '../src/decks.js';
+import {OcgMessageType as M,OcgResponseType as R,OcgQueryFlags as Q,OcgOpCode} from 'ocgcore-wasm';
+import {cardFacts,cardInfoHtml} from '../src/card-info.js';
+import {promptHelp,selectionProgress,promptCardName} from '../src/duel-guidance.js';
+import {deckWithStartingHand} from '../src/practice.js';
+import {soloOpponentChoice} from '../src/solo.js';
+import {replayPlayerInputs} from '../src/duel-history.js';
+import {describeDecision,describeChain,decisionUsesPrivateCard} from '../src/duel-log.js';
+const cards=JSON.parse(gunzipSync(readFileSync('public/engine/cards.json.gz')));
+const koreanStrings=JSON.parse(gunzipSync(readFileSync('public/engine/ko-strings.json.gz')));
+const scripts=JSON.parse(gunzipSync(readFileSync('public/engine/scripts.json.gz')));
+const buf=readFileSync('node_modules/ocgcore-wasm/lib/ocgcore.sync.wasm');
+const wasmBinary=buf.buffer.slice(buf.byteOffset,buf.byteOffset+buf.byteLength);
+const you=JSON.parse(readFileSync('public/decks/starter.json'));
+const ghost=JSON.parse(readFileSync('public/ghosts/sample.json'));
+test('effect commands use Korean choice strings and show the Korean card context',()=>{
+  const code=64964750,card={...cards[code],name:'ë°œê¸ˆë ¹',desc:'ì¹´ë“œëª…ì„ 1ê°œ ì„ ì–¸í•˜ê³  ë°œë™í•  ìˆ˜ ìˆë‹¤.',englishDesc:cards[code].desc,koreanStrings:koreanStrings[code]};
+  const description=(BigInt(code)<<20n)|0n;
+  const p=makePrompt({type:M.SELECT_IDLECMD,player:0,summons:[],special_summons:[],pos_changes:[],monster_sets:[],spell_sets:[],activates:[{code,controller:0,location:2,sequence:0,description}],to_bp:false,to_ep:false},{[code]:card});
+  assert.match(p.choices[0].label,/ì¹´ë“œëª…ì„ 1ê°œ ì„ ì–¸í•˜ê³ /);
+  assert.doesNotMatch(p.choices[0].label,/Declare/);
+  assert.match(p.choices[0].shortLabel,/ì¹´ë“œëª…ì„ 1ê°œ ì„ ì–¸í•˜ê³ /);
+  const option=makePrompt({type:M.SELECT_OPTION,player:0,options:[description]},{[code]:card});
+  assert.equal(option.context.name,'ë°œê¸ˆë ¹');
+  assert.match(option.choices[0].label,/ì¹´ë“œëª…ì„ 1ê°œ ì„ ì–¸í•˜ê³ /);
+  assert.match(promptHelp(option),/íš¨ê³¼/);
+  const fallback=makePrompt({type:M.SELECT_OPTION,player:0,options:[description]},{[code]:{...card,koreanStrings:[]}});
+  assert.equal(fallback.choices[0].label,'ì„ íƒ 1');
+  const extraPrompt=makePrompt({type:M.SELECT_IDLECMD,player:0,summons:[],special_summons:[{code,controller:0,location:64,sequence:0,position:1}],pos_changes:[],monster_sets:[],spell_sets:[],activates:[],to_bp:false,to_ep:false},{[code]:card});
+  assert.equal(extraPrompt.choices[0].source.position,1);
+});
+test('card details include the applicable printed stats and selection progress',()=>{
+  const monster={code:1,name:'ì‹œí—˜ ì¹´ë“œ',desc:'ì‹œí—˜ íš¨ê³¼',type:1|0x20|0x1000000|0x4000000,race:'8192',attribute:16,level:3,attack:2000,lscale:2,rscale:7,link_marker:128|2,counters:{257:2}};
+  const details=cardFacts(monster);
+  assert.deepEqual(details.find(([label])=>label==='ì¢…ë¥˜')[1],'ëª¬ìŠ¤í„° Â· íš¨ê³¼ Â· íœë“ˆëŸ¼ Â· ë§í¬');
+  assert.ok(details.some(([label,value])=>label==='ì¢…ì¡±'&&value==='ë“œë˜ê³¤ì¡±'));
+  assert.ok(details.some(([label,value])=>label==='ì†ì„±'&&value==='ë¹›'));
+  assert.ok(details.some(([label,value])=>label==='ë§í¬ ë§ˆì»¤'&&value==='â†‘ â†“'));
+  assert.ok(details.some(([label,value])=>label==='íœë“ˆëŸ¼ ìŠ¤ì¼€ì¼'&&value==='2 / 7'));
+  assert.ok(details.some(([label])=>label==='ì¹´ìš´í„° 257'));
+  assert.match(cardInfoHtml({...monster,name:'<script>'}),/&lt;script&gt;/);
+  const normal={...cards[47894537],name:'ì¢…ê¸€êµ¬ìš¸ì˜ í™˜ìˆ ì‚¬',link:{rating:0,marker:0}};
+  assert.ok(cardFacts(normal).some(([label,value])=>label==='ë ˆë²¨'&&value===4));
+  assert.match(cardInfoHtml(normal),/ì¹´ë“œ ì„¤ëª…/);
+  assert.equal(selectionProgress({mode:'sort',options:[1,2,3]},[0,1]),'2/3ì¥ ìˆœì„œ ì§€ì •');
+});
+test('duel action descriptions identify selected cards and effects',()=>{
+  const cards={73218792:{name:'ì •í¬ ë§ˆì´ìŠ¤í„°'}};
+  const action={type:'SELECT_IDLECMD',title:'í–‰ë™ì„ ì„ íƒí•˜ì„¸ìš”',choices:[{id:'1',card:73218792,shortLabel:'íŠ¹ìˆ˜ ì†Œí™˜'}]};
+  assert.equal(describeDecision(action,{choice:'1'},cards),'ì •í¬ ë§ˆì´ìŠ¤í„° Â· íŠ¹ìˆ˜ ì†Œí™˜');
+  const selection={type:'SELECT_CARD',title:'ì¹´ë“œ ì„ íƒ',selection:{options:[{id:0,label:'ì •í¬ ì‹±í¬ë¡  Â· ë¬˜ì§€ 1'}]}};
+  assert.equal(describeDecision(selection,{indices:[0]},cards),'ì¹´ë“œ ì„ íƒ Â· ì •í¬ ì‹±í¬ë¡  Â· ë¬˜ì§€ 1');
+  const effect={type:'SELECT_EFFECTYN',title:'ì •í¬ ë§ˆì´ìŠ¤í„° Â· íŠ¹ìˆ˜ ì†Œí™˜í• ê¹Œìš”?',choices:[{id:'0',kind:'yes',shortLabel:'ì˜ˆ'}]};
+  assert.equal(describeDecision(effect,{choice:'0'},cards),'ì •í¬ ë§ˆì´ìŠ¤í„° Â· íŠ¹ìˆ˜ ì†Œí™˜í• ê¹Œìš”? Â· ì˜ˆ');
+});
+test('public duel logs hide private cards and retain information revealed by actions or face-up zones',()=>{
+  const hiddenName='ë¹„ë°€ ì¹´ë“œ',cards={12345:{name:hiddenName}};
+  const setPrompt={title:'í–‰ë™ì„ ì„ íƒí•˜ì„¸ìš”',choices:[{id:'0',kind:'set',card:12345,shortLabel:'ëª¬ìŠ¤í„° ì„¸íŠ¸',source:{controller:0,location:2,sequence:0,position:1}}]};
+  assert.equal(describeDecision(setPrompt,{choice:'0'},cards),'ëª¬ìŠ¤í„° ì„¸íŠ¸');
+  assert.equal(decisionUsesPrivateCard(setPrompt,{choice:'0'}),true);
+
+  const selectPrompt={title:'ì¹´ë“œ ì„ íƒ',selection:{options:[{id:0,label:`${hiddenName} Â· íŒ¨ 1`,card:12345,source:{controller:0,location:2,sequence:0,position:1}}]}};
+  assert.equal(describeDecision(selectPrompt,{indices:[0]},cards),'ì¹´ë“œ ì„ íƒ Â· ë¹„ê³µê°œ ì¹´ë“œ');
+  assert.equal(decisionUsesPrivateCard(selectPrompt,{indices:[0]}),true);
+
+  const deckPrompt={title:'ì¹´ë“œ ì„ íƒ',selection:{options:[{id:0,label:`${hiddenName} Â· ë± 1`,card:12345,source:{controller:1,location:1,sequence:0}}]}};
+  assert.equal(describeDecision(deckPrompt,{indices:[0]},cards),'ì¹´ë“œ ì„ íƒ Â· ë±ì—ì„œ ì¹´ë“œ');
+  assert.equal(decisionUsesPrivateCard(deckPrompt,{indices:[0]}),true);
+  const revealedDeckCard=[{code:12345,controller:1,location:1,sequence:0}];
+  assert.equal(describeDecision(deckPrompt,{indices:[0]},cards,revealedDeckCard),`ì¹´ë“œ ì„ íƒ Â· ${hiddenName} Â· ë± 1`);
+  assert.equal(decisionUsesPrivateCard(deckPrompt,{indices:[0]},revealedDeckCard),false);
+
+  const handSummon={title:'í–‰ë™ì„ ì„ íƒí•˜ì„¸ìš”',choices:[{id:'0',kind:'special',card:12345,shortLabel:'íŠ¹ìˆ˜ ì†Œí™˜',source:{controller:0,location:2,sequence:0,position:1}}]};
+  assert.equal(describeDecision(handSummon,{choice:'0'},cards),`${hiddenName} Â· íŠ¹ìˆ˜ ì†Œí™˜`);
+  assert.equal(decisionUsesPrivateCard(handSummon,{choice:'0'}),false);
+
+  const faceUpExtra={title:'í–‰ë™ì„ ì„ íƒí•˜ì„¸ìš”',choices:[{id:'0',kind:'special',card:12345,shortLabel:'íŠ¹ìˆ˜ ì†Œí™˜',source:{controller:1,location:64,sequence:0,position:1}}]};
+  assert.equal(describeDecision(faceUpExtra,{choice:'0'},cards),`${hiddenName} Â· íŠ¹ìˆ˜ ì†Œí™˜`);
+  assert.equal(decisionUsesPrivateCard(faceUpExtra,{choice:'0'}),false);
+
+  const faceUpExtraSelection={title:'ì¹´ë“œ ì„ íƒ',selection:{options:[{id:0,label:hiddenName,card:12345,source:{controller:1,location:64,sequence:0,position:4}}]}};
+  assert.equal(describeDecision(faceUpExtraSelection,{indices:[0]},cards),`ì¹´ë“œ ì„ íƒ Â· ${hiddenName}`);
+  const faceDownExtraSelection={title:'ì¹´ë“œ ì„ íƒ',selection:{options:[{id:0,label:hiddenName,card:12345,source:{controller:1,location:64,sequence:0,position:8}}]}};
+  assert.equal(describeDecision(faceDownExtraSelection,{indices:[0]},cards),'ì¹´ë“œ ì„ íƒ Â· ë¹„ê³µê°œ ì¹´ë“œ');
+
+  const faceUpBanished={title:'ì¹´ë“œ ì„ íƒ',selection:{options:[{id:0,label:hiddenName,card:12345,source:{controller:1,location:32,sequence:0,position:1}}]}};
+  assert.equal(describeDecision(faceUpBanished,{indices:[0]},cards),`ì¹´ë“œ ì„ íƒ Â· ${hiddenName}`);
+  const faceDownBanished={title:'ì¹´ë“œ ì„ íƒ',selection:{options:[{id:0,label:hiddenName,card:12345,source:{controller:1,location:32,sequence:0,position:8}}]}};
+  assert.equal(describeDecision(faceDownBanished,{indices:[0]},cards),'ì¹´ë“œ ì„ íƒ Â· ë¹„ê³µê°œ ì¹´ë“œ');
+
+  assert.equal(describeChain({chain_size:1,code:12345,position:2},cards),'ì²´ì¸ 1 Â· ì„¸íŠ¸ ì¹´ë“œ íš¨ê³¼');
+  assert.equal(describeChain({chain_size:1,code:12345},cards),'ì²´ì¸ 1 Â· ì„¸íŠ¸ ì¹´ë“œ íš¨ê³¼');
+  assert.equal(describeChain({chain_size:1,code:12345,position:1},cards),`ì²´ì¸ 1 Â· ${hiddenName}`);
+  assert.equal(describeChain({chain_size:1,code:12345,location:2,position:8},cards),`ì²´ì¸ 1 Â· ${hiddenName}`);
+});
+test('public deck reveals appear in both hand rows and stay visible when moved into a hand',()=>{
+  const session=new DuelSession();
+  session.cards={12345:{code:12345,name:'ê³µê°œëœ ì¹´ë“œ',desc:'í…ŒìŠ¤íŠ¸ íš¨ê³¼',type:1,race:'1',attribute:1,level:4,attack:1700,defense:1200}};
+  session.userCorePlayer=0;session.lp=[8000,8000];session.turn=1;session.phase=4;session.active=0;session.ended=false;session.winner=undefined;session.prompt=null;
+  session.confirmation=null;session.confirmationByPlayer={0:null,1:null};session.confirmationSerial=0;session.confirmationSerialByPlayer={0:0,1:0};session.knownCardsByViewer={0:[],1:[]};session.publicCards=[];
+  session.recordConfirmation({type:M.CONFIRM_DECKTOP,player:1,cards:[{code:12345,controller:1,location:1,sequence:0}]});
+  assert.equal(session.confirmation.type,'CONFIRM_DECKTOP');
+  assert.equal(session.confirmationByPlayer[1].cards[0].name,'ê³µê°œëœ ì¹´ë“œ');
+  assert.match(session.logs.at(-1),/ë± ìœ„ ê³µê°œ Â· ê³µê°œëœ ì¹´ë“œ/);
+  const prompt={title:'ì¹´ë“œ ì„ íƒ',selection:{options:[{id:0,label:'ê³µê°œëœ ì¹´ë“œ Â· ë± 1',card:12345,source:{controller:1,location:1,sequence:0}}]}};
+  assert.equal(describeDecision(prompt,{indices:[0]},session.cards,session.publicCards),'ì¹´ë“œ ì„ íƒ Â· ê³µê°œëœ ì¹´ë“œ Â· ë± 1');
+  assert.equal(session.recordMovement({card:12345,from:{controller:1,location:1,sequence:0},to:{controller:1,location:2,sequence:0}}),true);
+  session.core={duelQueryCount:()=>2,duelQueryLocation:(_handle,place)=>place.controller===1&&place.location===2?[{code:12345,position:8},{code:67890,position:8}]:[]};
+  const state=session.snapshot(0);
+  assert.equal(state.zones[1][2].count,2);
+  assert.equal(state.zones[1][2].cards[0].name,'ê³µê°œëœ ì¹´ë“œ');
+  assert.equal(state.zones[1][2].cards[0].sequence,0);
+  assert.equal(state.zones[1][2].cards[1].hidden,true);
+  assert.equal('code' in state.zones[1][2].cards[1],false);
+});
+test('public Deck knowledge follows cards when Deck order changes',()=>{
+  const session=new DuelSession();session.userCorePlayer=0;
+  session.cards={
+    12345:{code:12345,name:'ì²« ê³µê°œ ì¹´ë“œ'},
+    67890:{code:67890,name:'ë‘˜ì§¸ ê³µê°œ ì¹´ë“œ'}
+  };
+  session.confirmationByPlayer={0:null,1:null};session.confirmationSerialByPlayer={0:0,1:0};session.knownCardsByViewer={0:[],1:[]};session.publicCards=[];
+  session.recordConfirmation({type:M.CONFIRM_DECKTOP,player:1,cards:[
+    {code:12345,controller:1,location:1,sequence:0},
+    {code:67890,controller:1,location:1,sequence:1}
+  ]});
+  assert.equal(session.recordMovement({card:12345,from:{controller:1,location:1,sequence:0},to:{controller:1,location:1,sequence:2}}),true);
+  assert.deepEqual(session.publicCards.map(({code,location,sequence})=>({code,location,sequence})),[
+    {code:12345,location:1,sequence:2},
+    {code:67890,location:1,sequence:0}
+  ]);
+  const prompt={title:'ì¹´ë“œ ì„ íƒ',selection:{options:[{id:0,label:'ë‘˜ì§¸ ê³µê°œ ì¹´ë“œ Â· ë± 1',card:67890,source:{controller:1,location:1,sequence:0}}]}};
+  assert.equal(describeDecision(prompt,{indices:[0]},session.cards,session.publicCards),'ì¹´ë“œ ì„ íƒ Â· ë‘˜ì§¸ ê³µê°œ ì¹´ë“œ Â· ë± 1');
+  assert.equal(session.recordMovement({card:67890,from:{controller:1,location:1,sequence:0},to:{controller:1,location:2,sequence:0}}),true);
+  session.core={duelQueryCount:()=>2,duelQueryLocation:(_handle,place)=>place.controller===1&&place.location===2?[{code:67890,position:8},{code:99999,position:8}]:[]};
+  const state=session.snapshot(0);
+  assert.equal(state.zones[1][2].cards[0].name,'ë‘˜ì§¸ ê³µê°œ ì¹´ë“œ');
+  assert.equal(state.zones[1][2].cards[1].hidden,true);
+  assert.equal('code' in state.zones[1][2].cards[1],false);
+});
+test('confirmed hidden cards are exposed only when the local player is allowed to see them',()=>{
+  const session=new DuelSession();
+  session.cards={
+    12345:{code:12345,name:'í™•ì¸ ì¹´ë“œ',desc:'í…ŒìŠ¤íŠ¸ íš¨ê³¼',type:1|0x20,race:'1',attribute:1,level:4,attack:1700,defense:1200}
+  };
+  session.confirmation=null;session.confirmationSerial=0;
+  const card={code:12345,controller:1,location:2,sequence:0};
+  session.recordConfirmation({type:M.CONFIRM_CARDS,player:1,cards:[card]});
+  assert.equal(session.confirmation,null,'ìƒëŒ€ë§Œ í™•ì¸í•œ ë¹„ê³µê°œ ì •ë³´ëŠ” ë…¸ì¶œí•˜ì§€ ì•ŠëŠ”ë‹¤');
+  session.recordConfirmation({type:M.CONFIRM_CARDS,player:0,cards:[card]});
+  assert.equal(session.confirmation.id,1);
+  assert.equal(session.confirmation.type,'CONFIRM_CARDS');
+  assert.equal(session.confirmation.cards[0].name,'í™•ì¸ ì¹´ë“œ');
+  assert.equal(session.confirmation.cards[0].location,2);
+  assert.equal(session.confirmation.cards[0].attack,1700);
+});
+test('duel logs retain actions from the beginning of a long match',()=>{
+  const session=new DuelSession();session.logs=[];
+  for(let i=0;i<60;i++)session.log(`ê³ ìŠ¤íŠ¸ Â· í–‰ë™ ${i+1}`);
+  assert.equal(session.logs.length,60);
+  assert.equal(session.logs[0],'ê³ ìŠ¤íŠ¸ Â· í–‰ë™ 1');
+  assert.equal(session.logs.at(-1),'ê³ ìŠ¤íŠ¸ Â· í–‰ë™ 60');
+});
+test('real WASM core: draw, summon, battle, damage and win',async()=>{
+  const s=await DuelSession.create({cards,scripts,wasmBinary,you,ghost});
+  try {
+    let summons=0,attacks=0,damage=false;
+    for(let i=0;i<1000&&!s.ended;i++) {
+      const snap=s.snapshot(),opponentHand=snap.zones[1][2];
+      assert.equal(opponentHand.cards.length,opponentHand.count);
+      assert.ok(opponentHand.cards.every(card=>card.hidden&&!('code' in card)));
+      assert.ok(s.prompt, 'must wait for an actionable prompt');
+      const d=ghostChoice(s.prompt,{},0);assert.ok(!d.blocked,d.blocked);
+      const c=s.prompt.choices.find(c=>c.id===d.choice);
+      if(c?.kind==='summon')summons++;if(c?.kind==='attack')attacks++;
+      s.respond(d);damage ||= s.lp.some(x=>x<8000);
+    }
+    assert.ok(s.ended,'duel completes');assert.ok(summons>1);assert.ok(attacks>0);assert.ok(damage);
+    console.log({turns:s.turn,winner:s.winner,summons,attacks,lp:s.lp});
+  }finally{s.destroy();}
+});
+test('duel history replay restores the same state before the latest player action',async()=>{
+  const createSession=()=>DuelSession.create({cards,scripts,wasmBinary,you,ghost,seed:[343,2,3,4]});
+  const original=await createSession();let restored;
+  try{
+    const action=original.prompt.choices.find(choice=>choice.kind==='end');
+    assert.ok(action,'the opening hand should allow ending the turn');
+    const input={choice:action.id},prompt=original.prompt;
+    original.log(`ë‚˜ Â· ${describeDecision(prompt,input,original.cards)}`);original.respond(input);
+    let cursor=0;
+    for(let actions=0;original.prompt?.player===1&&!original.ended&&actions<1000;actions++){
+      const decision=ghostChoice(original.prompt,ghost.behavior,cursor);assert.ok(!decision.blocked,decision.blocked);
+      cursor=decision.cursor??cursor;original.respond(decision);
+    }
+    assert.equal(original.prompt?.player,0,'the next player decision is available');
+    const before=JSON.stringify(original.snapshot());
+    const replayed=await replayPlayerInputs({
+      createSession,
+      playerInputs:[input],
+      logPlayerAction:(session,actionPrompt,actionInput)=>session.log(`ë‚˜ Â· ${describeDecision(actionPrompt,actionInput,session.cards)}`),
+      resolveOpponent:(session,nextCursor)=>{
+        let replayCursor=nextCursor;
+        for(let actions=0;session.prompt?.player===1&&!session.ended&&actions<1000;actions++){
+          const decision=ghostChoice(session.prompt,ghost.behavior,replayCursor);assert.ok(!decision.blocked,decision.blocked);
+          replayCursor=decision.cursor??replayCursor;session.respond(decision);
+        }
+        if(session.prompt?.player===1&&!session.ended)throw new Error('opponent replay did not finish');
+        return replayCursor;
+      }
+    });
+    restored=replayed.session;
+    assert.equal(JSON.stringify(restored.snapshot()),before);
+  }finally{original.destroy();restored?.destroy();}
+});
+test('place mask is relative to player, including opponent zones',()=>{
+  assert.deepEqual(fieldPlaces((~((1<<2)|(1<<25)))>>>0,1),[{player:1,location:4,sequence:2},{player:0,location:8,sequence:1}]);
+});
+test('YDK import, extra/side sections, limits, untrusted input',()=>{
+  const d=parseDeck('#created by test\n#main\n'+you.main.join('\n')+'\n#extra\n!side\n');assert.deepEqual(d.main,you.main);
+  assert.throws(()=>parseDeck('#main\n1'));
+  assert.throws(()=>parseDeck(JSON.stringify({...you,main:Array(40).fill(1)})));
+});
+test('selection validates bounds and duplicates; forced chain cannot pass',()=>{
+  const p=makePrompt({type:M.SELECT_CARD,player:0,min:1,max:1,can_cancel:false,selects:[{code:you.main[0]}]},cards);
+  assert.throws(()=>selectionResponse(p,[]));assert.throws(()=>selectionResponse(p,[0,0]));assert.deepEqual(selectionResponse(p,[0]).indicies,[0]);
+  const chain=makePrompt({type:M.SELECT_CHAIN,player:0,forced:true,selects:[{code:you.main[0]}]},cards);assert.equal(chain.choices.length,1);
+});
+test('Junk Speeder style toggle selection keeps Deck card names and completion progress',()=>{
+  const p=makePrompt({type:M.SELECT_UNSELECT_CARD,player:0,min:2,max:2,can_finish:false,can_cancel:false,
+    select_cards:[{code:63977008,controller:0,location:1,sequence:0}],
+    unselect_cards:[{code:19642774,controller:0,location:1,sequence:1}]},cards);
+  assert.equal(p.selection.mode,'toggle');
+  assert.equal(p.selection.selectedCount,1);
+  assert.equal(p.selection.canFinish,false);
+  assert.equal(promptCardName(p.choices[0],{0:{1:{count:34}}}),cards[63977008].name);
+  assert.match(selectionProgress(p.selection,[]),/1\/2ì¥ ì„ íƒ/);
+  assert.ok(p.choices.some(choice=>choice.kind==='select'));
+  assert.ok(p.choices.some(choice=>choice.kind==='unselect'));
+  assert.ok(!p.choices.some(choice=>choice.kind==='finish'));
+  const ready=makePrompt({type:M.SELECT_UNSELECT_CARD,player:0,min:2,max:2,can_finish:true,can_cancel:false,
+    select_cards:[],unselect_cards:[{code:63977008,controller:0,location:1,sequence:0},{code:19642774,controller:0,location:1,sequence:1}]},cards);
+  assert.equal(ready.selection.canFinish,true);
+  assert.ok(ready.choices.some(choice=>choice.kind==='finish'&&choice.label==='ì„ íƒ ì™„ë£Œ'));
+});
+test('field-zone choices are named from the acting player\'s viewpoint',()=>{
+  const p=makePrompt({type:M.SELECT_PLACE,player:1,count:1,field_mask:0},{});
+  assert.equal(p.selection.options.find(option=>option.place.player===1&&option.place.location===4&&option.place.sequence===0).label,'ë‚´ ëª¬ìŠ¤í„° ì¡´ 1');
+  assert.equal(p.selection.options.find(option=>option.place.player===0&&option.place.location===4&&option.place.sequence===0).label,'ìƒëŒ€ ëª¬ìŠ¤í„° ì¡´ 1');
+});
+test('core first-player assignment remaps zones while keeping both decks on their owners',async()=>{
+  const ghostCard=ghost.deck.main[0],ghostWithHand={...ghost,startingHand:[ghostCard]};
+  for(const firstPlayer of [0,1]){
+    const s=await DuelSession.create({cards,scripts,wasmBinary,you,ghost:ghostWithHand,seed:[781,2,3,4],startingHand:[you.main[0]],firstPlayer});
+    try{
+      assert.equal(s.active,firstPlayer);
+      assert.equal(s.prompt.player,firstPlayer);
+      assert.deepEqual(s.snapshot(0).zones[0][2].cards.map(card=>card.code),[you.main[0]]);
       assert.deepEqual(s.snapshot(1).zones[1][2].cards.map(card=>card.code),[ghostCard]);
       const spectator=s.snapshot(2);
       assert.equal(spectator.zones[0][2].cards,undefined);
