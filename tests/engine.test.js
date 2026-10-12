@@ -630,7 +630,7 @@ test('same-column Magical Musketeer Calamity sees a Tractatus activation',async(
   const conditionEnd=calamityScript.indexOf('function s.spfilter',conditionStart);
   assert.ok(conditionStart>=0&&conditionEnd>conditionStart,'Calamity condition must be present in the pinned script');
   const alwaysTriggerScript=calamityScript.slice(0,conditionStart)
-    +'function s.spcon(e,tp,eg,ep,ev,re,r,rp) return true end\\n'
+    +'function s.spcon(e,tp,eg,ep,ev,re,r,rp) return true end\n'
     +calamityScript.slice(conditionEnd);
   const probeScripts={...scripts,'c68024506.lua':alwaysTriggerScript};
   const s=new DuelSession();
