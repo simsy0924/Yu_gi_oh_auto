@@ -630,7 +630,7 @@ test('same-column Magical Musketeer Calamity sees a Tractatus activation',async(
   const conditionEnd=calamityScript.indexOf('function s.spfilter',conditionStart);
   assert.ok(conditionStart>=0&&conditionEnd>conditionStart,'Calamity condition must be present in the pinned script');
   const conditionBypass=calamityScript.slice(0,conditionStart)
-    +'function s.spcon(e,tp,eg,ep,ev,re,r,rp) Duel.Hint(HINT_MESSAGE,tp,68024506) return true end\n'
+    +'function s.spcon(e,tp,eg,ep,ev,re,r,rp) local p,seq=Duel.GetChainInfo(ev,CHAININFO_TRIGGERING_CONTROLER,CHAININFO_TRIGGERING_SEQUENCE) local same=seq~=nil and e:GetHandler():IsColumn(seq,p,LOCATION_SZONE) Duel.Hint(HINT_MESSAGE,tp,1000+(seq or 999)) Duel.Hint(HINT_MESSAGE,tp,2000+(p or 99)) Duel.Hint(HINT_MESSAGE,tp,same and 3001 or 3000) return true end\n'
     +calamityScript.slice(conditionEnd);
   const targetStart=conditionBypass.indexOf('function s.sptg(');
   const targetEnd=conditionBypass.indexOf('function s.spop',targetStart);
