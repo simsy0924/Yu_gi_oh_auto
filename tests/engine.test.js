@@ -734,7 +734,7 @@ end`;
     s.respond({indices:[lane.id]});
     const spellZone=s.snapshot(0).zones[0][8].cards.filter(Boolean).map(c=>({code:c.code,sequence:c.sequence}));
     assert.ok(spellZone.some(c=>c.code===tractatus&&c.sequence===2),'Tractatus should occupy the selected same-column lane: '+JSON.stringify(spellZone));
-    assert.equal(s.prompt?.type,'SELECT_CHAIN','Calamity should be a candidate when its condition and target checks are bypassed; prompt='+JSON.stringify(s.prompt)+' rawChain='+JSON.stringify(chainTrace)+' debugHints='+JSON.stringify(debugHints));
+    assert.equal(s.prompt?.type,'SELECT_CHAIN','Calamity should be a candidate when its condition and target checks are bypassed; prompt='+JSON.stringify(s.prompt)+' rawChain='+JSON.stringify(chainTrace)+' debugHints='+JSON.stringify(debugHints,(_k,v)=>typeof v==='bigint'?v.toString():v));
     assert.ok(s.prompt.choices.some(o=>o.card===calamity),'Calamity should be offered in the chain window');
   }finally{
     s.destroy();
