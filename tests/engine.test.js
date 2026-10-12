@@ -643,13 +643,17 @@ test('same-column Magical Musketeer Calamity sees a Tractatus activation',async(
     for(const code of you.main)add(code,0,1,8,0);
     for(const code of you.main)add(code,1,1,8,0);
     add(lurrie,0,1,8,0);
+    add(lurrie,1,1,8,0);
     add(calamity,0,4,1,2);
     add(starfire,0,16,1,0);
     add(tractatus,0,2,8,0);
+    add(calamity,1,4,1,2);
+    add(starfire,1,16,1,0);
+    add(tractatus,1,2,8,0);
     core.startDuel(s.handle);
     s.advance();
     const activation=s.prompt?.choices.find(c=>c.kind==='activate'&&c.card===tractatus);
-    assert.ok(activation,'Tractatus should be activatable with a LIGHT Fiend in the Deck');
+    assert.ok(activation,'Tractatus should be activatable; prompt='+JSON.stringify({type:s.prompt?.type,player:s.prompt?.player,choices:s.prompt?.choices?.map(c=>({kind:c.kind,card:c.card,label:c.label}))}));
     s.respond({choice:activation.id});
     assert.equal(s.prompt?.type,'SELECT_PLACE','hand activation should request its Spell/Trap zone');
     const lane=s.prompt.selection.options.find(o=>o.place.player===s.prompt.player&&o.place.location===8&&o.place.sequence===2);
