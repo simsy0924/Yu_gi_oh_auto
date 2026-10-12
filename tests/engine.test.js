@@ -655,14 +655,25 @@ end`;
     for(const code of you.main)add(code,0,1,8,0);
     for(const code of you.main)add(code,1,1,8,0);
     for(let i=0;i<8;i++){add(lurrie,0,1,8,0);add(lurrie,1,1,8,0);}
-    add(calamity,0,4,1,2);
+    add(calamity,0,2,8,0);
     add(starfire,0,16,1,0);
     add(tractatus,0,2,8,0);
-    add(calamity,1,4,1,2);
-    add(starfire,1,16,1,0);
-    add(tractatus,1,2,8,0);
     core.startDuel(s.handle);
     s.advance();
+    assert.equal(s.prompt?.type,'SELECT_IDLECMD','the active player should receive the opening action prompt');
+    const summon=s.prompt.choices.find(c=>c.kind==='summon'&&c.card===calamity);
+    assert.ok(summon,'Calamity should be available for an actual normal summon');
+    s.respond({choice:summon.id});
+    for(let i=0;i<6&&s.prompt?.type!=='SELECT_IDLECMD';i++){
+      if(s.prompt?.type==='SELECT_PLACE'){
+        const zone=s.prompt.selection.options.find(o=>o.place.player===0&&o.place.location===4&&o.place.sequence===2);
+        assert.ok(zone,'Calamity should be summonable into Monster Zone 3');
+        s.respond({indices:[zone.id]});
+      }else if(s.prompt?.type==='SELECT_POSITION'){
+        s.respond({choice:s.prompt.choices[0].id});
+      }else assert.fail('unexpected Calamity summon prompt: '+JSON.stringify(s.prompt));
+    }
+    assert.equal(s.prompt?.type,'SELECT_IDLECMD','Calamity normal summon should finish');
     const ownMonsters=s.core.duelQueryLocation(s.handle,{controller:0,location:4,flags:Q.CODE}).filter(Boolean).map(c=>c.code);
     const ownGrave=s.core.duelQueryLocation(s.handle,{controller:0,location:16,flags:Q.CODE}).filter(Boolean).map(c=>c.code);
     assert.ok(ownMonsters.includes(calamity),'Calamity should be face-up in the own Monster Zone: '+JSON.stringify(ownMonsters));
