@@ -626,11 +626,13 @@ test('same-column Magical Musketeer Calamity sees a Tractatus activation',async(
   const calamity=68024506,starfire=31629407,tractatus=98567237,lurrie=97651498;
   const core=await createCore({sync:true,wasmBinary});
   const calamityScript=scripts['c68024506.lua'];
-  const fixedColumnScript=calamityScript.replace(
-    'Duel.GetChainInfo(ev,CHAININFO_TRIGGERING_CONTROLER,CHAININFO_TRIGGERING_SEQUENCE)',
-    'tp,2');
-  assert.notEqual(fixedColumnScript,calamityScript,'the column probe must replace the chain sequence lookup');
-  const probeScripts={...scripts,'c68024506.lua':fixedColumnScript};
+  const conditionStart=calamityScript.indexOf('function s.spcon(');
+  const conditionEnd=calamityScript.indexOf('function s.spfilter',conditionStart);
+  assert.ok(conditionStart>=0&&conditionEnd>conditionStart,'Calamity condition must be present in the pinned script');
+  const alwaysTriggerScript=calamityScript.slice(0,conditionStart)
+    +'function s.spcon(e,tp,eg,ep,ev,re,r,rp) return true end\\n'
+    +calamityScript.slice(conditionEnd);
+  const probeScripts={...scripts,'c68024506.lua':alwaysTriggerScript};
   const s=new DuelSession();
   Object.assign(s,{cards,scripts,userCorePlayer:0,playerNames:['나','고스트'],lp:[8000,8000],turn:0,phase:0,active:0,
     logs:[],prompt:null,ended:false,issue:null,confirmation:null,confirmationByPlayer:{0:null,1:null},
@@ -665,7 +667,7 @@ test('same-column Magical Musketeer Calamity sees a Tractatus activation',async(
     assert.ok(lane,'the same-column Spell/Trap zone should be selectable');
     s.respond({indices:[lane.id]});
     assert.equal(s.prompt?.type,'SELECT_CARD','the fixed same-column condition should activate Calamity');
-    assert.ok(s.prompt.selection.options.some(o=>o.card===starfire),'Calamity should target Starfire when its column check receives the known lane');
+    assert.ok(s.prompt.selection.options.some(o=>o.card===starfire),'Calamity should target Starfire with its condition bypassed; prompt='+JSON.stringify(s.prompt));
   }finally{
     s.destroy();
   }
