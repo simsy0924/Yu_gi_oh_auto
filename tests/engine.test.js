@@ -619,3 +619,124 @@ test('real field queries expose spell counters after a spell resolves',async()=>
     assert.ok(s.snapshot().zones[0][8].cards[5].counters[1]>0);
   }finally{s.destroy();}
 });
+
+
+test('same-column Magical Musketeer Calamity sees a Tractatus activation',async()=>{
+  const {default:createCore,OcgDuelMode:D}=await import('ocgcore-wasm');
+  const calamity=68024506,starfire=31629407,tractatus=98567237,lurrie=97651498,setupSpell=64964750;
+  const core=await createCore({sync:true,wasmBinary});
+  const calamityScript=scripts['c68024506.lua'];
+  const conditionStart=calamityScript.indexOf('function s.spcon(');
+  const conditionEnd=calamityScript.indexOf('function s.spfilter',conditionStart);
+  assert.ok(conditionStart>=0&&conditionEnd>conditionStart,'Calamity condition must be present in the pinned script');
+  const conditionBypass=calamityScript.slice(0,conditionStart)
+    +'function s.spcon(e,tp,eg,ep,ev,re,r,rp) local p,seq=Duel.GetChainInfo(ev,CHAININFO_TRIGGERING_CONTROLER,CHAININFO_TRIGGERING_SEQUENCE) local same=seq~=nil and e:GetHandler():IsColumn(seq,p,LOCATION_SZONE) Duel.Hint(HINT_MESSAGE,tp,1000+(seq or 999)) Duel.Hint(HINT_MESSAGE,tp,2000+(p or 99)) Duel.Hint(HINT_MESSAGE,tp,same and 3001 or 3000) return true end\n'
+    +calamityScript.slice(conditionEnd);
+  const targetStart=conditionBypass.indexOf('function s.sptg(');
+  const targetEnd=conditionBypass.indexOf('function s.spop',targetStart);
+  assert.ok(targetStart>=0&&targetEnd>targetStart,'Calamity target functions must be present');
+  const candidateScript=conditionBypass.slice(0,targetStart)+`function s.sptg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
+  if chk==0 then Duel.Hint(HINT_MESSAGE,tp,68024507) return true end
+end
+function s.spop(e,tp,eg,ep,ev,re,r,rp) end`;
+  const setupScript=`local s,id=GetID()
+function s.initial_effect(c)
+  local e=Effect.CreateEffect(c)
+  e:SetType(EFFECT_TYPE_ACTIVATE)
+  e:SetCode(EVENT_FREE_CHAIN)
+  e:SetOperation(s.op)
+  c:RegisterEffect(e)
+end
+function s.op(e,tp,eg,ep,ev,re,r,rp)
+  local tc=Duel.GetFirstMatchingCard(Card.IsCode,tp,LOCATION_HAND,0,nil,${starfire})
+  if tc then Duel.SendtoGrave(tc,REASON_EFFECT) end
+end`;
+  const probeScripts={...scripts,'c68024506.lua':candidateScript,'c64964750.lua':setupScript};
+  const s=new DuelSession();
+  Object.assign(s,{cards,scripts,userCorePlayer:0,playerNames:['나','고스트'],lp:[8000,8000],turn:0,phase:0,active:0,
+    logs:[],prompt:null,ended:false,issue:null,confirmation:null,confirmationByPlayer:{0:null,1:null},
+    confirmationSerial:0,confirmationSerialByPlayer:{0:0,1:0},knownCardsByViewer:{0:[],1:[]},publicCards:[]});
+  s.core=core;
+  const chainTrace=[];
+  const debugHints=[];
+  const setResponse=core.duelSetResponse.bind(core);
+  core.duelSetResponse=(handle,response)=>{
+    if(response?.type===R.SELECT_CHAIN)chainTrace.push({autoPass:true,response});
+    return setResponse(handle,response);
+  };
+  const getMessage=core.duelGetMessage.bind(core);
+  core.duelGetMessage=handle=>{
+    const messages=getMessage(handle);
+    for(const m of messages){if(m.type===M.SELECT_CHAIN)chainTrace.push({player:m.player,forced:m.forced,selects:m.selects});if(m.type===M.HINT)debugHints.push(m);}
+    return messages;
+  };
+  try{
+    const team={startingLP:8000,startingDrawCount:5,drawCountPerTurn:1};
+    let calamityScriptReads=0;
+    s.handle=core.createDuel({flags:D.MODE_MR5,seed:[1n,2n,3n,4n],team1:team,team2:{...team},
+      cardReader:code=>cards[code]?{...cards[code],race:BigInt(cards[code].race)}:null,
+      scriptReader:name=>{if(name.includes('c68024506'))calamityScriptReads++;return probeScripts[name]??null;},
+      errorHandler:(type,text)=>{if(type===0)s.issue='카드 효과 실행 오류: '+text;s.log(text);}});
+    assert.ok(s.handle);
+    for(const name of ['constant.lua','utility.lua'])assert.ok(core.loadScript(s.handle,name,scripts[name]));
+    const add=(code,controller,location,position,sequence=0)=>core.duelNewCard(s.handle,
+      {code,team:controller,duelist:0,controller,location,position,sequence});
+    for(const code of you.main)add(code,0,1,8,0);
+    for(const code of you.main)add(code,1,1,8,0);
+    for(let i=0;i<8;i++){add(lurrie,0,1,8,0);add(lurrie,1,1,8,0);}
+    add(calamity,0,2,8,0);
+    add(starfire,0,2,8,0);
+    add(tractatus,0,2,8,0);
+    add(setupSpell,0,2,8,0);
+    core.startDuel(s.handle);
+    s.advance();
+    assert.equal(s.prompt?.type,'SELECT_IDLECMD','the active player should receive the opening action prompt');
+    const setup=s.prompt.choices.find(c=>c.kind==='activate'&&c.card===setupSpell);
+    assert.ok(setup,'setup spell should be activatable to send Starfire to the Graveyard');
+    s.respond({choice:setup.id});
+    assert.equal(s.prompt?.type,'SELECT_PLACE','the setup spell should request a Spell/Trap zone');
+    const setupLane=s.prompt.selection.options.find(o=>o.place.player===0&&o.place.location===8&&o.place.sequence===0);
+    assert.ok(setupLane);
+    s.respond({indices:[setupLane.id]});
+    assert.equal(s.prompt?.type,'SELECT_IDLECMD','setup spell should resolve without additional choices');
+    const setupGrave=s.core.duelQueryLocation(s.handle,{controller:0,location:16,flags:Q.CODE}).filter(Boolean).map(c=>c.code);
+    assert.ok(setupGrave.includes(starfire),'Starfire should reach the Graveyard by effect: '+JSON.stringify(setupGrave));
+    const summon=s.prompt.choices.find(c=>c.kind==='summon'&&c.card===calamity);
+    assert.ok(summon,'Calamity should be available for an actual normal summon');
+    s.respond({choice:summon.id});
+    for(let i=0;i<6&&s.prompt?.type!=='SELECT_IDLECMD';i++){
+      if(s.prompt?.type==='SELECT_PLACE'){
+        const zone=s.prompt.selection.options.find(o=>o.place.player===0&&o.place.location===4&&o.place.sequence===2);
+        assert.ok(zone,'Calamity should be summonable into Monster Zone 3');
+        s.respond({indices:[zone.id]});
+      }else if(s.prompt?.type==='SELECT_POSITION'){
+        const faceUpAttack=s.prompt.choices.find(c=>c.label==='공격 표시');
+        assert.ok(faceUpAttack,'Calamity should have a face-up attack position option');
+        s.respond({choice:faceUpAttack.id});
+      }else assert.fail('unexpected Calamity summon prompt: '+JSON.stringify(s.prompt));
+    }
+    assert.equal(s.prompt?.type,'SELECT_IDLECMD','Calamity normal summon should finish');
+    assert.ok(calamityScriptReads>0,'Calamity script should be requested by the core at least once');
+    const ownMonsters=s.core.duelQueryLocation(s.handle,{controller:0,location:4,flags:Q.CODE|Q.POSITION|Q.STATUS}).filter(Boolean);
+    const ownGrave=s.core.duelQueryLocation(s.handle,{controller:0,location:16,flags:Q.CODE}).filter(Boolean).map(c=>c.code);
+    const activeCalamity=ownMonsters.find(c=>c.code===calamity);
+    assert.ok(activeCalamity,'Calamity should be in the own Monster Zone: '+JSON.stringify(ownMonsters));
+    assert.equal(activeCalamity.position,1,'Calamity must be face-up attack: '+JSON.stringify(activeCalamity));
+    assert.ok((activeCalamity.status&0x400)!==0,'Calamity effects must be enabled: '+JSON.stringify(activeCalamity));
+    assert.ok(ownGrave.includes(starfire),'Starfire should be in the own Graveyard: '+JSON.stringify(ownGrave));
+    assert.equal(s.issue,null,'card scripts should load without errors: '+s.issue);
+    const activation=s.prompt?.choices.find(c=>c.kind==='activate'&&c.card===tractatus);
+    assert.ok(activation,'Tractatus should be activatable; prompt='+JSON.stringify({type:s.prompt?.type,player:s.prompt?.player,choices:s.prompt?.choices?.map(c=>({kind:c.kind,card:c.card,label:c.label}))}));
+    s.respond({choice:activation.id});
+    assert.equal(s.prompt?.type,'SELECT_PLACE','hand activation should request its Spell/Trap zone');
+    const lane=s.prompt.selection.options.find(o=>o.place.player===s.prompt.player&&o.place.location===8&&o.place.sequence===2);
+    assert.ok(lane,'the same-column Spell/Trap zone should be selectable');
+    s.respond({indices:[lane.id]});
+    const spellZone=s.snapshot(0).zones[0][8].cards.filter(Boolean).map(c=>({code:c.code,sequence:c.sequence}));
+    assert.ok(spellZone.some(c=>c.code===tractatus&&c.sequence===2),'Tractatus should occupy the selected same-column lane: '+JSON.stringify(spellZone));
+    assert.equal(s.prompt?.type,'SELECT_CHAIN','Calamity should be a candidate when its condition and target checks are bypassed; prompt='+JSON.stringify(s.prompt)+' rawChain='+JSON.stringify(chainTrace)+' debugHints='+JSON.stringify(debugHints,(_k,v)=>typeof v==='bigint'?v.toString():v));
+    assert.ok(s.prompt.choices.some(o=>o.card===calamity),'Calamity should be offered in the chain window');
+  }finally{
+    s.destroy();
+  }
+});
