@@ -625,13 +625,17 @@ test('same-column Magical Musketeer Calamity sees a Tractatus activation',async(
   const {default:createCore,OcgDuelMode:D}=await import('ocgcore-wasm');
   const calamity=68024506,starfire=31629407,tractatus=98567237,lurrie=97651498;
   const core=await createCore({sync:true,wasmBinary});
-  const calamityScript=scripts['c68024506.lua'];
-  const conditionStart=calamityScript.indexOf('function s.spcon(');
-  const conditionEnd=calamityScript.indexOf('function s.spfilter',conditionStart);
-  assert.ok(conditionStart>=0&&conditionEnd>conditionStart,'Calamity condition must be present in the pinned script');
-  const alwaysTriggerScript=calamityScript.slice(0,conditionStart)
-    +'function s.spcon(e,tp,eg,ep,ev,re,r,rp) return true end\n'
-    +calamityScript.slice(conditionEnd);
+  const alwaysTriggerScript=`local s,id=GetID()
+function s.initial_effect(c)
+  local e=Effect.CreateEffect(c)
+  e:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_O)
+  e:SetProperty(EFFECT_FLAG_DELAY)
+  e:SetCode(EVENT_CHAINING)
+  e:SetRange(LOCATION_MZONE)
+  e:SetCondition(function(e,tp,eg,ep,ev,re,r,rp) return true end)
+  e:SetOperation(function(e,tp,eg,ep,ev,re,r,rp) end)
+  c:RegisterEffect(e)
+end`;
   const probeScripts={...scripts,'c68024506.lua':alwaysTriggerScript};
   const s=new DuelSession();
   Object.assign(s,{cards,scripts,userCorePlayer:0,playerNames:['나','고스트'],lp:[8000,8000],turn:0,phase:0,active:0,
@@ -666,8 +670,8 @@ test('same-column Magical Musketeer Calamity sees a Tractatus activation',async(
     const lane=s.prompt.selection.options.find(o=>o.place.player===s.prompt.player&&o.place.location===8&&o.place.sequence===2);
     assert.ok(lane,'the same-column Spell/Trap zone should be selectable');
     s.respond({indices:[lane.id]});
-    assert.equal(s.prompt?.type,'SELECT_CARD','the fixed same-column condition should activate Calamity');
-    assert.ok(s.prompt.selection.options.some(o=>o.card===starfire),'Calamity should target Starfire with its condition bypassed; prompt='+JSON.stringify(s.prompt));
+    assert.equal(s.prompt?.type,'SELECT_CHAIN','a bare EVENT_CHAINING trigger should be offered');
+    assert.ok(s.prompt.selection.options.some(o=>o.card===starfire),'Calamity EVENT_CHAINING probe should be offered; prompt='+JSON.stringify(s.prompt));
   }finally{
     s.destroy();
   }
