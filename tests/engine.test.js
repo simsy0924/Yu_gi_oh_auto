@@ -644,9 +644,10 @@ end`;
   s.core=core;
   try{
     const team={startingLP:8000,startingDrawCount:5,drawCountPerTurn:1};
+    let calamityScriptReads=0;
     s.handle=core.createDuel({flags:D.MODE_MR5,seed:[1n,2n,3n,4n],team1:team,team2:{...team},
       cardReader:code=>cards[code]?{...cards[code],race:BigInt(cards[code].race)}:null,
-      scriptReader:name=>probeScripts[name]??null,
+      scriptReader:name=>{if(name.includes('c68024506'))calamityScriptReads++;return probeScripts[name]??null;},
       errorHandler:(type,text)=>{if(type===0)s.issue='카드 효과 실행 오류: '+text;s.log(text);}});
     assert.ok(s.handle);
     for(const name of ['constant.lua','utility.lua'])assert.ok(core.loadScript(s.handle,name,scripts[name]));
@@ -674,6 +675,7 @@ end`;
       }else assert.fail('unexpected Calamity summon prompt: '+JSON.stringify(s.prompt));
     }
     assert.equal(s.prompt?.type,'SELECT_IDLECMD','Calamity normal summon should finish');
+    assert.ok(calamityScriptReads>0,'Calamity script should be requested by the core at least once');
     const ownMonsters=s.core.duelQueryLocation(s.handle,{controller:0,location:4,flags:Q.CODE}).filter(Boolean).map(c=>c.code);
     const ownGrave=s.core.duelQueryLocation(s.handle,{controller:0,location:16,flags:Q.CODE}).filter(Boolean).map(c=>c.code);
     assert.ok(ownMonsters.includes(calamity),'Calamity should be face-up in the own Monster Zone: '+JSON.stringify(ownMonsters));
