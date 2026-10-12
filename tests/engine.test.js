@@ -625,18 +625,14 @@ test('same-column Magical Musketeer Calamity sees a Tractatus activation',async(
   const {default:createCore,OcgDuelMode:D}=await import('ocgcore-wasm');
   const calamity=68024506,starfire=31629407,tractatus=98567237,lurrie=97651498;
   const core=await createCore({sync:true,wasmBinary});
-  const alwaysTriggerScript=`local s,id=GetID()
-function s.initial_effect(c)
-  local e=Effect.CreateEffect(c)
-  e:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_O)
-  e:SetProperty(EFFECT_FLAG_DELAY)
-  e:SetCode(EVENT_CHAINING)
-  e:SetRange(LOCATION_MZONE)
-  e:SetCondition(function(e,tp,eg,ep,ev,re,r,rp) return true end)
-  e:SetOperation(function(e,tp,eg,ep,ev,re,r,rp) end)
-  c:RegisterEffect(e)
-end`;
-  const probeScripts={...scripts,'c68024506.lua':alwaysTriggerScript};
+  const calamityScript=scripts['c68024506.lua'];
+  const conditionStart=calamityScript.indexOf('function s.spcon(');
+  const conditionEnd=calamityScript.indexOf('function s.spfilter',conditionStart);
+  assert.ok(conditionStart>=0&&conditionEnd>conditionStart,'Calamity condition must be present in the pinned script');
+  const conditionBypass=calamityScript.slice(0,conditionStart)
+    +'function s.spcon(e,tp,eg,ep,ev,re,r,rp) return true end\n'
+    +calamityScript.slice(conditionEnd);
+  const probeScripts={...scripts,'c68024506.lua':conditionBypass};
   const s=new DuelSession();
   Object.assign(s,{cards,scripts,userCorePlayer:0,playerNames:['나','고스트'],lp:[8000,8000],turn:0,phase:0,active:0,
     logs:[],prompt:null,ended:false,issue:null,confirmation:null,confirmationByPlayer:{0:null,1:null},
@@ -690,8 +686,12 @@ end`;
     s.respond({indices:[lane.id]});
     const spellZone=s.snapshot(0).zones[0][8].cards.filter(Boolean).map(c=>({code:c.code,sequence:c.sequence}));
     assert.ok(spellZone.some(c=>c.code===tractatus&&c.sequence===2),'Tractatus should occupy the selected same-column lane: '+JSON.stringify(spellZone));
-    assert.equal(s.prompt?.type,'SELECT_CHAIN','a bare EVENT_CHAINING trigger should be offered; prompt='+JSON.stringify(s.prompt)+' logs='+JSON.stringify(s.logs));
-    assert.ok(s.prompt.choices.some(o=>o.card===calamity),'Calamity EVENT_CHAINING probe should be offered; prompt='+JSON.stringify(s.prompt));
+    if(s.prompt?.type==='SELECT_CHAIN'){
+      assert.ok(s.prompt.choices.some(o=>o.card===calamity),'Calamity should be a chain candidate when only spcon is bypassed');
+    }else{
+      assert.equal(s.prompt?.type,'SELECT_CARD','Calamity should request its target when only spcon is bypassed; prompt='+JSON.stringify(s.prompt));
+      assert.ok(s.prompt.selection.options.some(o=>o.card===starfire),'Starfire should be a legal target when only spcon is bypassed; prompt='+JSON.stringify(s.prompt));
+    }
   }finally{
     s.destroy();
   }
