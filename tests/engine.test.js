@@ -623,7 +623,7 @@ test('real field queries expose spell counters after a spell resolves',async()=>
 
 test('same-column Magical Musketeer Calamity sees a Tractatus activation',async()=>{
   const {default:createCore,OcgDuelMode:D}=await import('ocgcore-wasm');
-  const calamity=68024506,starfire=31629407,tractatus=98567237,lurrie=97651498;
+  const calamity=68024506,starfire=31629407,tractatus=98567237,lurrie=97651498,setupSpell=64964750;
   const core=await createCore({sync:true,wasmBinary});
   const calamityScript=scripts['c68024506.lua'];
   const conditionStart=calamityScript.indexOf('function s.spcon(');
@@ -632,7 +632,19 @@ test('same-column Magical Musketeer Calamity sees a Tractatus activation',async(
   const conditionBypass=calamityScript.slice(0,conditionStart)
     +'function s.spcon(e,tp,eg,ep,ev,re,r,rp) return true end\n'
     +calamityScript.slice(conditionEnd);
-  const probeScripts={...scripts,'c68024506.lua':conditionBypass};
+  const setupScript=`local s,id=GetID()
+function s.initial_effect(c)
+  local e=Effect.CreateEffect(c)
+  e:SetType(EFFECT_TYPE_ACTIVATE)
+  e:SetCode(EVENT_FREE_CHAIN)
+  e:SetOperation(s.op)
+  c:RegisterEffect(e)
+end
+function s.op(e,tp,eg,ep,ev,re,r,rp)
+  local tc=Duel.GetFirstMatchingCard(Card.IsCode,tp,LOCATION_HAND,0,nil,${starfire})
+  if tc then Duel.SendtoGrave(tc,REASON_EFFECT) end
+end`;
+  const probeScripts={...scripts,'c68024506.lua':conditionBypass,'c64964750.lua':setupScript};
   const s=new DuelSession();
   Object.assign(s,{cards,scripts,userCorePlayer:0,playerNames:['나','고스트'],lp:[8000,8000],turn:0,phase:0,active:0,
     logs:[],prompt:null,ended:false,issue:null,confirmation:null,confirmationByPlayer:{0:null,1:null},
@@ -653,11 +665,22 @@ test('same-column Magical Musketeer Calamity sees a Tractatus activation',async(
     for(const code of you.main)add(code,1,1,8,0);
     for(let i=0;i<8;i++){add(lurrie,0,1,8,0);add(lurrie,1,1,8,0);}
     add(calamity,0,2,8,0);
-    add(starfire,0,16,1,0);
+    add(starfire,0,2,8,0);
     add(tractatus,0,2,8,0);
+    add(setupSpell,0,2,8,0);
     core.startDuel(s.handle);
     s.advance();
     assert.equal(s.prompt?.type,'SELECT_IDLECMD','the active player should receive the opening action prompt');
+    const setup=s.prompt.choices.find(c=>c.kind==='activate'&&c.card===setupSpell);
+    assert.ok(setup,'setup spell should be activatable to send Starfire to the Graveyard');
+    s.respond({choice:setup.id});
+    assert.equal(s.prompt?.type,'SELECT_PLACE','the setup spell should request a Spell/Trap zone');
+    const setupLane=s.prompt.selection.options.find(o=>o.place.player===0&&o.place.location===8&&o.place.sequence===0);
+    assert.ok(setupLane);
+    s.respond({indices:[setupLane.id]});
+    assert.equal(s.prompt?.type,'SELECT_IDLECMD','setup spell should resolve without additional choices');
+    const setupGrave=s.core.duelQueryLocation(s.handle,{controller:0,location:16,flags:Q.CODE}).filter(Boolean).map(c=>c.code);
+    assert.ok(setupGrave.includes(starfire),'Starfire should reach the Graveyard by effect: '+JSON.stringify(setupGrave));
     const summon=s.prompt.choices.find(c=>c.kind==='summon'&&c.card===calamity);
     assert.ok(summon,'Calamity should be available for an actual normal summon');
     s.respond({choice:summon.id});
