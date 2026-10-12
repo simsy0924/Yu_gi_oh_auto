@@ -662,7 +662,12 @@ test('same-column Magical Musketeer Calamity sees a Tractatus activation',async(
     const discard=s.prompt.selection.options.find(o=>o.card===lurrie);
     assert.ok(discard,'Lurrie should be available to discard; prompt='+JSON.stringify(s.prompt));
     s.respond({indices:[discard.id]});
-    assert.equal(s.prompt?.type,'SELECT_CHAIN','the engine should ask for a response to Tractatus');
+    for(let i=0;i<8&&s.prompt?.type==='SELECT_CARD';i++){
+      const target=s.prompt.selection.options[0];
+      assert.ok(target,'Tractatus should have a legal card selection; prompt='+JSON.stringify(s.prompt));
+      s.respond({indices:[target.id]});
+    }
+    assert.equal(s.prompt?.type,'SELECT_CHAIN','the engine should ask for a response to Tractatus; prompt='+JSON.stringify(s.prompt));
     assert.ok(s.prompt.choices.some(c=>c.card===calamity),'Calamity should be offered for the same-column activation');
   }finally{
     s.destroy();
