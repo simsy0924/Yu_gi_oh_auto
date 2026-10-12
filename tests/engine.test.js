@@ -657,6 +657,18 @@ end`;
     logs:[],prompt:null,ended:false,issue:null,confirmation:null,confirmationByPlayer:{0:null,1:null},
     confirmationSerial:0,confirmationSerialByPlayer:{0:0,1:0},knownCardsByViewer:{0:[],1:[]},publicCards:[]});
   s.core=core;
+  const chainTrace=[];
+  const setResponse=core.duelSetResponse.bind(core);
+  core.duelSetResponse=(handle,response)=>{
+    if(response?.type===R.SELECT_CHAIN)chainTrace.push({autoPass:true,response});
+    return setResponse(handle,response);
+  };
+  const getMessage=core.duelGetMessage.bind(core);
+  core.duelGetMessage=handle=>{
+    const messages=getMessage(handle);
+    for(const m of messages)if(m.type===M.SELECT_CHAIN)chainTrace.push({player:m.player,forced:m.forced,selects:m.selects});
+    return messages;
+  };
   try{
     const team={startingLP:8000,startingDrawCount:5,drawCountPerTurn:1};
     let calamityScriptReads=0;
@@ -721,7 +733,7 @@ end`;
     s.respond({indices:[lane.id]});
     const spellZone=s.snapshot(0).zones[0][8].cards.filter(Boolean).map(c=>({code:c.code,sequence:c.sequence}));
     assert.ok(spellZone.some(c=>c.code===tractatus&&c.sequence===2),'Tractatus should occupy the selected same-column lane: '+JSON.stringify(spellZone));
-    assert.equal(s.prompt?.type,'SELECT_CHAIN','Calamity should be a candidate when its condition and target checks are bypassed; prompt='+JSON.stringify(s.prompt));
+    assert.equal(s.prompt?.type,'SELECT_CHAIN','Calamity should be a candidate when its condition and target checks are bypassed; prompt='+JSON.stringify(s.prompt)+' rawChain='+JSON.stringify(chainTrace));
     assert.ok(s.prompt.choices.some(o=>o.card===calamity),'Calamity should be offered in the chain window');
   }finally{
     s.destroy();
