@@ -704,9 +704,12 @@ end`;
     }
     assert.equal(s.prompt?.type,'SELECT_IDLECMD','Calamity normal summon should finish');
     assert.ok(calamityScriptReads>0,'Calamity script should be requested by the core at least once');
-    const ownMonsters=s.core.duelQueryLocation(s.handle,{controller:0,location:4,flags:Q.CODE}).filter(Boolean).map(c=>c.code);
+    const ownMonsters=s.core.duelQueryLocation(s.handle,{controller:0,location:4,flags:Q.CODE|Q.POSITION|Q.STATUS}).filter(Boolean);
     const ownGrave=s.core.duelQueryLocation(s.handle,{controller:0,location:16,flags:Q.CODE}).filter(Boolean).map(c=>c.code);
-    assert.ok(ownMonsters.includes(calamity),'Calamity should be face-up in the own Monster Zone: '+JSON.stringify(ownMonsters));
+    const activeCalamity=ownMonsters.find(c=>c.code===calamity);
+    assert.ok(activeCalamity,'Calamity should be in the own Monster Zone: '+JSON.stringify(ownMonsters));
+    assert.equal(activeCalamity.position,1,'Calamity must be face-up attack: '+JSON.stringify(activeCalamity));
+    assert.ok((activeCalamity.status&0x400)!==0,'Calamity effects must be enabled: '+JSON.stringify(activeCalamity));
     assert.ok(ownGrave.includes(starfire),'Starfire should be in the own Graveyard: '+JSON.stringify(ownGrave));
     assert.equal(s.issue,null,'card scripts should load without errors: '+s.issue);
     const activation=s.prompt?.choices.find(c=>c.kind==='activate'&&c.card===tractatus);
