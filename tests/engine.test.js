@@ -664,8 +664,8 @@ test('same-column Magical Musketeer Calamity sees a Tractatus activation',async(
     const lane=s.prompt.selection.options.find(o=>o.place.player===s.prompt.player&&o.place.location===8&&o.place.sequence===2);
     assert.ok(lane,'the same-column Spell/Trap zone should be selectable');
     s.respond({indices:[lane.id]});
-    assert.equal(s.prompt?.type,'SELECT_CHAIN','a Calamity trigger should open the response window');
-    assert.ok(s.prompt.choices.some(c=>c.card===calamity),'Calamity should be offered when its column check receives the known lane');
+    assert.equal(s.prompt?.type,'SELECT_CARD','the fixed same-column condition should activate Calamity');
+    assert.ok(s.prompt.selection.options.some(o=>o.card===starfire),'Calamity should target Starfire when its column check receives the known lane');
   }finally{
     s.destroy();
   }
