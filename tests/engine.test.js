@@ -697,7 +697,9 @@ end`;
         assert.ok(zone,'Calamity should be summonable into Monster Zone 3');
         s.respond({indices:[zone.id]});
       }else if(s.prompt?.type==='SELECT_POSITION'){
-        s.respond({choice:s.prompt.choices[0].id});
+        const faceUpAttack=s.prompt.choices.find(c=>c.label==='공격 표시');
+        assert.ok(faceUpAttack,'Calamity should have a face-up attack position option');
+        s.respond({choice:faceUpAttack.id});
       }else assert.fail('unexpected Calamity summon prompt: '+JSON.stringify(s.prompt));
     }
     assert.equal(s.prompt?.type,'SELECT_IDLECMD','Calamity normal summon should finish');
