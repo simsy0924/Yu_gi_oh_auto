@@ -403,6 +403,21 @@ function s.initial_effect(c)
   e:SetOperation(function(e,tp,eg,ep,ev,re,r,rp) end)
   c:RegisterEffect(e)
 end`;
+  const instrumentedScript=candidateScript+`
+local original_initial=s.initial_effect
+function s.initial_effect(c)
+  original_initial(c)
+  local e=Effect.CreateEffect(c)
+  e:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_O)
+  e:SetCode(EVENT_CHAINING)
+  e:SetRange(LOCATION_MZONE)
+  e:SetCondition(function(e,tp,eg,ep,ev,re,r,rp) Duel.Hint(HINT_MESSAGE,tp,68024508) return true end)
+  e:SetTarget(function(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
+    if chk==0 then Duel.Hint(HINT_MESSAGE,tp,68024509) return true end
+  end)
+  e:SetOperation(function(e,tp,eg,ep,ev,re,r,rp) end)
+  c:RegisterEffect(e)
+end`;
   const setupScript=`local s,id=GetID()
 function s.initial_effect(c)
   local e=Effect.CreateEffect(c)
