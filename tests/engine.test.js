@@ -675,7 +675,9 @@ end`;
     const lane=s.prompt.selection.options.find(o=>o.place.player===s.prompt.player&&o.place.location===8&&o.place.sequence===2);
     assert.ok(lane,'the same-column Spell/Trap zone should be selectable');
     s.respond({indices:[lane.id]});
-    assert.equal(s.prompt?.type,'SELECT_CHAIN','a bare EVENT_CHAINING trigger should be offered');
+    const spellZone=s.snapshot(0).zones[0][8].cards.filter(Boolean).map(c=>({code:c.code,sequence:c.sequence}));
+    assert.ok(spellZone.some(c=>c.code===tractatus&&c.sequence===2),'Tractatus should occupy the selected same-column lane: '+JSON.stringify(spellZone));
+    assert.equal(s.prompt?.type,'SELECT_CHAIN','a bare EVENT_CHAINING trigger should be offered; prompt='+JSON.stringify(s.prompt)+' logs='+JSON.stringify(s.logs));
     assert.ok(s.prompt.choices.some(o=>o.card===calamity),'Calamity EVENT_CHAINING probe should be offered; prompt='+JSON.stringify(s.prompt));
   }finally{
     s.destroy();
