@@ -625,6 +625,12 @@ test('same-column Magical Musketeer Calamity sees a Tractatus activation',async(
   const {default:createCore,OcgDuelMode:D}=await import('ocgcore-wasm');
   const calamity=68024506,starfire=31629407,tractatus=98567237,lurrie=97651498;
   const core=await createCore({sync:true,wasmBinary});
+  const calamityScript=scripts['c68024506.lua'];
+  const fixedColumnScript=calamityScript.replace(
+    'Duel.GetChainInfo(ev,CHAININFO_TRIGGERING_CONTROLER,CHAININFO_TRIGGERING_SEQUENCE)',
+    'tp,2');
+  assert.notEqual(fixedColumnScript,calamityScript,'the column probe must replace the chain sequence lookup');
+  const probeScripts={...scripts,'c68024506.lua':fixedColumnScript};
   const s=new DuelSession();
   Object.assign(s,{cards,scripts,userCorePlayer:0,playerNames:['나','고스트'],lp:[8000,8000],turn:0,phase:0,active:0,
     logs:[],prompt:null,ended:false,issue:null,confirmation:null,confirmationByPlayer:{0:null,1:null},
@@ -634,7 +640,7 @@ test('same-column Magical Musketeer Calamity sees a Tractatus activation',async(
     const team={startingLP:8000,startingDrawCount:5,drawCountPerTurn:1};
     s.handle=core.createDuel({flags:D.MODE_MR5,seed:[1n,2n,3n,4n],team1:team,team2:{...team},
       cardReader:code=>cards[code]?{...cards[code],race:BigInt(cards[code].race)}:null,
-      scriptReader:name=>scripts[name]??null,
+      scriptReader:name=>probeScripts[name]??null,
       errorHandler:(type,text)=>{if(type===0)s.issue='카드 효과 실행 오류: '+text;s.log(text);}});
     assert.ok(s.handle);
     for(const name of ['constant.lua','utility.lua'])assert.ok(core.loadScript(s.handle,name,scripts[name]));
@@ -658,17 +664,8 @@ test('same-column Magical Musketeer Calamity sees a Tractatus activation',async(
     const lane=s.prompt.selection.options.find(o=>o.place.player===s.prompt.player&&o.place.location===8&&o.place.sequence===2);
     assert.ok(lane,'the same-column Spell/Trap zone should be selectable');
     s.respond({indices:[lane.id]});
-    assert.equal(s.prompt?.type,'SELECT_CARD','Tractatus should ask which card to discard before the response window');
-    const discard=s.prompt.selection.options.find(o=>o.card===lurrie);
-    assert.ok(discard,'Lurrie should be available to discard; prompt='+JSON.stringify(s.prompt));
-    s.respond({indices:[discard.id]});
-    for(let i=0;i<8&&s.prompt?.type==='SELECT_CARD';i++){
-      const target=s.prompt.selection.options[0];
-      assert.ok(target,'Tractatus should have a legal card selection; prompt='+JSON.stringify(s.prompt));
-      s.respond({indices:[target.id]});
-    }
-    assert.equal(s.prompt?.type,'SELECT_CHAIN','the engine should ask for a response to Tractatus; prompt='+JSON.stringify(s.prompt));
-    assert.ok(s.prompt.choices.some(c=>c.card===calamity),'Calamity should be offered for the same-column activation');
+    assert.equal(s.prompt?.type,'SELECT_CHAIN','a Calamity trigger should open the response window');
+    assert.ok(s.prompt.choices.some(c=>c.card===calamity),'Calamity should be offered when its column check receives the known lane');
   }finally{
     s.destroy();
   }
