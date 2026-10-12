@@ -642,8 +642,7 @@ test('same-column Magical Musketeer Calamity sees a Tractatus activation',async(
       {code,team:controller,duelist:0,controller,location,position,sequence});
     for(const code of you.main)add(code,0,1,8,0);
     for(const code of you.main)add(code,1,1,8,0);
-    add(lurrie,0,1,8,0);
-    add(lurrie,1,1,8,0);
+    for(let i=0;i<8;i++){add(lurrie,0,1,8,0);add(lurrie,1,1,8,0);}
     add(calamity,0,4,1,2);
     add(starfire,0,16,1,0);
     add(tractatus,0,2,8,0);
