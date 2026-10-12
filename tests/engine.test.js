@@ -632,6 +632,13 @@ test('same-column Magical Musketeer Calamity sees a Tractatus activation',async(
   const conditionBypass=calamityScript.slice(0,conditionStart)
     +'function s.spcon(e,tp,eg,ep,ev,re,r,rp) return true end\n'
     +calamityScript.slice(conditionEnd);
+  const targetStart=conditionBypass.indexOf('function s.sptg(');
+  const targetEnd=conditionBypass.indexOf('function s.spop',targetStart);
+  assert.ok(targetStart>=0&&targetEnd>targetStart,'Calamity target functions must be present');
+  const candidateScript=conditionBypass.slice(0,targetStart)+`function s.sptg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
+  if chk==0 then return true end
+end
+function s.spop(e,tp,eg,ep,ev,re,r,rp) end`;
   const setupScript=`local s,id=GetID()
 function s.initial_effect(c)
   local e=Effect.CreateEffect(c)
@@ -644,7 +651,7 @@ function s.op(e,tp,eg,ep,ev,re,r,rp)
   local tc=Duel.GetFirstMatchingCard(Card.IsCode,tp,LOCATION_HAND,0,nil,${starfire})
   if tc then Duel.SendtoGrave(tc,REASON_EFFECT) end
 end`;
-  const probeScripts={...scripts,'c68024506.lua':conditionBypass,'c64964750.lua':setupScript};
+  const probeScripts={...scripts,'c68024506.lua':candidateScript,'c64964750.lua':setupScript};
   const s=new DuelSession();
   Object.assign(s,{cards,scripts,userCorePlayer:0,playerNames:['나','고스트'],lp:[8000,8000],turn:0,phase:0,active:0,
     logs:[],prompt:null,ended:false,issue:null,confirmation:null,confirmationByPlayer:{0:null,1:null},
@@ -709,12 +716,8 @@ end`;
     s.respond({indices:[lane.id]});
     const spellZone=s.snapshot(0).zones[0][8].cards.filter(Boolean).map(c=>({code:c.code,sequence:c.sequence}));
     assert.ok(spellZone.some(c=>c.code===tractatus&&c.sequence===2),'Tractatus should occupy the selected same-column lane: '+JSON.stringify(spellZone));
-    if(s.prompt?.type==='SELECT_CHAIN'){
-      assert.ok(s.prompt.choices.some(o=>o.card===calamity),'Calamity should be a chain candidate when only spcon is bypassed');
-    }else{
-      assert.equal(s.prompt?.type,'SELECT_CARD','Calamity should request its target when only spcon is bypassed; prompt='+JSON.stringify(s.prompt));
-      assert.ok(s.prompt.selection.options.some(o=>o.card===starfire),'Starfire should be a legal target when only spcon is bypassed; prompt='+JSON.stringify(s.prompt));
-    }
+    assert.equal(s.prompt?.type,'SELECT_CHAIN','Calamity should be a candidate when its condition and target checks are bypassed; prompt='+JSON.stringify(s.prompt));
+    assert.ok(s.prompt.choices.some(o=>o.card===calamity),'Calamity should be offered in the chain window');
   }finally{
     s.destroy();
   }
