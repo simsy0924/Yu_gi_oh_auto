@@ -619,3 +619,45 @@ test('real field queries expose spell counters after a spell resolves',async()=>
     assert.ok(s.snapshot().zones[0][8].cards[5].counters[1]>0);
   }finally{s.destroy();}
 });
+
+
+test('same-column Magical Musketeer Calamity sees a Tractatus activation',async()=>{
+  const {default:createCore,OcgDuelMode:D}=await import('ocgcore-wasm');
+  const calamity=68024506,starfire=31629407,tractatus=98567237,lurrie=97651498;
+  const core=await createCore({sync:true,wasmBinary});
+  const s=new DuelSession();
+  Object.assign(s,{cards,scripts,userCorePlayer:0,playerNames:['나','고스트'],lp:[8000,8000],turn:0,phase:0,active:0,
+    logs:[],prompt:null,ended:false,issue:null,confirmation:null,confirmationByPlayer:{0:null,1:null},
+    confirmationSerial:0,confirmationSerialByPlayer:{0:0,1:0},knownCardsByViewer:{0:[],1:[]},publicCards:[]});
+  s.core=core;
+  try{
+    const team={startingLP:8000,startingDrawCount:5,drawCountPerTurn:1};
+    s.handle=core.createDuel({flags:D.MODE_MR5,seed:[1n,2n,3n,4n],team1:team,team2:{...team},
+      cardReader:code=>cards[code]?{...cards[code],race:BigInt(cards[code].race)}:null,
+      scriptReader:name=>scripts[name]??null,
+      errorHandler:(type,text)=>{if(type===0)s.issue='카드 효과 실행 오류: '+text;s.log(text);}});
+    assert.ok(s.handle);
+    for(const name of ['constant.lua','utility.lua'])assert.ok(core.loadScript(s.handle,name,scripts[name]));
+    const add=(code,controller,location,position,sequence=0)=>core.duelNewCard(s.handle,
+      {code,team:controller,duelist:0,controller,location,position,sequence});
+    for(const code of you.main)add(code,0,1,8,0);
+    for(const code of you.main)add(code,1,1,8,0);
+    add(lurrie,0,1,8,0);
+    add(calamity,0,4,1,2);
+    add(starfire,0,16,1,0);
+    add(tractatus,0,2,8,0);
+    core.startDuel(s.handle);
+    s.advance();
+    const activation=s.prompt?.choices.find(c=>c.kind==='activate'&&c.card===tractatus);
+    assert.ok(activation,'Tractatus should be activatable with a LIGHT Fiend in the Deck');
+    s.respond({choice:activation.id});
+    assert.equal(s.prompt?.type,'SELECT_PLACE','hand activation should request its Spell/Trap zone');
+    const lane=s.prompt.selection.options.find(o=>o.place.player===s.prompt.player&&o.place.location===8&&o.place.sequence===2);
+    assert.ok(lane,'the same-column Spell/Trap zone should be selectable');
+    s.respond({indices:[lane.id]});
+    assert.equal(s.prompt?.type,'SELECT_CHAIN','the engine should ask for a response to Tractatus');
+    assert.ok(s.prompt.choices.some(c=>c.card===calamity),'Calamity should be offered for the same-column activation');
+  }finally{
+    s.destroy();
+  }
+});
