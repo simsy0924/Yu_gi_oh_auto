@@ -639,22 +639,6 @@ test('same-column Magical Musketeer Calamity sees a Tractatus activation',async(
   if chk==0 then Duel.Hint(HINT_MESSAGE,tp,68024507) return true end
 end
 function s.spop(e,tp,eg,ep,ev,re,r,rp) end`;
-  const instrumentedScript=candidateScript+`
-local original_initial=s.initial_effect
-function s.initial_effect(c)
-  original_initial(c)
-  local e=Effect.CreateEffect(c)
-  e:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
-  e:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
-  e:SetCode(EVENT_CHAINING)
-  e:SetRange(LOCATION_MZONE)
-  e:SetCondition(function(e,tp,eg,ep,ev,re,r,rp) Duel.Hint(HINT_MESSAGE,tp,68024508) return true end)
-  e:SetTarget(function(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
-    if chk==0 then Duel.Hint(HINT_MESSAGE,tp,68024509) return true end
-  end)
-  e:SetOperation(function(e,tp,eg,ep,ev,re,r,rp) end)
-  c:RegisterEffect(e)
-end`;
   const setupScript=`local s,id=GetID()
 function s.initial_effect(c)
   local e=Effect.CreateEffect(c)
@@ -667,7 +651,7 @@ function s.op(e,tp,eg,ep,ev,re,r,rp)
   local tc=Duel.GetFirstMatchingCard(Card.IsCode,tp,LOCATION_HAND,0,nil,${starfire})
   if tc then Duel.SendtoGrave(tc,REASON_EFFECT) end
 end`;
-  const probeScripts={...scripts,'c68024506.lua':instrumentedScript,'c64964750.lua':setupScript};
+  const probeScripts={...scripts,'c68024506.lua':candidateScript,'c64964750.lua':setupScript};
   const s=new DuelSession();
   Object.assign(s,{cards,scripts,userCorePlayer:0,playerNames:['나','고스트'],lp:[8000,8000],turn:0,phase:0,active:0,
     logs:[],prompt:null,ended:false,issue:null,confirmation:null,confirmationByPlayer:{0:null,1:null},
