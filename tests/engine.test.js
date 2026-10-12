@@ -671,7 +671,7 @@ end`;
     assert.ok(lane,'the same-column Spell/Trap zone should be selectable');
     s.respond({indices:[lane.id]});
     assert.equal(s.prompt?.type,'SELECT_CHAIN','a bare EVENT_CHAINING trigger should be offered');
-    assert.ok(s.prompt.selection.options.some(o=>o.card===starfire),'Calamity EVENT_CHAINING probe should be offered; prompt='+JSON.stringify(s.prompt));
+    assert.ok(s.prompt.choices.some(o=>o.card===calamity),'Calamity EVENT_CHAINING probe should be offered; prompt='+JSON.stringify(s.prompt));
   }finally{
     s.destroy();
   }
