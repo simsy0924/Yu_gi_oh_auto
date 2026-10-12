@@ -630,13 +630,13 @@ test('same-column Magical Musketeer Calamity sees a Tractatus activation',async(
   const conditionEnd=calamityScript.indexOf('function s.spfilter',conditionStart);
   assert.ok(conditionStart>=0&&conditionEnd>conditionStart,'Calamity condition must be present in the pinned script');
   const conditionBypass=calamityScript.slice(0,conditionStart)
-    +'function s.spcon(e,tp,eg,ep,ev,re,r,rp) return true end\n'
+    +'function s.spcon(e,tp,eg,ep,ev,re,r,rp) Duel.Hint(HINT_MESSAGE,tp,68024506) return true end\n'
     +calamityScript.slice(conditionEnd);
   const targetStart=conditionBypass.indexOf('function s.sptg(');
   const targetEnd=conditionBypass.indexOf('function s.spop',targetStart);
   assert.ok(targetStart>=0&&targetEnd>targetStart,'Calamity target functions must be present');
   const candidateScript=conditionBypass.slice(0,targetStart)+`function s.sptg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
-  if chk==0 then return true end
+  if chk==0 then Duel.Hint(HINT_MESSAGE,tp,68024507) return true end
 end
 function s.spop(e,tp,eg,ep,ev,re,r,rp) end`;
   const setupScript=`local s,id=GetID()
@@ -658,6 +658,7 @@ end`;
     confirmationSerial:0,confirmationSerialByPlayer:{0:0,1:0},knownCardsByViewer:{0:[],1:[]},publicCards:[]});
   s.core=core;
   const chainTrace=[];
+  const debugHints=[];
   const setResponse=core.duelSetResponse.bind(core);
   core.duelSetResponse=(handle,response)=>{
     if(response?.type===R.SELECT_CHAIN)chainTrace.push({autoPass:true,response});
@@ -666,7 +667,7 @@ end`;
   const getMessage=core.duelGetMessage.bind(core);
   core.duelGetMessage=handle=>{
     const messages=getMessage(handle);
-    for(const m of messages)if(m.type===M.SELECT_CHAIN)chainTrace.push({player:m.player,forced:m.forced,selects:m.selects});
+    for(const m of messages){if(m.type===M.SELECT_CHAIN)chainTrace.push({player:m.player,forced:m.forced,selects:m.selects});if(m.type===M.HINT)debugHints.push(m);}
     return messages;
   };
   try{
@@ -733,7 +734,7 @@ end`;
     s.respond({indices:[lane.id]});
     const spellZone=s.snapshot(0).zones[0][8].cards.filter(Boolean).map(c=>({code:c.code,sequence:c.sequence}));
     assert.ok(spellZone.some(c=>c.code===tractatus&&c.sequence===2),'Tractatus should occupy the selected same-column lane: '+JSON.stringify(spellZone));
-    assert.equal(s.prompt?.type,'SELECT_CHAIN','Calamity should be a candidate when its condition and target checks are bypassed; prompt='+JSON.stringify(s.prompt)+' rawChain='+JSON.stringify(chainTrace));
+    assert.equal(s.prompt?.type,'SELECT_CHAIN','Calamity should be a candidate when its condition and target checks are bypassed; prompt='+JSON.stringify(s.prompt)+' rawChain='+JSON.stringify(chainTrace)+' debugHints='+JSON.stringify(debugHints));
     assert.ok(s.prompt.choices.some(o=>o.card===calamity),'Calamity should be offered in the chain window');
   }finally{
     s.destroy();
